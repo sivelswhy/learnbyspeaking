@@ -48,11 +48,13 @@ export interface LoadState {
   totalMB: number;
   mbps: number; // Mo/s
   etaSec: number | null;
+  /** Mo déjà présents sur l'appareil (téléchargement précédent interrompu). */
+  cachedMB: number;
   fromCache: boolean;
   error?: string;
 }
 
-let state: LoadState = { model: "", phase: "idle", progress: 0, doneMB: 0, totalMB: 0, mbps: 0, etaSec: null, fromCache: false };
+let state: LoadState = { model: "", phase: "idle", progress: 0, doneMB: 0, totalMB: 0, mbps: 0, etaSec: null, cachedMB: 0, fromCache: false };
 const listeners = new Set<() => void>();
 function setState(p: Partial<LoadState>) {
   state = { ...state, ...p };
@@ -90,40 +92,30 @@ export async function loadWebLLM(model: string) {
   const fromCache = await isCached(model);
   // Demande au navigateur de ne pas effacer le modèle quand l'espace manque.
   if (!fromCache) await navigator.storage?.persist?.().catch(() => false);
-  setState({ model, phase: fromCache ? "init" : "download", progress: 0, doneMB: 0, totalMB, mbps: 0, etaSec: null, fromCache, error: undefined });
+  setState({ model, phase: fromCache ? "init" : "download", progress: 0, doneMB: 0, totalMB, mbps: 0, etaSec: null, cachedMB: 0, fromCache, error: undefined });
 
-  const t0 = performance.now();
-  let lastT = t0;
-  let lastMB = 0;
-  let mbps = 0;
   loading = (async () => {
-    const { CreateWebWorkerMLCEngine } = await import("@mlc-ai/web-llm");
+    const web = await import("@mlc-ai/web-llm");
     if (engine) {
       await engine.unload();
       engine = null;
     }
+    let prefetched = fromCache;
+    if (!fromCache) {
+      try {
+        await prefetch(model, web.prebuiltAppConfig.model_list);
+        prefetched = true;
+      } catch (err) {
+        // Échec du préchargement : WebLLM retentera lui-même le téléchargement (sans progression fine).
+        console.warn("prefetch", err);
+      }
+      setState({ phase: "init", progress: 0, etaSec: null });
+    }
     const worker = new Worker(new URL("./llm.worker.ts", import.meta.url), { type: "module" });
-    const e = await CreateWebWorkerMLCEngine(worker, model, {
+    const e = await web.CreateWebWorkerMLCEngine(worker, model, {
       initProgressCallback: (r) => {
-        const fetching = /fetching/i.test(r.text);
-        const m = r.text.match(/(\d+)\s*MB/i);
-        const doneMB = m ? Number(m[1]) : Math.round(r.progress * totalMB);
-        const now = performance.now();
-        if (fetching && now - lastT > 700) {
-          // vitesse lissée (moyenne mobile exponentielle)
-          const inst = (doneMB - lastMB) / ((now - lastT) / 1000);
-          mbps = mbps ? mbps * 0.7 + inst * 0.3 : inst;
-          lastT = now;
-          lastMB = doneMB;
-        }
-        const left = totalMB - doneMB;
-        setState({
-          phase: fetching && !fromCache ? "download" : r.progress >= 1 ? "init" : state.phase,
-          progress: r.progress,
-          doneMB,
-          mbps: Math.max(0, mbps),
-          etaSec: fetching && mbps > 0.1 ? Math.round(left / mbps) : null,
-        });
+        if (/loading/i.test(r.text)) setState({ phase: "init", progress: r.progress });
+        else if (!prefetched && /fetching/i.test(r.text)) setState({ phase: "download", progress: r.progress, doneMB: Math.round(r.progress * totalMB) });
       },
     });
     engine = e;
@@ -139,6 +131,96 @@ export async function loadWebLLM(model: string) {
   } finally {
     loading = null;
   }
+}
+
+/*
+ * Téléchargement des poids, fait par nous plutôt que par WebLLM :
+ * WebLLM ne signale la progression qu'à la fin de chaque morceau (~40 Mo), d'où des sauts et aucune
+ * estimation fiable. Ici on compte chaque octet reçu, puis on range les morceaux dans le cache
+ * « webllm/model » sous la même URL : WebLLM les retrouve ensuite et charge directement le GPU.
+ */
+const PARALLEL = 4;
+const MB = 1e6;
+
+function modelBaseUrl(url: string) {
+  let u = url.endsWith("/") ? url : url + "/";
+  if (!/\/resolve\/.+\//.test(u)) u += "resolve/main/";
+  return new URL(u).href;
+}
+
+async function prefetch(model: string, list: { model_id: string; model: string }[]) {
+  const rec = list.find((m) => m.model_id === model);
+  if (!rec || typeof caches === "undefined") throw new Error("no-prefetch");
+  const base = modelBaseUrl(rec.model);
+  const manifest = (await (await fetch(new URL("tensor-cache.json", base))).json()) as { records: { dataPath: string; nbytes: number }[] };
+  const shards = manifest.records.map((r) => ({ url: new URL(r.dataPath, base).href, bytes: r.nbytes }));
+  const totalBytes = shards.reduce((a, r) => a + r.bytes, 0);
+  const cache = await caches.open("webllm/model");
+
+  let cachedBytes = 0;
+  const todo: typeof shards = [];
+  for (const sh of shards) {
+    if (await cache.match(sh.url)) cachedBytes += sh.bytes;
+    else todo.push(sh);
+  }
+
+  let netBytes = 0;
+  const samples: [number, number][] = []; // (instant, octets réseau) sur une fenêtre glissante
+  let lastPush = 0;
+  const report = (force = false) => {
+    const now = performance.now();
+    if (!force && now - lastPush < 250) return;
+    lastPush = now;
+    samples.push([now, netBytes]);
+    while (samples.length > 2 && now - samples[0][0] > 8000) samples.shift();
+    const [t0, b0] = samples[0];
+    const span = (now - t0) / 1000;
+    const mbps = span > 0.8 ? (netBytes - b0) / MB / span : 0;
+    const done = cachedBytes + netBytes;
+    setState({
+      totalMB: Math.round(totalBytes / MB),
+      doneMB: Math.round(done / MB),
+      cachedMB: Math.round(cachedBytes / MB),
+      progress: done / totalBytes,
+      mbps,
+      etaSec: mbps > 0.05 && span >= 2 ? Math.round((totalBytes - done) / MB / mbps) : null,
+    });
+  };
+  report(true);
+
+  async function fetchShard(sh: { url: string; bytes: number }) {
+    for (let attempt = 0; ; attempt++) {
+      let got = 0;
+      try {
+        const res = await fetch(sh.url);
+        if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+        const counted = res.body.pipeThrough(
+          new TransformStream<Uint8Array, Uint8Array>({
+            transform(chunk, ctl) {
+              got += chunk.byteLength;
+              netBytes += chunk.byteLength;
+              report();
+              ctl.enqueue(chunk);
+            },
+          }),
+        );
+        await cache.put(sh.url, new Response(counted, { status: 200, headers: res.headers }));
+        return;
+      } catch (err) {
+        netBytes -= got; // on recommence ce morceau
+        if (attempt >= 2) throw err;
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
+  }
+
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(PARALLEL, todo.length) }, async () => {
+      while (next < todo.length) await fetchShard(todo[next++]);
+    }),
+  );
+  report(true);
 }
 
 /** Au démarrage : si le modèle est déjà sur l'appareil, on le prépare sans rien demander. */

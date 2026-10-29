@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { InstallPrompt, registerServiceWorker } from "@/components/InstallPrompt";
 import { useLoadState } from "@/components/LlmSetup";
 import { Conversation } from "@/components/Conversation";
 import { Home, type View } from "@/components/Home";
@@ -19,6 +20,8 @@ export default function Page() {
   const [scenario, setScenario] = useState("free");
   const [report, setReport] = useState<SessionRecord | null>(null);
   const load = useLoadState();
+
+  useEffect(() => registerServiceWorker(), []);
 
   // Modèle déjà téléchargé : on le charge en tâche de fond dès l'ouverture.
   useEffect(() => {
@@ -47,7 +50,10 @@ export default function Page() {
   if (view === "settings")
     return <Settings profile={profile} llm={st.llm} setLlm={st.setLlm} setProfile={st.setProfile} reset={st.reset} onBack={home} />;
   return (
-    <Home load={load} profile={profile} sessions={st.sessions} vocab={st.vocab} go={setView}
+    <>
+      <InstallPrompt />
+      <Home load={load} profile={profile} sessions={st.sessions} vocab={st.vocab} go={setView}
       start={(id) => { setScenario(id); setView("chat"); }} />
+    </>
   );
 }

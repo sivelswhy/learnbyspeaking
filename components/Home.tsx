@@ -42,7 +42,7 @@ export function Home({
     { v: "settings", Icon: RiSettings3Line, title: "Réglages", sub: "Profil et IA" },
   ];
   return (
-    <main className="mx-auto max-w-lg space-y-5 px-4 py-6">
+    <main className="mx-auto max-w-lg space-y-5 px-4 pb-32 pt-6">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold">

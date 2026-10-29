@@ -11,7 +11,11 @@ export function useLoadState(): LoadState {
   return useSyncExternalStore(loadStore.subscribe, loadStore.get, loadStore.get);
 }
 
-const fmtTime = (s: number) => (s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")}`);
+const fmtTime = (s: number) => {
+  if (s < 60) return `${Math.max(5, Math.ceil(s / 5) * 5)} s`;
+  const m = Math.round(s / 60);
+  return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}`;
+};
 
 /** Barre de progression partagée (réglages, conversation, accueil). */
 export function LoadProgress({ ls, compact = false }: { ls: LoadState; compact?: boolean }) {
@@ -37,7 +41,7 @@ export function LoadProgress({ ls, compact = false }: { ls: LoadState; compact?:
       </div>
       <p className="text-xs tabular-nums text-muted">
         {dl
-          ? `${ls.doneMB} / ${ls.totalMB || "?"} Mo${ls.mbps > 0.1 ? ` · ${ls.mbps.toFixed(1)} Mo/s` : ""}${ls.etaSec != null ? ` · encore ${fmtTime(ls.etaSec)}` : ""}`
+          ? `${ls.doneMB} / ${ls.totalMB || "?"} Mo${ls.mbps > 0.05 ? ` · ${ls.mbps.toFixed(1)} Mo/s` : ""} · ${ls.etaSec != null ? `encore ≈ ${fmtTime(ls.etaSec)}` : "calcul du temps restant…"}${ls.cachedMB > 0 ? ` · ${ls.cachedMB} Mo déjà sur l'appareil` : ""}`
           : "Quelques secondes : compilation pour ta carte graphique."}
       </p>
       {dl && !compact && <p className="text-xs text-muted">Tu peux naviguer dans l&apos;app pendant ce temps. Une seule fois : ensuite le modèle se charge depuis l&apos;appareil.</p>}

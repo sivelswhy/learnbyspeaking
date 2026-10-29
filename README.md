@@ -4,6 +4,7 @@ Conversation vocale avec un tuteur IA, 100 % gratuit et local : aucune clé API,
 
 - **IA** : [WebLLM](https://github.com/mlc-ai/web-llm) (modèle Qwen3 exécuté dans le navigateur via WebGPU) ou [Ollama](https://ollama.com) en local.
 - **Voix** : Web Speech API du navigateur (reconnaissance `he-IL` + synthèse). Chrome/Edge/Safari recommandés.
+- **PWA** : installable sur l'écran d'accueil (manifest + service worker), avec un tuto iOS/Android sur mobile.
 - **Données** : progression et vocabulaire dans le `localStorage` de l'appareil.
 - **Limites** : la prononciation n'est pas notée (le navigateur ne le permet pas) ; les petits modèles locaux font des erreurs en hébreu.
 
