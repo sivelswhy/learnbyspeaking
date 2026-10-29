@@ -1,6 +1,6 @@
 "use client";
 import type { MLCEngineInterface } from "@mlc-ai/web-llm";
-import { HF_DICTA_REPO } from "./hosting";
+import { HF_DICTA_REPO, MODEL_HOST } from "./hosting";
 
 /** 100 % local et gratuit : WebLLM (WebGPU, dans le navigateur) ou Ollama (localhost). */
 export interface LlmSettings {
@@ -18,7 +18,7 @@ export interface LlmSettings {
  * avec nos poids convertis (q4f16_1) hébergés sur Hugging Face.
  */
 export const DICTA_ID = "DictaLM-3.0-1.7B-Instruct-q4f16_1-MLC";
-const DICTA_URL = `https://huggingface.co/${HF_DICTA_REPO}`;
+const DICTA_URL = `${MODEL_HOST}/${HF_DICTA_REPO}`;
 const QWEN3_1_7B_LIB = "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_86/base/Qwen3-1.7B-q4f16_1_cs1k-webgpu.wasm";
 
 export const WEBLLM_MODELS = [

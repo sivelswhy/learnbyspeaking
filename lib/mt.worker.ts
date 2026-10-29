@@ -1,11 +1,15 @@
 import { env, pipeline, type TranslationPipeline } from "@huggingface/transformers";
+import { HF_OWNER, MODEL_HOST } from "./hosting";
 
 // Traduction automatique dédiée (modèles opus-mt d'Helsinki-NLP), bien plus fiable qu'un petit LLM.
 env.allowLocalModels = false;
+const HF_HOST = env.remoteHost;
 const pipes = new Map<string, Promise<TranslationPipeline>>();
 
 function get(model: string) {
   if (!pipes.has(model)) {
+    // Nos modèles convertis peuvent venir d'un autre hôte (serveur local en dev) ; les autres de Hugging Face.
+    env.remoteHost = model.startsWith(`${HF_OWNER}/`) ? `${MODEL_HOST}/` : HF_HOST;
     pipes.set(model, pipeline("translation", model, { dtype: "q8", device: "wasm" }) as Promise<TranslationPipeline>);
   }
   return pipes.get(model)!;
