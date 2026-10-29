@@ -8,6 +8,7 @@ import {
 } from "@/lib/prompts";
 import { LEVEL_RATE, STT_ERRORS, cancelSpeech, hasVoice, speak, useRecognizer, useWhisperRecognizer } from "@/lib/speech";
 import { scoreSession } from "@/lib/sessionScore";
+import { canTranslate, translateHebrew } from "@/lib/translate";
 import type { Correction, Message, NewWord, Profile, SessionRecord } from "@/lib/types";
 import {
   RiArrowLeftRightLine, RiHand, RiHeadphoneLine, RiLightbulbLine, RiMicFill, RiMicLine,
@@ -134,9 +135,19 @@ export function Conversation({
   const analyze = useCallback(
     async (assistantId: string, reply: string, keepTranslation: boolean) => {
       try {
-        const translation = keepTranslation
-          ? null
-          : (await complete(llm, { messages: translateMessages(profile, reply), temperature: 0.1, maxTokens: 100 })).split("\n")[0];
+        // Traduction par un modèle dédié (opus-mt) ; à défaut, par le LLM, signalée comme approximative.
+        let translation: string | null = null;
+        let machine = true;
+        if (!keepTranslation) {
+          if (canTranslate(profile.target, profile.native)) {
+            translation = await translateHebrew(reply, profile.native).catch(() => null);
+            machine = false;
+          }
+          if (translation === null) {
+            translation = (await complete(llm, { messages: translateMessages(profile, reply), temperature: 0.1, maxTokens: 100 })).split("\n")[0];
+            machine = true;
+          }
+        }
         const suggestions: string[] = [];
         for (const temperature of [0.3, 0.8]) {
           const out = tidyReply((await complete(llm, { messages: suggestMessages(profile, reply), temperature, maxTokens: 40 })).split("\n")[0]);
@@ -151,7 +162,7 @@ export function Conversation({
                   extra: {
                     transliteration: x.extra?.transliteration ?? "",
                     translation: translation === null ? (x.extra?.translation ?? "") : translation.trim(),
-                    machine: translation !== null,
+                    machine: translation !== null && machine,
                     suggestions,
                     locked: x.extra?.locked,
                   },
