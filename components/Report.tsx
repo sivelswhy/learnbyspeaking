@@ -18,7 +18,7 @@ export function Report({ s, rtl, onClose }: { s: SessionRecord; rtl: boolean; on
   const sc = SCENARIOS.find((x) => x.id === s.scenarioId);
   return (
     <main className="mx-auto max-w-lg space-y-4 px-4 py-6">
-      <h1 className="text-2xl font-bold"><span className="flex items-center gap-2"><ScenarioIcon id={s.scenarioId} className="text-accent" /> Bilan · {sc?.title}</span></h1>
+      <h1 className="text-2xl font-bold"><span className="flex items-center gap-2"><ScenarioIcon id={s.scenarioId} className="text-accent" /> Bilan · {s.title ?? sc?.title}</span></h1>
       <p className="text-sm text-muted">{Math.max(1, Math.round(s.seconds / 60))} min · {s.turns} réponses</p>
       {r ? (
         <>
@@ -27,10 +27,10 @@ export function Report({ s, rtl, onClose }: { s: SessionRecord; rtl: boolean; on
             <p className="mt-2 text-sm text-muted">{r.scoreExplanation}</p>
           </Card>
           <Card className="space-y-3">
-            <Bar label="Grammaire" v={r.grammar} /><Bar label="Vocabulaire" v={r.vocabulary} /><Bar label="Fluidité" v={r.fluency} />
+            <Bar label="Participation" v={r.participation ?? r.grammar ?? 0} /><Bar label="Longueur des réponses" v={r.fluency} /><Bar label="Vocabulaire" v={r.vocabulary} />
           </Card>
           {r.summary && <p>{r.summary}</p>}
-          {r.mainErrors.length > 0 && <Card><h2 className="mb-1 font-semibold">Erreurs principales</h2><ul className="list-disc ps-5 text-sm">{r.mainErrors.map((e) => <li key={e}>{e}</li>)}</ul></Card>}
+          {(r.mainErrors?.length ?? 0) > 0 && <Card><h2 className="mb-1 font-semibold">Erreurs principales</h2><ul className="list-disc ps-5 text-sm">{r.mainErrors!.map((e) => <li key={e}>{e}</li>)}</ul></Card>}
           {r.tips.length > 0 && <Card><h2 className="mb-1 font-semibold">Conseils</h2><ul className="list-disc ps-5 text-sm">{r.tips.map((e) => <li key={e}>{e}</li>)}</ul></Card>}
         </>
       ) : (

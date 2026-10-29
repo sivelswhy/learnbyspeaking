@@ -7,7 +7,7 @@ import { Btn, Card, Header } from "./ui";
 
 export function Settings({ profile, llm, setLlm, setProfile, reset, onBack }: {
   profile: Profile; llm: LlmSettings; setLlm: (l: LlmSettings) => void;
-  setProfile: (p: Profile) => void; reset: () => void; onBack: () => void;
+  setProfile: (p: Profile) => void; reset: () => void; onBack?: () => void;
 }) {
   return (
     <div className="mx-auto max-w-lg">
@@ -21,7 +21,7 @@ export function Settings({ profile, llm, setLlm, setProfile, reset, onBack }: {
         </Card>
         <h2 className="font-semibold">Profil</h2>
       </div>
-      <Onboarding initial={profile} onDone={(p) => { setProfile(p); onBack(); }} />
+      <Onboarding initial={profile} onDone={(p) => { setProfile(p); onBack?.(); }} />
     </div>
   );
 }

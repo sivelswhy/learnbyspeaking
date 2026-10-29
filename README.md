@@ -1,12 +1,22 @@
 # Parle — apprends l'hébreu en parlant
 
-Conversation vocale avec un tuteur IA, 100 % gratuit et local : aucune clé API, aucun serveur, aucun compte.
+App web (PWA) pour apprendre l'hébreu à l'oral avec Noa, une tutrice IA. 100 % gratuite et locale : aucune clé API, aucun serveur, aucun compte.
 
-- **IA** : [WebLLM](https://github.com/mlc-ai/web-llm) (modèle Qwen3 exécuté dans le navigateur via WebGPU) ou [Ollama](https://ollama.com) en local.
-- **Voix** : Web Speech API du navigateur (reconnaissance `he-IL` + synthèse). Chrome/Edge/Safari recommandés.
-- **PWA** : installable sur l'écran d'accueil (manifest + service worker), avec un tuto iOS/Android sur mobile.
-- **Données** : progression et vocabulaire dans le `localStorage` de l'appareil.
-- **Limites** : la prononciation n'est pas notée (le navigateur ne le permet pas) ; les petits modèles locaux font des erreurs en hébreu.
+## Fonctionnalités
+
+- **Test de niveau** (6 questions orales, A1 → B2) noté sans IA, par des règles affichées.
+- **Cours** : parcours A1–A2 (5 unités, 20 jours). Chaque jour : entraînement à la parole guidé par Noa (répéter, répondre) + jeu de rôle.
+- **Parler avec Noa** : discussion libre (Noa lance un sujet), situations réelles (restaurant, taxi…), professeur, grammaire, traduction, dictionnaire.
+- **Ressources** écrites à la main : alphabet, vocabulaire par thème, phrases utiles, grammaire.
+- **Bilan** : historique, temps de pratique, scores (calculés sans IA), révision espacée du vocabulaire.
+
+## IA locale
+
+- **Conversation** : [DictaLM 3.0 1.7B Instruct](https://huggingface.co/dicta-il/DictaLM-3.0-1.7B-Instruct) (Dicta, Israël, Apache-2.0), entraîné sur l'hébreu, converti au format WebLLM `q4f16_1` (~1 Go) et exécuté dans le navigateur via WebGPU. Ollama est aussi possible.
+- **Voix → texte** : [Whisper large-v3-turbo ivrit.ai](https://huggingface.co/ivrit-ai/whisper-large-v3-turbo-onnx) via transformers.js (~760 Mo), ou la reconnaissance du navigateur.
+- **Texte → voix** : synthèse vocale du navigateur.
+
+Limites assumées : un modèle de 1,7 Md parle bien hébreu mais n'est pas fiable pour corriger la grammaire ; l'app ne fait donc pas de correction automatique et signale ses traductions comme approximatives. La prononciation n'est pas notée.
 
 ## Dev
 
@@ -15,7 +25,7 @@ npm install
 npm run dev
 ```
 
-Ajouter une langue : une entrée dans `lib/languages.ts` (+ l'ajouter à `TARGET_LANGS`).
+Ajouter une langue : une entrée dans `lib/languages.ts` (+ `TARGET_LANGS`) et ses contenus dans `lib/content/`.
 
 ## Déploiement
 

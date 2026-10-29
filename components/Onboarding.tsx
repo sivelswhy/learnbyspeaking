@@ -25,6 +25,11 @@ export function Onboarding({ initial, onDone }: { initial?: Profile | null; onDo
         <h1 className="mt-2 text-3xl font-bold">Apprends en parlant</h1>
         <p className="mt-1 text-muted">Règle ton profil : tout (niveau du tuteur, vocabulaire, scénarios) s&apos;adapte.</p>
       </div>
+      <section className="space-y-2">
+        <label htmlFor="name" className="text-sm font-semibold text-muted">Ton prénom</label>
+        <input id="name" value={p.name ?? ""} onChange={(e) => setP({ ...p, name: e.target.value })} autoComplete="given-name"
+          className="min-h-11 w-full rounded-xl border border-line bg-card px-3 text-base" placeholder="Ex. : Léa" />
+      </section>
       <Section title="Ta langue maternelle">
         {NATIVE_LANGS.map((l) => (
           <Chip key={l} active={p.native === l} onClick={() => setP({ ...p, native: l })}>
@@ -39,6 +44,12 @@ export function Onboarding({ initial, onDone }: { initial?: Profile | null; onDo
           </Chip>
         ))}
       </Section>
+      {LANGUAGES[p.target].genderedYou && (
+        <Section title={`En ${LANGUAGES[p.target].name.toLowerCase()}, on s'adresse à toi au…`}>
+          <Chip active={p.gender !== "f"} onClick={() => setP({ ...p, gender: "m" })}>Masculin</Chip>
+          <Chip active={p.gender === "f"} onClick={() => setP({ ...p, gender: "f" })}>Féminin</Chip>
+        </Section>
+      )}
       <Section title="Ton niveau">
         {LEVELS.map((l: Level) => (
           <Chip key={l} active={p.level === l} onClick={() => setP({ ...p, level: l })}>

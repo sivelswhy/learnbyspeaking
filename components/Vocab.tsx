@@ -6,7 +6,7 @@ import type { Profile, VocabCard } from "@/lib/types";
 import { RiArrowLeftRightLine, RiVolumeUpLine } from "react-icons/ri";
 import { Btn, Card, Header } from "./ui";
 
-export function Vocab({ profile, vocab, review, onBack }: { profile: Profile; vocab: VocabCard[]; review: (w: string, ok: boolean) => void; onBack: () => void }) {
+export function Vocab({ profile, vocab, review, onBack }: { profile: Profile; vocab: VocabCard[]; review: (w: string, ok: boolean) => void; onBack?: () => void }) {
   const lang = LANGUAGES[profile.target];
   const [flip, setFlip] = useState(false);
   const [reverse, setReverse] = useState(false);

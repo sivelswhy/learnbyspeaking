@@ -1,35 +1,34 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LANGUAGES, SCENARIOS } from "@/lib/languages";
-import { complete, errorMessage, isReady, parseJson, type LlmSettings, type Msg } from "@/lib/llm";
+import { LANGUAGES, type Scenario } from "@/lib/languages";
+import { complete, errorMessage, parseJson, type LlmSettings, type Msg } from "@/lib/llm";
 import {
-  analysisSchema, analysisSystem, assistSchema, assistSystem, correctionsToWeakPoints,
-  openingPrompt, replySystem, reportSchema, reportSystem,
+  assistSchema, assistSystem, correctionsToWeakPoints, replyShots, suggestMessages, tidyReply, translateMessages,
+  openingPrompt, replySystem,
 } from "@/lib/prompts";
-import { LEVEL_RATE, cancelSpeech, hasVoice, speak, useRecognizer, type SttError } from "@/lib/speech";
+import { LEVEL_RATE, STT_ERRORS, cancelSpeech, hasVoice, speak, useRecognizer, useWhisperRecognizer } from "@/lib/speech";
+import { scoreSession } from "@/lib/sessionScore";
 import type { Correction, Message, NewWord, Profile, SessionRecord } from "@/lib/types";
 import {
-  RiArrowLeftRightLine, RiHand, RiHeadphoneLine, RiLightbulbLine, RiMagicLine, RiMicFill, RiMicLine,
+  RiArrowLeftRightLine, RiHand, RiHeadphoneLine, RiLightbulbLine, RiMicFill, RiMicLine,
   RiQuestionLine, RiRepeatLine, RiSendPlaneFill, RiStopFill, RiTranslate2, RiVolumeUpLine,
 } from "react-icons/ri";
-import { LlmSetup } from "./LlmSetup";
+import { Avatar } from "./Avatar";
+import { LlmSetup, allReady } from "./LlmSetup";
+import { whisperStore } from "@/lib/whisper";
 import { Btn, Header, wordMatch } from "./ui";
 
 type Status = "idle" | "listening" | "thinking" | "speaking";
 interface Assist {
-  kind: "translate" | "explain" | "rephrase" | "help";
+  kind: "translate" | "rephrase" | "help";
   result: string;
   transliteration: string;
   example: string;
+  source?: string;
+  explain?: { natural: string; literal: string; tip: string; words: { word: string; transliteration: string; meaning: string; note: string }[] };
 }
 
-const STT_MSG: Record<SttError, string> = {
-  denied: "Micro refusé. Autorise-le dans les réglages du navigateur (icône 🔒 de la barre d'adresse), ou écris ta réponse.",
-  "no-speech": "Je n'ai rien entendu. Réessaie en parlant un peu plus près, ou écris.",
-  network: "La reconnaissance vocale a perdu le réseau. Réessaie, ou écris ta réponse.",
-  unsupported: "Ce navigateur ne gère pas la reconnaissance vocale. Utilise Chrome, Edge ou Safari, ou écris.",
-  other: "Problème de micro. Réessaie, ou écris ta réponse.",
-};
+const STT_MSG = STT_ERRORS;
 
 const uid = () => Math.random().toString(36).slice(2);
 
@@ -37,7 +36,7 @@ export function Conversation({
   profile,
   llm,
   setLlm,
-  scenarioId,
+  scenario: sc,
   pastCorrections,
   onExit,
   onFinish,
@@ -45,14 +44,13 @@ export function Conversation({
   profile: Profile;
   llm: LlmSettings;
   setLlm: (l: LlmSettings) => void;
-  scenarioId: string;
+  scenario: Scenario;
   pastCorrections: Correction[];
   onExit: () => void;
   onFinish: (rec: SessionRecord, words: NewWord[]) => void;
 }) {
   const lang = LANGUAGES[profile.target];
-  const sc = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0];
-  const [ready, setReady] = useState(() => isReady(llm));
+  const [ready, setReady] = useState(() => allReady(llm, whisperStore.get()));
   const [messages, setMessages] = useState<Message[]>([]);
   const [rawStatus, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
@@ -98,14 +96,19 @@ export function Conversation({
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, streaming, rawStatus]);
 
-  const rec = useRecognizer(lang.speech, (heard) => {
+  const onHeard = (heard: string) => {
     if (repeatRef.current) {
       setRepeat((r) => (r ? { ...r, heard, score: wordMatch(r.target, heard) } : r));
       setStatus("idle");
       return;
     }
     sendRef.current(heard);
-  });
+  };
+  const browserRec = useRecognizer(lang.speech, onHeard);
+  const whisperRec = useWhisperRecognizer(profile.target, onHeard);
+  const rec = llm.stt === "whisper" && whisperRec.supported ? whisperRec : browserRec;
+  const level = rec === whisperRec ? whisperRec.level : 0;
+  const transcribing = rec === whisperRec && whisperRec.transcribing;
   const status: Status = rawStatus === "listening" && !rec.listening ? "idle" : rawStatus;
   useEffect(() => {
     startRef.current = rec.start;
@@ -123,36 +126,39 @@ export function Conversation({
     [lang.speech, profile.level],
   );
 
-  /** Analyse en arrière-plan : n'empêche pas la conversation de continuer. */
+  /**
+   * En arrière-plan : traduction + 2 réponses possibles.
+   * Pas de correction grammaticale automatique : nos tests montrent qu'un modèle local de 1,7 Md
+   * change le sens des phrases et rate les fautes d'accord ; afficher ses « corrections » tromperait.
+   */
   const analyze = useCallback(
-    async (assistantId: string, userId: string | null, userText: string, reply: string) => {
+    async (assistantId: string, reply: string, keepTranslation: boolean) => {
       try {
-        const raw = await complete(llm, {
-          messages: [
-            { role: "system", content: analysisSystem(profile) },
-            { role: "user", content: JSON.stringify({ learner: userText, partner: reply }) },
-          ],
-          schema: analysisSchema,
-          temperature: 0.2,
-          maxTokens: 500,
-        });
-        const a = parseJson<{
-          transliteration?: string; translation?: string; suggestions?: string[]; newWords?: NewWord[];
-          correction?: { has_error: boolean; corrected: string; explanation: string; natural: string; category: Correction["category"] };
-        }>(raw, {});
-        const c = a.correction;
-        const correction: Correction | null =
-          userId && c?.has_error && c.corrected && norm1(c.corrected) !== norm1(userText)
-            ? { original: userText, corrected: c.corrected, explanation: c.explanation, natural: c.natural || c.corrected, category: c.category }
-            : null;
+        const translation = keepTranslation
+          ? null
+          : (await complete(llm, { messages: translateMessages(profile, reply), temperature: 0.1, maxTokens: 100 })).split("\n")[0];
+        const suggestions: string[] = [];
+        for (const temperature of [0.3, 0.8]) {
+          const out = tidyReply((await complete(llm, { messages: suggestMessages(profile, reply), temperature, maxTokens: 40 })).split("\n")[0]);
+          if (/[\u0590-\u05FF]/.test(out) && !suggestions.includes(out)) suggestions.push(out);
+        }
         update((m) =>
           m.map((x) =>
             x.id === assistantId
-              ? { ...x, analyzing: false, extra: { transliteration: a.transliteration ?? "", translation: a.translation ?? "", suggestions: a.suggestions ?? [] } }
-              : x.id === userId ? { ...x, correction } : x,
+              ? {
+                  ...x,
+                  analyzing: false,
+                  extra: {
+                    transliteration: x.extra?.transliteration ?? "",
+                    translation: translation === null ? (x.extra?.translation ?? "") : translation.trim(),
+                    machine: translation !== null,
+                    suggestions,
+                    locked: x.extra?.locked,
+                  },
+                }
+              : x,
           ),
         );
-        newWords.current.push(...(a.newWords ?? []).filter((w) => w.word));
       } catch {
         update((m) => m.map((x) => (x.id === assistantId ? { ...x, analyzing: false } : x)));
       }
@@ -162,21 +168,37 @@ export function Conversation({
   const newWords = useRef<NewWord[]>([]);
 
   const reply = useCallback(
-    async (userText: string | null, userId: string | null) => {
+    async () => {
       setStatus("thinking");
       setError("");
       setStreaming("");
       abort.current = new AbortController();
+      const starter = !msgs.current.length ? sc.starters?.[profile.target] : undefined;
+      if (starter) {
+        // Première réplique écrite à la main : instantanée et sans faute.
+        const g = profile.gender ?? "m";
+        const id = uid();
+        const text = starter.text[g];
+        update((m) => [...m, {
+          id, role: "assistant", text, analyzing: true,
+          extra: { transliteration: starter.transliteration[g], translation: starter.translation[profile.native] ?? "", suggestions: [], locked: !!starter.translation[profile.native] },
+        }]);
+        void analyze(id, text, !!starter.translation[profile.native]);
+        await say(text);
+        return;
+      }
       const history: Msg[] = msgs.current.map((m) => ({ role: m.role, content: m.text }));
       if (!history.length) history.push({ role: "user", content: openingPrompt() });
       try {
         const out = await complete(llm, {
-          messages: [{ role: "system", content: replySystem(profile, scenarioId, weak.current) }, ...history],
+          messages: [{ role: "system", content: replySystem(profile, sc, weak.current) }, ...replyShots(profile), ...history],
           onToken: setStreaming,
           signal: abort.current.signal,
-          maxTokens: 160,
+          maxTokens: 50,
+          temperature: 0.7,
+          antiRepeat: true,
         });
-        const clean = out.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+        const clean = tidyReply(out);
         setStreaming("");
         if (!clean) {
           setStatus("idle");
@@ -184,7 +206,7 @@ export function Conversation({
         }
         const id = uid();
         update((m) => [...m, { id, role: "assistant", text: clean, analyzing: true }]);
-        void analyze(id, userId, userText ?? "", clean);
+        void analyze(id, clean, false);
         await say(clean);
       } catch (e) {
         setStreaming("");
@@ -192,7 +214,7 @@ export function Conversation({
         if (!abort.current?.signal.aborted) setError(errorMessage(e));
       }
     },
-    [llm, profile, scenarioId, update, analyze, say],
+    [llm, profile, sc, update, analyze, say],
   );
 
   const send = useCallback(
@@ -204,7 +226,7 @@ export function Conversation({
       update((m) => [...m, { id, role: "user", text: value }]);
       setText("");
       setAssist(null);
-      await reply(value, id);
+      await reply();
     },
     [reply, update],
   );
@@ -216,7 +238,7 @@ export function Conversation({
     if (ready && !started.current) {
       started.current = true;
       t0.current = Date.now();
-      void reply(null, null);
+      void reply();
     }
   }, [ready, reply]);
 
@@ -257,7 +279,7 @@ export function Conversation({
     }
   }
 
-  async function finish() {
+  function finish() {
     interrupt();
     const userTurns = msgs.current.filter((m) => m.role === "user");
     const seconds = Math.round((Date.now() - t0.current) / 1000);
@@ -265,30 +287,10 @@ export function Conversation({
     setFinishing(true);
     const corrections = msgs.current.flatMap((m) => (m.correction ? [m.correction] : []));
     const base: SessionRecord = {
-      id: uid(), date: new Date().toISOString(), scenarioId, seconds, turns: userTurns.length,
+      id: uid(), date: new Date().toISOString(), scenarioId: sc.id, title: sc.title, seconds, turns: userTurns.length,
       corrections, words: newWords.current,
     };
-    try {
-      const raw = await complete(llm, {
-        messages: [
-          { role: "system", content: reportSystem(profile, userTurns.length) },
-          { role: "user", content: JSON.stringify({ transcript: msgs.current.map((m) => ({ role: m.role, text: m.text })), corrections: corrections.slice(0, 15) }) },
-        ],
-        schema: reportSchema,
-        temperature: 0.2,
-        maxTokens: 500,
-      });
-      const r = parseJson<Partial<{ grammar: number; vocabulary: number; fluency: number; mainErrors: string[]; tips: string[]; summary: string }>>(raw, {});
-      const cl = (n?: number) => Math.max(0, Math.min(100, Math.round(n ?? 0)));
-      const g = cl(r.grammar), v = cl(r.vocabulary), f = cl(r.fluency);
-      base.report = {
-        grammar: g, vocabulary: v, fluency: f, score: Math.round(g * 0.4 + v * 0.3 + f * 0.3),
-        scoreExplanation: "Score = 40 % grammaire + 30 % vocabulaire + 30 % fluidité, estimés par l'IA locale sur la transcription de tes réponses. La prononciation n'est pas notée : le navigateur ne permet pas de la mesurer.",
-        mainErrors: r.mainErrors ?? [], tips: r.tips ?? [], summary: r.summary ?? "",
-      };
-    } catch {
-      /* rapport indisponible : la session est quand même sauvegardée */
-    }
+    base.report = scoreSession(userTurns.map((m) => m.text), profile.level);
     onFinish(base, newWords.current);
   }
 
@@ -338,9 +340,33 @@ export function Conversation({
                 <p className="mb-1 text-xs font-semibold uppercase text-accent">
                   {{ translate: "Traduction", explain: "Explication", rephrase: "Plus naturel", help: "Tu peux répondre" }[assist.kind]}
                 </p>
-                <p className={assist.kind === "rephrase" || assist.kind === "help" ? `${lang.rtl ? "he " : ""}text-lg` : ""}>{assist.result}</p>
-                {assist.transliteration && <p className="text-muted">{assist.transliteration}</p>}
-                {assist.example && <p className={`mt-1 ${assist.kind === "explain" && lang.rtl ? "he" : ""} text-muted`}>{assist.example}</p>}
+                {assist.explain ? (
+                  <div className="space-y-2">
+                    <p className={`${lang.rtl ? "he " : ""}text-lg`}>{assist.source}</p>
+                    <p><b>Sens :</b> {assist.explain.natural}</p>
+                    {assist.explain.literal && <p className="text-muted"><b>Mot à mot :</b> {assist.explain.literal}</p>}
+                    <ul className="divide-y divide-line rounded-xl border border-line">
+                      {assist.explain.words.map((w, i) => (
+                        <li key={i} className="flex items-start gap-3 px-3 py-2">
+                          <button onClick={() => say(w.word)} aria-label={`Écouter ${w.word}`} className="mt-0.5 shrink-0 text-accent"><RiVolumeUpLine aria-hidden /></button>
+                          <span className="min-w-0 flex-1">
+                            <span className={`${lang.rtl ? "he " : ""}text-base font-semibold`}>{w.word}</span>
+                            {w.transliteration && <span className="ms-2 text-muted">{w.transliteration}</span>}
+                            <span className="block">{w.meaning}</span>
+                            {w.note && <span className="block text-xs text-muted">{w.note}</span>}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    {assist.explain.tip && <p className="flex gap-1.5"><RiLightbulbLine aria-hidden className="mt-0.5 shrink-0 text-accent" /> {assist.explain.tip}</p>}
+                  </div>
+                ) : (
+                  <>
+                    <p className={assist.kind === "rephrase" || assist.kind === "help" ? `${lang.rtl ? "he " : ""}text-lg` : ""}>{assist.result}</p>
+                    {assist.transliteration && <p className="text-muted">{assist.transliteration}</p>}
+                    {assist.example && <p className="mt-1 text-muted">{assist.example}</p>}
+                  </>
+                )}
                 {(assist.kind === "rephrase" || assist.kind === "help") && (
                   <div className="mt-2 flex gap-2">
                     <Btn variant="soft" onClick={() => say(assist.result)} className="flex items-center gap-1.5"><RiVolumeUpLine aria-hidden /> Écouter</Btn>
@@ -395,9 +421,10 @@ export function Conversation({
             <Btn variant="ghost" onClick={() => lastAssistant && runAssist("help", lastAssistant.text)} disabled={!lastAssistant || assistBusy} className="flex !min-h-9 items-center justify-center gap-1 !px-2"><RiQuestionLine aria-hidden /> Aide</Btn>
           </div>
           <button
-            onClick={mic} disabled={busy || finishing}
+            onClick={mic} disabled={busy || finishing || transcribing}
             aria-label={rec.listening ? "Arrêter l'écoute" : "Parler"}
-            className={`grid size-20 place-items-center rounded-full bg-accent text-accent-ink disabled:opacity-40 ${rec.listening ? "listening" : ""}`}
+            style={rec.listening && level ? { boxShadow: `0 0 0 ${4 + level * 22}px color-mix(in srgb, var(--accent) 25%, transparent)` } : undefined}
+            className={`grid size-20 place-items-center rounded-full bg-accent text-accent-ink transition-shadow duration-75 disabled:opacity-40 ${rec.listening && !level ? "listening" : ""}`}
           >
             {rec.listening ? <RiStopFill aria-hidden className="size-8" /> : <RiMicFill aria-hidden className="size-9" />}
           </button>
@@ -409,14 +436,20 @@ export function Conversation({
           </div>
         </div>
         <p className="mt-2 text-center text-xs text-muted" aria-live="polite">
-          {{ idle: "Appuie sur le micro pour parler", listening: "Je t'écoute…", thinking: "Réflexion…", speaking: "Le tuteur parle…" }[status]}
+          {transcribing
+            ? "Transcription…"
+            : {
+                idle: "Appuie sur le micro pour parler",
+                listening: rec === whisperRec ? "Je t'écoute… (arrêt auto quand tu te tais)" : "Je t'écoute…",
+                thinking: "Réflexion…",
+                speaking: "Le tuteur parle…",
+              }[status]}
         </p>
       </div>
     </div>
   );
 }
 
-const norm1 = (s: string) => s.replace(/[֑-ׇ]/g, "").replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
 
 function Bubble({
   m, rtl, lang, onSpeak, onAssist, onUse, onRepeat, nativeName,
@@ -430,10 +463,16 @@ function Bubble({
   const he = rtl ? "he" : "";
   return (
     <div className={`flex flex-col gap-2 ${user ? "items-end" : "items-start"}`}>
+      {!user && <p className="flex items-center gap-2 text-sm"><Avatar size={26} /> <b>Noa</b></p>}
       <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${user ? "rounded-br-md bg-accent text-accent-ink" : "rounded-bl-md border border-line bg-card"}`}>
         <p className={`${he} text-lg leading-snug`} lang={lang}>{m.text}</p>
         {!user && m.extra?.transliteration && <p className="mt-1 text-sm text-muted">{m.extra.transliteration}</p>}
-        {!user && showTr && m.extra?.translation && <p className="mt-1 border-t border-line pt-1 text-sm">{m.extra.translation}</p>}
+        {!user && showTr && m.extra?.translation && (
+          <p className="mt-1 border-t border-line pt-1 text-sm">
+            {m.extra.translation}
+            {m.extra.machine && <span className="block text-xs text-muted">Traduction automatique, peut contenir des erreurs.</span>}
+          </p>
+        )}
       </div>
       {!user && (
         <div className="flex flex-wrap gap-1.5">
@@ -441,12 +480,6 @@ function Bubble({
           <Pill onClick={() => (m.extra?.translation ? setShowTr(!showTr) : onAssist("translate", m.text))}>
             <RiTranslate2 aria-hidden /> {m.analyzing && !m.extra ? "…" : `Traduire (${nativeName})`}
           </Pill>
-          <Pill onClick={() => onAssist("explain", m.text)}><RiLightbulbLine aria-hidden /> Expliquer</Pill>
-        </div>
-      )}
-      {user && (
-        <div className="flex gap-1.5">
-          <Pill onClick={() => onAssist("rephrase", m.text)}><RiMagicLine aria-hidden /> Reformuler</Pill>
         </div>
       )}
       {user && m.correction && (

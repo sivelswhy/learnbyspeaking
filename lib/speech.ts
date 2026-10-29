@@ -134,3 +134,78 @@ export async function speak(text: string, lang: string, rate = 0.9, onEnd?: () =
 }
 
 export const LEVEL_RATE: Record<string, number> = { A1: 0.7, A2: 0.8, B1: 0.9, B2: 1, C1: 1, C2: 1 };
+
+/* ---------- Whisper local (même interface que useRecognizer) ---------- */
+
+export function useWhisperRecognizer(lang: string, onFinal: (text: string, confidence: number) => void) {
+  const finalRef = useRef(onFinal);
+  const recRef = useRef<import("./whisper").Recording | null>(null);
+  const [listening, setListening] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [level, setLevel] = useState(0);
+  const [error, setError] = useState<SttError | null>(null);
+  const supported = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia && "gpu" in navigator;
+
+  useEffect(() => {
+    finalRef.current = onFinal;
+  }, [onFinal]);
+
+  const stop = useCallback(() => recRef.current?.stop(), []);
+
+  const start = useCallback(async () => {
+    if (!supported) return setError("unsupported");
+    setError(null);
+    const { record, transcribe, loadWhisper } = await import("./whisper");
+    void loadWhisper().catch(() => {}); // charge le modèle pendant qu'on parle
+    let r: import("./whisper").Recording;
+    try {
+      r = await record(setLevel);
+    } catch (e) {
+      return setError(e instanceof DOMException && e.name === "NotAllowedError" ? "denied" : "other");
+    }
+    recRef.current = r;
+    setListening(true);
+    try {
+      const audio = await r.done;
+      setListening(false);
+      if (!audio) return setError("no-speech");
+      setTranscribing(true);
+      const text = await transcribe(audio, lang);
+      if (text) finalRef.current(text, 1);
+      else setError("no-speech");
+    } catch {
+      setError("other");
+    } finally {
+      recRef.current = null;
+      setListening(false);
+      setTranscribing(false);
+    }
+  }, [lang, supported]);
+
+  useEffect(() => () => recRef.current?.stop(), []);
+
+  const interim = transcribing ? "Transcription…" : "";
+  return { supported, listening, transcribing, level, interim, error, start, stop, clearError: () => setError(null) };
+}
+
+/** Micro unifié : Whisper local si choisi et possible, sinon reconnaissance du navigateur. */
+export function useVoiceInput(stt: "whisper" | "browser", target: string, speechLang: string, onHeard: (text: string) => void) {
+  const browser = useRecognizer(speechLang, onHeard);
+  const whisper = useWhisperRecognizer(target, onHeard);
+  const useWhisper = stt === "whisper" && whisper.supported;
+  const rec = useWhisper ? whisper : browser;
+  return {
+    ...rec,
+    transcribing: useWhisper && whisper.transcribing,
+    level: useWhisper ? whisper.level : 0,
+    start: () => void rec.start(),
+  };
+}
+
+export const STT_ERRORS: Record<SttError, string> = {
+  denied: "Micro refusé. Autorise-le dans les réglages du navigateur (icône 🔒 de la barre d'adresse), ou écris ta réponse.",
+  "no-speech": "Je n'ai rien entendu. Réessaie en parlant un peu plus près, ou écris.",
+  network: "La reconnaissance vocale a perdu le réseau. Réessaie, ou écris ta réponse.",
+  unsupported: "Ce navigateur ne gère pas la reconnaissance vocale. Utilise Chrome, Edge ou Safari, ou écris.",
+  other: "Problème de micro. Réessaie, ou écris ta réponse.",
+};

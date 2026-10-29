@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   basePath,
   images: { unoptimized: true },
   trailingSlash: true,
+  devIndicators: false,
   turbopack: {
     rules: {
       "*.css": { loaders: ["@tailwindcss/turbopack"], as: "*.css" },

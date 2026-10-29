@@ -60,3 +60,20 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .listening { animation: none; }
 }
+
+/* Avatar : bouche qui parle, yeux qui clignent */
+@keyframes noa-talk {
+  0%, 100% { transform: scaleY(0.35); }
+  30% { transform: scaleY(1.2); }
+  60% { transform: scaleY(0.6); }
+  80% { transform: scaleY(1); }
+}
+@keyframes noa-blink {
+  0%, 94%, 100% { transform: scaleY(1); }
+  97% { transform: scaleY(0.1); }
+}
+.noa-mouth { transform-box: fill-box; transform-origin: center; animation: noa-talk 0.32s ease-in-out infinite; }
+.noa-eyes { transform-box: fill-box; transform-origin: center; animation: noa-blink 4.5s infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .noa-mouth, .noa-eyes { animation: none; }
+}

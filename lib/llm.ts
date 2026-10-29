@@ -4,20 +4,39 @@ import type { MLCEngineInterface } from "@mlc-ai/web-llm";
 /** 100 % local et gratuit : WebLLM (WebGPU, dans le navigateur) ou Ollama (localhost). */
 export interface LlmSettings {
   provider: "webllm" | "ollama";
+  /** Reconnaissance vocale : Whisper ivrit-ai local, ou celle du navigateur (envoie l'audio en ligne). */
+  stt: "whisper" | "browser";
   webllmModel: string;
   ollamaUrl: string;
   ollamaModel: string;
 }
 
+/**
+ * DictaLM 3.0 1.7B Instruct (Dicta, Israël) : entraîné spécifiquement sur l'hébreu, licence Apache 2.0.
+ * Même architecture que Qwen3 1.7B : on réutilise le moteur WebGPU déjà compilé par WebLLM,
+ * avec nos poids convertis (q4f16_1) hébergés sur Hugging Face.
+ */
+export const DICTA_ID = "DictaLM-3.0-1.7B-Instruct-q4f16_1-MLC";
+const DICTA_URL = process.env.NEXT_PUBLIC_DICTA_URL ?? "https://huggingface.co/sivelswhy/DictaLM-3.0-1.7B-Instruct-q4f16_1-MLC";
+const QWEN3_1_7B_LIB = "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_86/base/Qwen3-1.7B-q4f16_1_cs1k-webgpu.wasm";
+
 export const WEBLLM_MODELS = [
-  { id: "Qwen3-1.7B-q4f16_1-MLC", mb: 968, label: "Rapide · Qwen3 1.7B", note: "≈ 1 Go · démarre vite, hébreu correct" },
-  { id: "Qwen3-4B-q4f16_1-MLC", mb: 2263, label: "Meilleur hébreu · Qwen3 4B", note: "≈ 2,3 Go · plus précis" },
-  { id: "Qwen3-8B-q4f16_1-MLC", mb: 4608, label: "Qualité max · Qwen3 8B", note: "≈ 4,6 Go · GPU costaud" },
+  { id: DICTA_ID, mb: 970, label: "DictaLM 3.0 · spécialiste de l'hébreu", note: "≈ 1 Go · entraîné sur l'hébreu par Dicta (Israël), tourne aussi sur téléphone" },
 ];
+
+const CUSTOM_MODELS = [
+  { model: DICTA_URL, model_id: DICTA_ID, model_lib: QWEN3_1_7B_LIB, vram_required_MB: 2037, low_resource_required: true, overrides: { context_window_size: 4096 } },
+];
+
+async function appConfig() {
+  const { prebuiltAppConfig } = await import("@mlc-ai/web-llm");
+  return { ...prebuiltAppConfig, model_list: [...prebuiltAppConfig.model_list, ...CUSTOM_MODELS] };
+}
 
 export const DEFAULT_LLM: LlmSettings = {
   provider: "webllm",
-  webllmModel: "Qwen3-1.7B-q4f16_1-MLC",
+  stt: "whisper",
+  webllmModel: DICTA_ID,
   ollamaUrl: "http://localhost:11434",
   ollamaModel: "qwen3:8b",
 };
@@ -30,6 +49,8 @@ export interface CompleteOpts {
   schema?: object;
   temperature?: number;
   maxTokens?: number;
+  /** Pénalise les répétitions (texte libre uniquement : fausserait le JSON). */
+  antiRepeat?: boolean;
   onToken?: (partial: string) => void;
   signal?: AbortSignal;
 }
@@ -79,7 +100,7 @@ export function isReady(s: LlmSettings): boolean {
 export async function isCached(model: string): Promise<boolean> {
   try {
     const { hasModelInCache } = await import("@mlc-ai/web-llm");
-    return await hasModelInCache(model);
+    return await hasModelInCache(model, await appConfig());
   } catch {
     return false;
   }
@@ -96,6 +117,7 @@ export async function loadWebLLM(model: string) {
 
   loading = (async () => {
     const web = await import("@mlc-ai/web-llm");
+    const cfg = await appConfig();
     if (engine) {
       await engine.unload();
       engine = null;
@@ -103,7 +125,7 @@ export async function loadWebLLM(model: string) {
     let prefetched = fromCache;
     if (!fromCache) {
       try {
-        await prefetch(model, web.prebuiltAppConfig.model_list);
+        await prefetch(model, cfg.model_list);
         prefetched = true;
       } catch (err) {
         // Échec du préchargement : WebLLM retentera lui-même le téléchargement (sans progression fine).
@@ -113,6 +135,7 @@ export async function loadWebLLM(model: string) {
     }
     const worker = new Worker(new URL("./llm.worker.ts", import.meta.url), { type: "module" });
     const e = await web.CreateWebWorkerMLCEngine(worker, model, {
+      appConfig: cfg,
       initProgressCallback: (r) => {
         if (/loading/i.test(r.text)) setState({ phase: "init", progress: r.progress });
         else if (!prefetched && /fetching/i.test(r.text)) setState({ phase: "download", progress: r.progress, doneMB: Math.round(r.progress * totalMB) });
@@ -225,12 +248,51 @@ async function prefetch(model: string, list: { model_id: string; model: string }
 
 /** Au démarrage : si le modèle est déjà sur l'appareil, on le prépare sans rien demander. */
 export async function warmIfCached(s: LlmSettings) {
-  if (s.provider !== "webllm" || !hasWebGPU() || isReady(s) || loading) return;
+  if (!hasWebGPU()) return;
+  if (s.stt === "whisper") {
+    const w = await import("./whisper");
+    if (w.whisperStore.get().phase === "idle" && (await w.whisperCached())) w.loadWhisper().catch(() => {});
+  }
+  if (s.provider !== "webllm" || isReady(s) || loading) return;
   if (await isCached(s.webllmModel)) loadWebLLM(s.webllmModel).catch(() => {});
 }
 
+/**
+ * Qwen3 peut émettre un bloc de réflexion <think>…</think> (parfois vide) malgré enable_thinking=false.
+ * On le retire, y compris quand il n'est pas encore refermé pendant le streaming.
+ */
+export function stripThink(t: string): string {
+  return t.replace(/<think>[\s\S]*?(<\/think>|$)/g, "").replace(/^\s*<\/?t?h?i?n?k?$/, "").trimStart();
+}
+
+/**
+ * Adapte la conversation au modèle :
+ * - Qwen : « /no_think » (interrupteur officiel pour couper la réflexion) ;
+ * - Gemma : pas de rôle système, et la conversation doit commencer par l'utilisateur.
+ */
+export function prepareMessages(messages: Msg[], model: string): Msg[] {
+  if (/qwen/i.test(model)) {
+    return messages.map((m, i) => (i === 0 && m.role === "system" ? { ...m, content: m.content + "\n/no_think" } : m));
+  }
+  if (/gemma/i.test(model)) {
+    const sys = messages.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
+    const rest = messages.filter((m) => m.role !== "system");
+    if (!rest.length || rest[0].role !== "user") rest.unshift({ role: "user", content: "(start)" });
+    if (sys) rest[0] = { role: "user", content: `${sys}\n\n${rest[0].content}` };
+    return rest;
+  }
+  return messages;
+}
+
 export async function complete(s: LlmSettings, o: CompleteOpts): Promise<string> {
-  if (s.provider === "ollama") return completeOllama(s, o);
+  const messages = prepareMessages(o.messages, s.provider === "ollama" ? s.ollamaModel : s.webllmModel);
+  const onToken = o.onToken;
+  const opts: CompleteOpts = { ...o, messages, onToken: onToken && ((t) => onToken(stripThink(t))) };
+  const out = s.provider === "ollama" ? await completeOllama(s, opts) : await completeWebLLM(opts);
+  return stripThink(out).trim();
+}
+
+async function completeWebLLM(o: CompleteOpts): Promise<string> {
   if (!engine) throw new Error("MODEL_NOT_LOADED");
   const stream = !!o.onToken;
   const req = {
@@ -238,7 +300,8 @@ export async function complete(s: LlmSettings, o: CompleteOpts): Promise<string>
     temperature: o.temperature ?? 0.6,
     max_tokens: o.maxTokens ?? 400,
     response_format: o.schema ? { type: "json_object" as const, schema: JSON.stringify(o.schema) } : undefined,
-    extra_body: { enable_thinking: false },
+    ...(o.antiRepeat ? { repetition_penalty: 1.15, frequency_penalty: 0.5, presence_penalty: 0.3, top_p: 0.9 } : {}),
+    ...(/qwen/i.test(engineModel) ? { extra_body: { enable_thinking: false } } : {}),
   };
   if (!stream) {
     const r = await engine.chat.completions.create({ ...req, stream: false });
@@ -269,7 +332,11 @@ async function completeOllama(s: LlmSettings, o: CompleteOpts): Promise<string> 
         stream: !!o.onToken,
         think: false,
         format: o.schema,
-        options: { temperature: o.temperature ?? 0.6, num_predict: o.maxTokens ?? 400 },
+        options: {
+          temperature: o.temperature ?? 0.6,
+          num_predict: o.maxTokens ?? 400,
+          ...(o.antiRepeat ? { repeat_penalty: 1.15, frequency_penalty: 0.5, presence_penalty: 0.3, top_p: 0.9 } : {}),
+        },
       }),
     });
   } catch {
