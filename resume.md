@@ -40,3 +40,12 @@ Règles qui marchent avec DictaLM : consignes en hébreu + exemples d'échanges 
 - PWA installable avec tuto iOS/Android, données dans le navigateur, sans compte.
 
 Hébergement des modèles : `lib/hosting.ts`.
+
+## Dev local sans Hugging Face
+
+`.env.local` contient `NEXT_PUBLIC_MODEL_HOST=http://127.0.0.1:8766` : les modèles convertis sont servis depuis `~/learnbyspeaking-models/hub`.
+```
+python3 ~/learnbyspeaking-models/serve.py   # serveur des modèles (port 8766)
+npm run dev                                 # app sur http://localhost:3000
+```
+Supprimer `.env.local` pour utiliser Hugging Face.
