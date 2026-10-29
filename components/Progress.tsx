@@ -3,6 +3,7 @@ import { useState } from "react";
 import { SCENARIOS } from "@/lib/languages";
 import type { Profile, SessionRecord } from "@/lib/types";
 import { Report } from "./Report";
+import { ScenarioIcon } from "./icons";
 import { Card, Header } from "./ui";
 
 function streak(sessions: SessionRecord[]) {
@@ -79,7 +80,7 @@ export function Progress({ profile, sessions, rtl, onBack }: { profile: Profile;
           const sc = SCENARIOS.find((x) => x.id === s.scenarioId);
           return (
             <button key={s.id} onClick={() => setOpen(s)} className="flex w-full items-center justify-between rounded-2xl border border-line bg-card p-3 text-left">
-              <span>{sc?.emoji} {sc?.title}<span className="block text-xs text-muted">{new Date(s.date).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })} · {Math.max(1, Math.round(s.seconds / 60))} min</span></span>
+              <span className="flex items-center gap-3"><ScenarioIcon id={s.scenarioId} className="size-5 shrink-0 text-accent" /><span>{sc?.title}<span className="block text-xs text-muted">{new Date(s.date).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })} · {Math.max(1, Math.round(s.seconds / 60))} min</span></span></span>
               <span className="text-xl font-bold text-accent">{s.report?.score ?? "–"}</span>
             </button>
           );

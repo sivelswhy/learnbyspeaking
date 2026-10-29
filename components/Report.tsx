@@ -1,6 +1,7 @@
 "use client";
 import { SCENARIOS } from "@/lib/languages";
 import type { SessionRecord } from "@/lib/types";
+import { ScenarioIcon } from "./icons";
 import { Btn, Card } from "./ui";
 
 export function Bar({ label, v }: { label: string; v: number }) {
@@ -17,7 +18,7 @@ export function Report({ s, rtl, onClose }: { s: SessionRecord; rtl: boolean; on
   const sc = SCENARIOS.find((x) => x.id === s.scenarioId);
   return (
     <main className="mx-auto max-w-lg space-y-4 px-4 py-6">
-      <h1 className="text-2xl font-bold">Bilan · {sc?.emoji} {sc?.title}</h1>
+      <h1 className="text-2xl font-bold"><span className="flex items-center gap-2"><ScenarioIcon id={s.scenarioId} className="text-accent" /> Bilan · {sc?.title}</span></h1>
       <p className="text-sm text-muted">{Math.max(1, Math.round(s.seconds / 60))} min · {s.turns} réponses</p>
       {r ? (
         <>

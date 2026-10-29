@@ -10,14 +10,14 @@ export interface LlmSettings {
 }
 
 export const WEBLLM_MODELS = [
-  { id: "Qwen3-1.7B-q4f16_1-MLC", label: "Léger · Qwen3 1.7B (≈ 1 Go, rapide, qualité moyenne)" },
-  { id: "Qwen3-4B-q4f16_1-MLC", label: "Équilibré · Qwen3 4B (≈ 2,5 Go, recommandé)" },
-  { id: "Qwen3-8B-q4f16_1-MLC", label: "Qualité · Qwen3 8B (≈ 5 Go, GPU costaud)" },
+  { id: "Qwen3-1.7B-q4f16_1-MLC", mb: 968, label: "Rapide · Qwen3 1.7B", note: "≈ 1 Go · démarre vite, hébreu correct" },
+  { id: "Qwen3-4B-q4f16_1-MLC", mb: 2263, label: "Meilleur hébreu · Qwen3 4B", note: "≈ 2,3 Go · plus précis" },
+  { id: "Qwen3-8B-q4f16_1-MLC", mb: 4608, label: "Qualité max · Qwen3 8B", note: "≈ 4,6 Go · GPU costaud" },
 ];
 
 export const DEFAULT_LLM: LlmSettings = {
   provider: "webllm",
-  webllmModel: "Qwen3-4B-q4f16_1-MLC",
+  webllmModel: "Qwen3-1.7B-q4f16_1-MLC",
   ollamaUrl: "http://localhost:11434",
   ollamaModel: "qwen3:8b",
 };
@@ -38,6 +38,34 @@ let engine: MLCEngineInterface | null = null;
 let engineModel = "";
 let loading: Promise<MLCEngineInterface> | null = null;
 
+/* ---------- État global du chargement (survit aux changements d'écran) ---------- */
+
+export interface LoadState {
+  model: string;
+  phase: "idle" | "download" | "init" | "ready" | "error";
+  progress: number; // 0-1
+  doneMB: number;
+  totalMB: number;
+  mbps: number; // Mo/s
+  etaSec: number | null;
+  fromCache: boolean;
+  error?: string;
+}
+
+let state: LoadState = { model: "", phase: "idle", progress: 0, doneMB: 0, totalMB: 0, mbps: 0, etaSec: null, fromCache: false };
+const listeners = new Set<() => void>();
+function setState(p: Partial<LoadState>) {
+  state = { ...state, ...p };
+  listeners.forEach((l) => l());
+}
+export const loadStore = {
+  get: () => state,
+  subscribe: (l: () => void) => {
+    listeners.add(l);
+    return () => listeners.delete(l);
+  },
+};
+
 export function hasWebGPU(): boolean {
   return typeof navigator !== "undefined" && "gpu" in navigator;
 }
@@ -46,24 +74,77 @@ export function isReady(s: LlmSettings): boolean {
   return s.provider === "ollama" || (engine !== null && engineModel === s.webllmModel);
 }
 
-export async function loadWebLLM(model: string, onProgress: (p: number, text: string) => void) {
+export async function isCached(model: string): Promise<boolean> {
+  try {
+    const { hasModelInCache } = await import("@mlc-ai/web-llm");
+    return await hasModelInCache(model);
+  } catch {
+    return false;
+  }
+}
+
+export async function loadWebLLM(model: string) {
   if (engine && engineModel === model) return engine;
-  if (loading) return loading;
+  if (loading && state.model === model) return loading;
+  const totalMB = WEBLLM_MODELS.find((m) => m.id === model)?.mb ?? 0;
+  const fromCache = await isCached(model);
+  // Demande au navigateur de ne pas effacer le modèle quand l'espace manque.
+  if (!fromCache) await navigator.storage?.persist?.().catch(() => false);
+  setState({ model, phase: fromCache ? "init" : "download", progress: 0, doneMB: 0, totalMB, mbps: 0, etaSec: null, fromCache, error: undefined });
+
+  const t0 = performance.now();
+  let lastT = t0;
+  let lastMB = 0;
+  let mbps = 0;
   loading = (async () => {
     const { CreateWebWorkerMLCEngine } = await import("@mlc-ai/web-llm");
-    if (engine) await engine.unload();
+    if (engine) {
+      await engine.unload();
+      engine = null;
+    }
     const worker = new Worker(new URL("./llm.worker.ts", import.meta.url), { type: "module" });
-    engine = await CreateWebWorkerMLCEngine(worker, model, {
-      initProgressCallback: (r) => onProgress(r.progress, r.text),
+    const e = await CreateWebWorkerMLCEngine(worker, model, {
+      initProgressCallback: (r) => {
+        const fetching = /fetching/i.test(r.text);
+        const m = r.text.match(/(\d+)\s*MB/i);
+        const doneMB = m ? Number(m[1]) : Math.round(r.progress * totalMB);
+        const now = performance.now();
+        if (fetching && now - lastT > 700) {
+          // vitesse lissée (moyenne mobile exponentielle)
+          const inst = (doneMB - lastMB) / ((now - lastT) / 1000);
+          mbps = mbps ? mbps * 0.7 + inst * 0.3 : inst;
+          lastT = now;
+          lastMB = doneMB;
+        }
+        const left = totalMB - doneMB;
+        setState({
+          phase: fetching && !fromCache ? "download" : r.progress >= 1 ? "init" : state.phase,
+          progress: r.progress,
+          doneMB,
+          mbps: Math.max(0, mbps),
+          etaSec: fetching && mbps > 0.1 ? Math.round(left / mbps) : null,
+        });
+      },
     });
+    engine = e;
     engineModel = model;
-    return engine;
+    setState({ phase: "ready", progress: 1, etaSec: null });
+    return e;
   })();
   try {
     return await loading;
+  } catch (err) {
+    setState({ phase: "error", error: err instanceof Error ? err.message : String(err) });
+    throw err;
   } finally {
     loading = null;
   }
+}
+
+/** Au démarrage : si le modèle est déjà sur l'appareil, on le prépare sans rien demander. */
+export async function warmIfCached(s: LlmSettings) {
+  if (s.provider !== "webllm" || !hasWebGPU() || isReady(s) || loading) return;
+  if (await isCached(s.webllmModel)) loadWebLLM(s.webllmModel).catch(() => {});
 }
 
 export async function complete(s: LlmSettings, o: CompleteOpts): Promise<string> {

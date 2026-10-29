@@ -3,6 +3,7 @@ import { useState } from "react";
 import { LANGUAGES } from "@/lib/languages";
 import { speak } from "@/lib/speech";
 import type { Profile, VocabCard } from "@/lib/types";
+import { RiArrowLeftRightLine, RiVolumeUpLine } from "react-icons/ri";
 import { Btn, Card, Header } from "./ui";
 
 export function Vocab({ profile, vocab, review, onBack }: { profile: Profile; vocab: VocabCard[]; review: (w: string, ok: boolean) => void; onBack: () => void }) {
@@ -22,8 +23,8 @@ export function Vocab({ profile, vocab, review, onBack }: { profile: Profile; vo
     <div className="mx-auto max-w-lg">
       <Header title="Vocabulaire" onBack={onBack} />
       <div className="space-y-4 p-4">
-        {vocab.length === 0 && <p className="text-muted">Tes mots apprenants en conversation apparaîtront ici automatiquement.</p>}
-        {vocab.length > 0 && !card && <Card className="text-center">🎉 Rien à réviser pour l&apos;instant. Reviens plus tard.</Card>}
+        {vocab.length === 0 && <p className="text-muted">Tes mots appris en conversation apparaîtront ici automatiquement.</p>}
+        {vocab.length > 0 && !card && <Card className="text-center">Rien à réviser pour l&apos;instant. Reviens plus tard.</Card>}
         {card && (
           <>
             <p className="text-sm text-muted">{due.length} à réviser · boîte {card.box + 1}/5</p>
@@ -36,8 +37,8 @@ export function Vocab({ profile, vocab, review, onBack }: { profile: Profile; vo
               {flip && !reverse && <span className="mt-2 block text-muted">{card.transliteration}</span>}
             </button>
             <div className="flex gap-2">
-              <Btn variant="ghost" onClick={() => speak(card.word, lang.speech, 0.8)} className="flex-1">🔊 Écouter</Btn>
-              <Btn variant="ghost" onClick={() => { setReverse(!reverse); setFlip(false); }} className="flex-1">{reverse ? "Mot → sens" : "Sens → mot"}</Btn>
+              <Btn variant="ghost" onClick={() => speak(card.word, lang.speech, 0.8)} className="flex flex-1 items-center justify-center gap-1.5"><RiVolumeUpLine aria-hidden /> Écouter</Btn>
+              <Btn variant="ghost" onClick={() => { setReverse(!reverse); setFlip(false); }} className="flex flex-1 items-center justify-center gap-1.5"><RiArrowLeftRightLine aria-hidden /> {reverse ? "Mot → sens" : "Sens → mot"}</Btn>
             </div>
             {flip && (
               <div className="flex gap-2">

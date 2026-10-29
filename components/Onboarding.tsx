@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { GOALS, LANGUAGES, LEVELS, NATIVE_LANGS, TARGET_LANGS, type Goal, type Level } from "@/lib/languages";
 import type { Profile } from "@/lib/types";
+import { RiSpeakLine } from "react-icons/ri";
 import { Btn, Chip } from "./ui";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -20,7 +21,7 @@ export function Onboarding({ initial, onDone }: { initial?: Profile | null; onDo
   return (
     <main className="mx-auto max-w-lg space-y-6 px-4 py-8">
       <div>
-        <p className="text-4xl">🗣️</p>
+        <span className="grid size-14 place-items-center rounded-2xl bg-accent text-accent-ink"><RiSpeakLine aria-hidden className="size-8" /></span>
         <h1 className="mt-2 text-3xl font-bold">Apprends en parlant</h1>
         <p className="mt-1 text-muted">Règle ton profil : tout (niveau du tuteur, vocabulaire, scénarios) s&apos;adapte.</p>
       </div>

@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLoadState } from "@/components/LlmSetup";
 import { Conversation } from "@/components/Conversation";
 import { Home, type View } from "@/components/Home";
 import { Onboarding } from "@/components/Onboarding";
@@ -8,6 +9,7 @@ import { Report } from "@/components/Report";
 import { Settings } from "@/components/Settings";
 import { Vocab } from "@/components/Vocab";
 import { LANGUAGES } from "@/lib/languages";
+import { warmIfCached } from "@/lib/llm";
 import { useStore } from "@/lib/store";
 import type { SessionRecord } from "@/lib/types";
 
@@ -16,6 +18,12 @@ export default function Page() {
   const [view, setView] = useState<View>("home");
   const [scenario, setScenario] = useState("free");
   const [report, setReport] = useState<SessionRecord | null>(null);
+  const load = useLoadState();
+
+  // Modèle déjà téléchargé : on le charge en tâche de fond dès l'ouverture.
+  useEffect(() => {
+    if (st.ready && st.profile) void warmIfCached(st.llm);
+  }, [st.ready, st.profile, st.llm]);
 
   if (!st.ready) return null;
   if (!st.profile) return <Onboarding onDone={st.setProfile} />;
@@ -39,7 +47,7 @@ export default function Page() {
   if (view === "settings")
     return <Settings profile={profile} llm={st.llm} setLlm={st.setLlm} setProfile={st.setProfile} reset={st.reset} onBack={home} />;
   return (
-    <Home profile={profile} sessions={st.sessions} vocab={st.vocab} go={setView}
+    <Home load={load} profile={profile} sessions={st.sessions} vocab={st.vocab} go={setView}
       start={(id) => { setScenario(id); setView("chat"); }} />
   );
 }

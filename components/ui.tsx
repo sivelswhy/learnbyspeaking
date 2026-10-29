@@ -1,5 +1,6 @@
 "use client";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { RiArrowLeftLine } from "react-icons/ri";
 
 export function Btn({
   variant = "solid",
@@ -41,7 +42,7 @@ export function Header({ title, onBack, right }: { title: string; onBack?: () =>
     <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-bg/90 px-4 py-2 backdrop-blur">
       {onBack && (
         <button onClick={onBack} aria-label="Retour" className="-ml-2 grid size-11 place-items-center text-xl">
-          ←
+          <RiArrowLeftLine aria-hidden />
         </button>
       )}
       <h1 className="flex-1 truncate text-lg font-semibold">{title}</h1>

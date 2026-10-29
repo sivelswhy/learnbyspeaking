@@ -8,6 +8,10 @@ import {
 } from "@/lib/prompts";
 import { LEVEL_RATE, cancelSpeech, hasVoice, speak, useRecognizer, type SttError } from "@/lib/speech";
 import type { Correction, Message, NewWord, Profile, SessionRecord } from "@/lib/types";
+import {
+  RiArrowLeftRightLine, RiHand, RiHeadphoneLine, RiLightbulbLine, RiMagicLine, RiMicFill, RiMicLine,
+  RiQuestionLine, RiRepeatLine, RiSendPlaneFill, RiStopFill, RiTranslate2, RiVolumeUpLine,
+} from "react-icons/ri";
 import { LlmSetup } from "./LlmSetup";
 import { Btn, Header, wordMatch } from "./ui";
 
@@ -303,7 +307,7 @@ export function Conversation({
   return (
     <div className="mx-auto flex h-dvh max-w-lg flex-col">
       <Header
-        title={`${sc.emoji} ${sc.title}`}
+        title={sc.title}
         onBack={onExit}
         right={<Btn variant="ghost" onClick={finish} disabled={finishing} className="!min-h-9">{finishing ? "Bilan…" : "Terminer"}</Btn>}
       />
@@ -339,8 +343,8 @@ export function Conversation({
                 {assist.example && <p className={`mt-1 ${assist.kind === "explain" && lang.rtl ? "he" : ""} text-muted`}>{assist.example}</p>}
                 {(assist.kind === "rephrase" || assist.kind === "help") && (
                   <div className="mt-2 flex gap-2">
-                    <Btn variant="soft" onClick={() => say(assist.result)}>🔊 Écouter</Btn>
-                    <Btn variant="soft" onClick={() => setText(assist.result)}>Utiliser</Btn>
+                    <Btn variant="soft" onClick={() => say(assist.result)} className="flex items-center gap-1.5"><RiVolumeUpLine aria-hidden /> Écouter</Btn>
+                    <Btn variant="soft" onClick={() => setText(assist.result)} className="flex items-center gap-1.5"><RiArrowLeftRightLine aria-hidden /> Utiliser</Btn>
                   </div>
                 )}
               </>
@@ -382,25 +386,25 @@ export function Conversation({
             dir="auto" placeholder="Ou écris ta réponse…" aria-label="Ta réponse"
             className="min-h-11 flex-1 rounded-xl border border-line bg-card px-3 text-base"
           />
-          <Btn type="submit" disabled={!text.trim() || busy}>Envoyer</Btn>
+          <Btn type="submit" disabled={!text.trim() || busy} aria-label="Envoyer" className="grid w-11 place-items-center !px-0"><RiSendPlaneFill aria-hidden className="size-5" /></Btn>
         </form>
         {rec.interim && <p className={`mb-2 text-center text-muted ${lang.rtl ? "he" : ""}`}>{rec.interim}</p>}
         <div className="flex items-center justify-between">
           <div className="flex w-24 flex-col gap-1">
-            <Btn variant="ghost" onClick={() => lastAssistant && say(lastAssistant.text)} disabled={!lastAssistant} className="!min-h-9 !px-2">↻ Répéter</Btn>
-            <Btn variant="ghost" onClick={() => lastAssistant && runAssist("help", lastAssistant.text)} disabled={!lastAssistant || assistBusy} className="!min-h-9 !px-2">🆘 Aide</Btn>
+            <Btn variant="ghost" onClick={() => lastAssistant && say(lastAssistant.text)} disabled={!lastAssistant} className="flex !min-h-9 items-center justify-center gap-1 !px-2"><RiRepeatLine aria-hidden /> Répéter</Btn>
+            <Btn variant="ghost" onClick={() => lastAssistant && runAssist("help", lastAssistant.text)} disabled={!lastAssistant || assistBusy} className="flex !min-h-9 items-center justify-center gap-1 !px-2"><RiQuestionLine aria-hidden /> Aide</Btn>
           </div>
           <button
             onClick={mic} disabled={busy || finishing}
             aria-label={rec.listening ? "Arrêter l'écoute" : "Parler"}
-            className={`grid size-20 place-items-center rounded-full bg-accent text-3xl text-accent-ink disabled:opacity-40 ${rec.listening ? "listening" : ""}`}
+            className={`grid size-20 place-items-center rounded-full bg-accent text-accent-ink disabled:opacity-40 ${rec.listening ? "listening" : ""}`}
           >
-            {rec.listening ? "■" : "🎤"}
+            {rec.listening ? <RiStopFill aria-hidden className="size-8" /> : <RiMicFill aria-hidden className="size-9" />}
           </button>
           <div className="flex w-24 flex-col gap-1">
-            <Btn variant="ghost" onClick={interrupt} disabled={status === "idle"} className="!min-h-9 !px-2">✋ Stop</Btn>
-            <Btn variant={handsFree ? "solid" : "ghost"} onClick={() => setHandsFree(!handsFree)} className="!min-h-9 !px-2">
-              Mains libres
+            <Btn variant="ghost" onClick={interrupt} disabled={status === "idle"} className="flex !min-h-9 items-center justify-center gap-1 !px-2"><RiHand aria-hidden /> Stop</Btn>
+            <Btn variant={handsFree ? "solid" : "ghost"} onClick={() => setHandsFree(!handsFree)} className="flex !min-h-9 items-center justify-center gap-1 !px-2">
+              <RiHeadphoneLine aria-hidden /> Mains libres
             </Btn>
           </div>
         </div>
@@ -433,16 +437,16 @@ function Bubble({
       </div>
       {!user && (
         <div className="flex flex-wrap gap-1.5">
-          <Pill onClick={() => onSpeak(m.text)}>🔊</Pill>
+          <Pill onClick={() => onSpeak(m.text)} aria-label="Écouter"><RiVolumeUpLine aria-hidden /></Pill>
           <Pill onClick={() => (m.extra?.translation ? setShowTr(!showTr) : onAssist("translate", m.text))}>
-            {m.analyzing && !m.extra ? "…" : `Traduire (${nativeName})`}
+            <RiTranslate2 aria-hidden /> {m.analyzing && !m.extra ? "…" : `Traduire (${nativeName})`}
           </Pill>
-          <Pill onClick={() => onAssist("explain", m.text)}>Expliquer</Pill>
+          <Pill onClick={() => onAssist("explain", m.text)}><RiLightbulbLine aria-hidden /> Expliquer</Pill>
         </div>
       )}
       {user && (
         <div className="flex gap-1.5">
-          <Pill onClick={() => onAssist("rephrase", m.text)}>Reformuler</Pill>
+          <Pill onClick={() => onAssist("rephrase", m.text)}><RiMagicLine aria-hidden /> Reformuler</Pill>
         </div>
       )}
       {user && m.correction && (
@@ -455,8 +459,8 @@ function Bubble({
             <p className="text-muted">Plus naturel : <span className={he}>{m.correction.natural}</span></p>
           )}
           <div className="flex gap-2 pt-1">
-            <Btn variant="soft" onClick={() => onSpeak(m.correction!.corrected)} className="!min-h-9">🔊 Écouter</Btn>
-            <Btn variant="soft" onClick={() => onRepeat(m.correction!.corrected)} className="!min-h-9">🎤 Répéter</Btn>
+            <Btn variant="soft" onClick={() => onSpeak(m.correction!.corrected)} className="flex !min-h-9 items-center gap-1"><RiVolumeUpLine aria-hidden /> Écouter</Btn>
+            <Btn variant="soft" onClick={() => onRepeat(m.correction!.corrected)} className="flex !min-h-9 items-center gap-1"><RiMicLine aria-hidden /> Répéter</Btn>
             <Btn variant="soft" onClick={() => onUse(m.correction!.corrected)} className="!min-h-9">Renvoyer</Btn>
           </div>
         </div>
@@ -466,5 +470,5 @@ function Bubble({
 }
 
 function Pill({ children, ...p }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button {...p} className="min-h-9 rounded-full border border-line px-3 text-xs text-muted active:bg-line">{children}</button>;
+  return <button {...p} className="flex min-h-9 items-center gap-1 rounded-full border border-line px-3 text-xs text-muted active:bg-line">{children}</button>;
 }
