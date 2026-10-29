@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Captures de référence (interface tierce) : ne pas publier
+design-refs/

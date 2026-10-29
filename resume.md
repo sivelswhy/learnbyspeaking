@@ -54,6 +54,8 @@ Supprimer `.env.local` pour utiliser Hugging Face.
 
 ## Interface à reproduire (captures TalkFace du 29/10)
 
+Captures sauvées dans `design-refs/` (ignoré par git : interface et photos tierces, à ne pas publier). Numéros = sections ci-dessous.
+
 Style général : fond gris très clair, cartes blanches arrondies (rayon ~16 px) sans bordure, ombre légère ; couleur principale violet-indigo (~#4f46e5) ; gros boutons pilule pleine largeur en bas d'écran ; avatars ronds (photos chez eux → illustration maison chez nous) ; typographie sans-serif, titres gras.
 
 1. **Navigation** : barre d'onglets en pilule centrée en haut : « Parler · Cours · Bilan · Mon(Moi) », onglet actif sur fond gris clair, texte violet. Icône grille à droite (Cours).
