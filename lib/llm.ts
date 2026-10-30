@@ -251,18 +251,18 @@ async function prefetch(model: string, list: { model_id: string; model: string }
 }
 
 /** Au démarrage : si le modèle est déjà sur l'appareil, on le prépare sans rien demander. */
+/** Charge en tâche de fond ce qui est déjà sur l'appareil, un modèle après l'autre pour limiter le pic de mémoire. */
 export async function warmIfCached(s: LlmSettings) {
+  const step = (p: Promise<unknown>) => p.catch(() => {});
+  if (hasWebGPU() && s.provider === "webllm" && !isReady(s) && !loading && (await isCached(s.webllmModel))) await step(loadWebLLM(s.webllmModel));
+  if (hasWebGPU() && s.stt === "whisper") {
+    const w = await import("./whisper");
+    if (w.whisperStore.get().phase === "idle" && (await w.whisperCached())) await step(w.loadWhisper());
+  }
   if (s.voice === "natural") {
     const v = await import("./voice");
-    if (v.voiceStore.get().phase === "idle" && (await v.voiceCached())) v.loadVoice().catch(() => {});
+    if (v.voiceStore.get().phase === "idle" && (await v.voiceCached())) await step(v.loadVoice());
   }
-  if (!hasWebGPU()) return;
-  if (s.stt === "whisper") {
-    const w = await import("./whisper");
-    if (w.whisperStore.get().phase === "idle" && (await w.whisperCached())) w.loadWhisper().catch(() => {});
-  }
-  if (s.provider !== "webllm" || isReady(s) || loading) return;
-  if (await isCached(s.webllmModel)) loadWebLLM(s.webllmModel).catch(() => {});
 }
 
 /**

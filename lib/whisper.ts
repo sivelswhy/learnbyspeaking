@@ -2,7 +2,21 @@
 import type { LoadState } from "./llm";
 
 /** Reconnaissance vocale 100 % locale : Whisper ivrit-ai dans un worker (WebGPU). */
-export const WHISPER_MB = 760;
+export const WHISPER_MB = 560;
+
+/**
+ * q4f16 (≈ 560 Mo) si le GPU calcule en fp16 : environ moitié moins de mémoire que q4, dont le reste est en fp32.
+ * Sinon q4 (≈ 760 Mo).
+ */
+let dtypeP: Promise<"q4" | "q4f16"> | null = null;
+function whisperDtype() {
+  dtypeP ??= (async () => {
+    const gpu = (navigator as Navigator & { gpu?: { requestAdapter(): Promise<{ features: Set<string> } | null> } }).gpu;
+    const adapter = await gpu?.requestAdapter().catch(() => null);
+    return adapter?.features.has("shader-f16") ? "q4f16" : "q4";
+  })();
+  return dtypeP;
+}
 
 const WHISPER_LANG: Record<string, string> = { he: "hebrew", en: "english", es: "spanish", fr: "french" };
 
@@ -33,7 +47,8 @@ export async function whisperCached(): Promise<boolean> {
   try {
     const c = await caches.open("transformers-cache");
     const keys = await c.keys();
-    return keys.some((k) => k.url.includes("whisper-large-v3-turbo-onnx") && k.url.includes("encoder_model_q4"));
+    const file = `encoder_model_${await whisperDtype()}.onnx`;
+    return keys.some((k) => k.url.includes("whisper-large-v3-turbo-onnx") && k.url.includes(file));
   } catch {
     return false;
   }
@@ -45,6 +60,7 @@ export function loadWhisper(): Promise<void> {
     const fromCache = await whisperCached();
     if (!fromCache) await navigator.storage?.persist?.().catch(() => false);
     setState({ phase: fromCache ? "init" : "download", fromCache, progress: 0, doneMB: 0, error: undefined });
+    const dtype = await whisperDtype();
     worker = new Worker(new URL("./whisper.worker.ts", import.meta.url), { type: "module" });
     const samples: [number, number][] = [];
     await new Promise<void>((resolve, reject) => {
@@ -77,7 +93,7 @@ export function loadWhisper(): Promise<void> {
           reject(new Error(m.message));
         }
       };
-      worker!.postMessage({ type: "load" });
+      worker!.postMessage({ type: "load", dtype });
     });
   })().catch((err) => {
     worker?.terminate();

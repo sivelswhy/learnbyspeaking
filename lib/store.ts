@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import type { CourseProgress, PlacementResult, Profile, SessionRecord, VocabCard, NewWord } from "./types";
+import { lowMemoryDevice } from "./device";
 import { DEFAULT_LLM, type LlmSettings } from "./llm";
 
 const K = { profile: "lbs.profile", sessions: "lbs.sessions", vocab: "lbs.vocab", llm: "lbs.llm", course: "lbs.course", placement: "lbs.placement" };
@@ -36,7 +37,8 @@ export function useStore() {
     setProfileState(read<Profile | null>(K.profile, null));
     setSessions(read<SessionRecord[]>(K.sessions, []));
     setVocab(read<VocabCard[]>(K.vocab, []));
-    const saved = { ...DEFAULT_LLM, ...read<Partial<LlmSettings>>(K.llm, {}) };
+    // Sur iPhone, Whisper (≈ 760 Mo) en plus du reste fait recharger la page : reconnaissance d'Apple par défaut.
+    const saved = { ...DEFAULT_LLM, ...(lowMemoryDevice() ? { stt: "browser" as const } : {}), ...read<Partial<LlmSettings>>(K.llm, {}) };
     // Les anciens modèles Qwen se sont révélés mauvais en hébreu : on bascule sur DictaLM.
     if (saved.webllmModel !== DEFAULT_LLM.webllmModel) saved.webllmModel = DEFAULT_LLM.webllmModel;
     setLlmState(saved);

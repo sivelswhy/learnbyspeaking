@@ -5,6 +5,7 @@ import {
   DEFAULT_LLM, WEBLLM_MODELS, complete, errorMessage, hasWebGPU, isCached, isReady, loadStore, loadWebLLM,
   type LlmSettings, type LoadState,
 } from "@/lib/llm";
+import { lowMemoryDevice } from "@/lib/device";
 import { VOICE_MB, loadVoice, voiceCached, voiceStore } from "@/lib/voice";
 import { WHISPER_MB, loadWhisper, whisperCached, whisperStore } from "@/lib/whisper";
 import { Btn, Card } from "./ui";
@@ -76,6 +77,7 @@ export function LlmSetup({ llm, onChange, onReady }: { llm: LlmSettings; onChang
   const [error, setError] = useState("");
   const [cached, setCached] = useState<Record<string, boolean>>({});
   const gpu = hasWebGPU();
+  const lowMem = lowMemoryDevice();
   const loadingThis = ls.model === llm.webllmModel && (ls.phase === "download" || ls.phase === "init");
 
   useEffect(() => {
@@ -93,12 +95,11 @@ export function LlmSetup({ llm, onChange, onReady }: { llm: LlmSettings; onChang
     setError("");
     setBusy(true);
     try {
-      // Les deux téléchargements en parallèle : le débit total est le même, l'attente perçue plus courte.
-      await Promise.all([
-        llm.provider === "webllm" ? loadWebLLM(llm.webllmModel) : complete(llm, { messages: [{ role: "user", content: "ok" }], maxTokens: 2 }),
-        llm.stt === "whisper" && gpu ? loadWhisper() : Promise.resolve(),
-        llm.voice === "natural" ? loadVoice() : Promise.resolve(),
-      ]);
+      // L'un après l'autre : en parallèle, les copies en mémoire s'additionnent et Safari recharge la page.
+      if (llm.provider === "webllm") await loadWebLLM(llm.webllmModel);
+      else await complete(llm, { messages: [{ role: "user", content: "ok" }], maxTokens: 2 });
+      if (llm.stt === "whisper" && gpu) await loadWhisper();
+      if (llm.voice === "natural") await loadVoice();
       onReady?.();
     } catch (e) {
       setError(errorMessage(e));
@@ -162,7 +163,7 @@ export function LlmSetup({ llm, onChange, onReady }: { llm: LlmSettings; onChang
         <h3 className="text-sm font-semibold">Reconnaissance de ta voix</h3>
         <div className="space-y-2" role="radiogroup" aria-label="Reconnaissance vocale">
           {([
-            ["whisper", "Whisper ivrit-ai · 100 % local", `≈ ${WHISPER_MB} Mo · entraîné sur l'hébreu, rien ne quitte l'appareil`],
+            ["whisper", "Whisper ivrit-ai · 100 % local", `≈ ${WHISPER_MB} Mo · entraîné sur l'hébreu, rien ne quitte l'appareil${lowMem ? " · risque de recharger la page sur iPhone" : ""}`],
             ["browser", "Reconnaissance du navigateur", "Aucun téléchargement · l'audio est envoyé à Google/Apple/Microsoft"],
           ] as const).map(([v, label, note]) => (
             <button key={v} role="radio" aria-checked={llm.stt === v} disabled={wLoading || (v === "whisper" && !gpu)} onClick={() => set({ stt: v })}

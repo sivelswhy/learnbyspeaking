@@ -147,7 +147,7 @@ export default function Page() {
           ))}
         </div>
       </nav>
-      {!ready && (load.phase === "idle" || load.phase === "error") && (
+      {!ready && ![load, ws, vs].some((x) => x.phase === "download" || x.phase === "init") && (
         <button onClick={() => setScreen({ t: "setup" })} className="mb-4 w-full rounded-2xl border border-warn/40 bg-warn/10 p-3 text-left text-sm text-warn">
           Noam n&apos;est pas encore téléchargé sur cet appareil. Touche ici pour le préparer.
         </button>

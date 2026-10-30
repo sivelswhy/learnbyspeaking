@@ -11,6 +11,18 @@ const CHAINS: Partial<Record<LangCode, string[]>> = {
 
 let worker: Worker | null = null;
 let next = 1;
+let idle: ReturnType<typeof setTimeout> | null = null;
+
+/** Le traducteur (≈ 465 Mo) n'est gardé en mémoire que le temps de s'en servir. */
+const IDLE_MS = 45_000;
+function scheduleUnload() {
+  if (idle) clearTimeout(idle);
+  idle = setTimeout(() => {
+    if (pending.size) return scheduleUnload();
+    worker?.terminate();
+    worker = null;
+  }, IDLE_MS);
+}
 const pending = new Map<number, { resolve: (t: string) => void; reject: (e: Error) => void }>();
 
 export function canTranslate(target: LangCode, native: LangCode) {
@@ -29,8 +41,10 @@ export function translateHebrew(text: string, native: LangCode): Promise<string>
       pending.delete(e.data.id);
       if (e.data.error) p.reject(new Error(e.data.error));
       else p.resolve(e.data.text);
+      scheduleUnload();
     };
   }
+  if (idle) clearTimeout(idle);
   const sentences = text.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
   const id = next++;
   return new Promise((resolve, reject) => {
