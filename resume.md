@@ -2,14 +2,8 @@
 
 ## À reprendre, dans l'ordre
 
-1. **Envoyer les 2 modèles convertis sur Hugging Face** (compte `sivelsguy`, jeton déjà enregistré dans `~/.cache/huggingface/token`).
-   Les fichiers sont dans `~/learnbyspeaking-models/` (hors du projet, pas dans iCloud). Envoi lent (~0,25 Mo/s, ~1 h) : le lancer en arrière-plan.
-   ```
-   uvx --from huggingface_hub hf auth whoami
-   uvx --from huggingface_hub hf upload sivelsguy/DictaLM-3.0-1.7B-Instruct-q4f16_1-MLC ~/learnbyspeaking-models/DictaLM-3.0-1.7B-Instruct-q4f16_1-MLC . --repo-type model
-   uvx --from huggingface_hub hf upload sivelsguy/opus-mt-tc-big-he-en-onnx ~/learnbyspeaking-models/opus-mt-tc-big-he-en-onnx . --repo-type model
-   ```
-2. **Tester l'app complète** avec les modèles hébergés : préparation (téléchargement), conversation, traduction, micro Whisper.
+1. ~~Envoyer les 2 modèles sur Hugging Face~~ : fait le 30/10 (`sivelsguy/DictaLM-3.0-1.7B-Instruct-q4f16_1-MLC`, `sivelsguy/opus-mt-tc-big-he-en-onnx`, tous les fichiers présents).
+2. ~~Tester l'app avec les modèles hébergés~~ : fait le 30/10 (Chrome, WebGPU Metal). Préparation ~95 s (1,7 Go), 1re réplique de Noa ~4 s, transcription Whisper exacte en ~3 s, réponse ~5 s, traduction opus-mt correcte. 1re utilisation plus lente (~110 s) : téléchargement du traducteur (465 Mo). `.env.local` renommé en `.env.local.off` pour ce test.
 3. **Pousser sur GitHub Pages** seulement après accord (« push »). Les commits locaux sont en avance sur `origin/main`.
 4. ~~Ménage Ollama~~ : fait (DictaLM GGUF de test supprimé ; `qwen3*` et `translategemma` gardés).
 5. Supprimer le jeton Hugging Face (huggingface.co/settings/tokens) une fois l'envoi fini.
