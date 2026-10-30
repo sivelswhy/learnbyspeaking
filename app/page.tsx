@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Conversation } from "@/components/Conversation";
-import { Cours, DayScreen } from "@/components/Cours";
+import { Cours, DayScreen, type ResourceTab } from "@/components/Cours";
 import { InstallPrompt, registerServiceWorker } from "@/components/InstallPrompt";
 import { LlmSetup, allReady, useVoiceState, useWhisperState } from "@/components/LlmSetup";
 import { Onboarding } from "@/components/Onboarding";
@@ -63,6 +63,7 @@ export default function Page() {
   const st = useStore();
   const [tab, setTab] = useState<Tab>("parler");
   const [screen, setScreen] = useState<Screen>({ t: "tabs" });
+  const [coursTab, setCoursTab] = useState<ResourceTab | undefined>();
   const load = useLoadState();
   const ws = useWhisperState();
   const vs = useVoiceState();
@@ -98,7 +99,15 @@ export default function Page() {
           onDone={(r) => { st.setPlacement(r); st.setProfile({ ...profile, level: r.level, placementDone: true }); setTab("cours"); home(); }} />
       );
     case "hub":
-      return <TutorHub profile={profile} onBack={home} open={(m) => setScreen(m === "talk" || m === "daily" ? { t: "chat", scenario: topicScenario(profile.target) } : { t: "tool", mode: m })} />;
+      return (
+        <TutorHub profile={profile} onBack={home} open={(m) => {
+          if (m === "grammar") {
+            setCoursTab("grammar");
+            setTab("cours");
+            home();
+          } else setScreen(m === "talk" || m === "daily" ? { t: "chat", scenario: topicScenario(profile.target) } : { t: "tool", mode: m });
+        }} />
+      );
     case "scenarios":
       return <ScenarioList onBack={home} start={(id) => setScreen({ t: "chat", scenario: SCENARIOS.find((s) => s.id === id)! })} />;
     case "tool":
@@ -140,7 +149,7 @@ export default function Page() {
       <nav className="sticky top-0 z-10 -mx-4 flex justify-center bg-bg/90 px-4 py-3 backdrop-blur" aria-label="Sections">
         <div className="flex rounded-full border border-line bg-card/80 p-1 shadow-card" role="tablist">
           {TABS.map((t) => (
-            <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
+            <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => { setTab(t.id); setCoursTab(undefined); }}
               className={`min-h-10 rounded-full px-4 text-[15px] font-semibold transition ${tab === t.id ? "bg-line/70 text-accent" : "text-ink"}`}>
               {t.label}
             </button>
@@ -160,11 +169,11 @@ export default function Page() {
             else if (to === "scenarios") setScreen({ t: "scenarios" });
             else if (to === "placement") setScreen({ t: "placement" });
             else if (to === "translate" || to === "define") setScreen({ t: "tool", mode: to });
-            else if (to === "course") setTab("cours");
+            else if (to === "course") { setCoursTab(undefined); setTab("cours"); }
             else setScreen({ t: "day", day: nextDay(st.course, profile.level).day });
           }} />
       )}
-      {tab === "cours" && <div className="pb-10"><Cours profile={profile} progress={st.course} openDay={(d) => setScreen({ t: "day", day: d })} addWords={st.addWords} /></div>}
+      {tab === "cours" && <div className="pb-10"><Cours key={coursTab ?? "path"} profile={profile} progress={st.course} openDay={(d) => setScreen({ t: "day", day: d })} addWords={st.addWords} startTab={coursTab} /></div>}
       {tab === "bilan" && <div className="-mx-4"><Progress profile={profile} sessions={st.sessions} rtl={rtl} /></div>}
       {tab === "moi" && (
         <div className="-mx-4 space-y-2">

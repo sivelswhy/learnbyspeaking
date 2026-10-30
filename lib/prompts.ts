@@ -91,14 +91,23 @@ const TR_SHOTS: Record<string, [string, string][]> = {
   es: [["בטח! קפה הפוך או שחור?", "¡Claro! ¿Café con leche o solo?"], ["זה עולה עשרים שקל.", "Cuesta veinte séqueles."], ["איפה אתה גר?", "¿Dónde vives?"]],
 };
 
+/** Vers l'hébreu : phrases à la 1re personne, au genre de l'apprenant (DictaLM suit les exemples bien plus que les consignes). */
+const TR_FIRST_PERSON: Record<string, [Record<"m" | "f", string>, string][]> = {
+  fr: [[{ m: "אני עייף.", f: "אני עייפה." }, "Je suis fatigué."], [{ m: "אני צריך עזרה.", f: "אני צריכה עזרה." }, "J'ai besoin d'aide."], [{ m: "אני גר בפריז.", f: "אני גרה בפריז." }, "J'habite à Paris."], [{ m: "אני מחפש את המפתחות.", f: "אני מחפשת את המפתחות." }, "Je cherche mes clés."]],
+  en: [[{ m: "אני עייף.", f: "אני עייפה." }, "I'm tired."], [{ m: "אני צריך עזרה.", f: "אני צריכה עזרה." }, "I need help."], [{ m: "אני גר בפריז.", f: "אני גרה בפריז." }, "I live in Paris."], [{ m: "אני מחפש את המפתחות.", f: "אני מחפשת את המפתחות." }, "I'm looking for my keys."]],
+  es: [[{ m: "אני עייף.", f: "אני עייפה." }, "Estoy cansado."], [{ m: "אני צריך עזרה.", f: "אני צריכה עזרה." }, "Necesito ayuda."], [{ m: "אני גר בפריז.", f: "אני גרה בפריז." }, "Vivo en París."], [{ m: "אני מחפש את המפתחות.", f: "אני מחפשת את המפתחות." }, "Busco mis llaves."]],
+};
+
 /** Traduction d'une phrase cible -> langue maternelle (ou l'inverse si `reverse`). */
 export function translateMessages(p: Profile, text: string, reverse = false): Chat {
   const n = LANGUAGES[p.native];
   const t = LANGUAGES[p.target];
-  const shots = TR_SHOTS[p.native] ?? TR_SHOTS.en;
+  const g = p.gender ?? "m";
+  const firstPerson = reverse && t.genderedYou ? (TR_FIRST_PERSON[p.native] ?? TR_FIRST_PERSON.en).map(([he, nat]) => [he[g], nat] as [string, string]) : [];
+  const shots = [...(TR_SHOTS[p.native] ?? TR_SHOTS.en), ...firstPerson];
   const [from, to] = reverse ? [n.name, t.name] : [t.name, n.name];
   return [
-    { role: "system", content: `You translate ${from} sentences into ${to}. Output only the translation.` },
+    { role: "system", content: `You translate ${from} sentences into ${to}. Output only the translation.${reverse && t.genderedYou && p.gender ? ` The speaker is a ${p.gender === "f" ? "woman: write first-person verbs and adjectives in the feminine (אני רעבה, אני צריכה, אני גרה)" : "man: write first-person verbs and adjectives in the masculine (אני רעב, אני צריך, אני גר)"}.` : ""}` },
     ...shots.flatMap(([he, nat]) => (reverse ? [{ role: "user" as const, content: nat }, { role: "assistant" as const, content: he }] : [{ role: "user" as const, content: he }, { role: "assistant" as const, content: nat }])),
     { role: "user", content: text },
   ];

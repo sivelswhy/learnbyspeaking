@@ -17,8 +17,9 @@ export interface Mode {
 export const MODES: Mode[] = [
   { id: "talk", kind: "talk", title: "Discussion libre", sub: "Noam lance un sujet" },
   { id: "daily", kind: "talk", title: "Sujets du quotidien", sub: "Choisis un thème · 5 min" },
-  { id: "teacher", kind: "tool", title: "Professeur d'hébreu", sub: "Pose toutes tes questions", hello: "Pose-moi n'importe quelle question sur l'hébreu : un mot, une règle, une expression, la culture…", placeholder: "Ex. : comment dire « j'ai faim » ?" },
-  { id: "grammar", kind: "tool", title: "Professeur de grammaire", sub: "Une règle expliquée simplement", hello: "Quelle règle veux-tu comprendre ? Je l'explique simplement, avec des exemples.", placeholder: "Ex. : le féminin des adjectifs" },
+  { id: "teacher", kind: "tool", title: "Comment dire… ?", sub: "Une phrase en français, en hébreu", hello: "Écris une phrase en français : je te dis comment la dire en hébreu. Les phrases du cours ont leur prononciation, vérifiée.", placeholder: "Ex. : j'ai faim" },
+  // Leçons écrites à la main (Cours › Ressources) : un petit modèle explique la grammaire de façon trop peu fiable.
+  { id: "grammar", kind: "tool", title: "Grammaire", sub: "Les règles expliquées simplement" },
   { id: "translate", kind: "tool", title: "Traduction intelligente", sub: "Avec prononciation et variantes", hello: "Écris une phrase en français ou en hébreu : je la traduis, avec la prononciation et des variantes.", placeholder: "Ex. : On se voit demain ?" },
   { id: "define", kind: "tool", title: "Définir un mot", sub: "Dictionnaire intelligent", hello: "Donne-moi un mot en hébreu ou en français : sens, prononciation, genre, pluriel et exemples.", placeholder: "Ex. : שלום ou « maison »" },
 ];

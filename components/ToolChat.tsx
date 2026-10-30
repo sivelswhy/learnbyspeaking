@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { RiSendPlaneFill, RiVolumeUpLine } from "react-icons/ri";
 import { LANGUAGES } from "@/lib/languages";
 import { complete, errorMessage, type LlmSettings, type Msg } from "@/lib/llm";
+import { ALL_DAYS, type Line } from "@/lib/content/course-he";
 import { ALPHABET, GRAMMAR, PHRASES, THEMES, type Word } from "@/lib/content/resources-he";
 import { MODES, toolSystem, type ModeId } from "@/lib/modes";
 import { translateMessages } from "@/lib/prompts";
@@ -17,12 +18,22 @@ const HEBREW = /[֐-׿]/;
 
 const strip = (w: string) => w.toLowerCase().replace(/[\u0591-\u05C7]/g, "").replace(/[^\p{L}\s']/gu, "").trim();
 
-/** Cherche un mot dans la banque de ressources (hébreu, translittération ou sens). */
-function lookup(q: string): Word | null {
+/** Phrases du cours, au genre de l'apprenant. */
+function courseWords(gender: "m" | "f"): Word[] {
+  const lines: Line[] = ALL_DAYS.flatMap(({ day }) => [day.key, ...day.steps.flatMap((s) => (s.kind === "repeat" ? [s.line] : s.kind === "answer" ? [s.q, s.a] : []))]);
+  return lines.map((l) => ({ he: l.he[gender], tr: l.tr[gender], fr: l.fr }));
+}
+
+/** Cherche un mot ou une phrase dans la banque de ressources et le cours (hébreu, translittération ou sens). */
+function lookup(q: string, gender: "m" | "f"): Word | null {
   const k = strip(q);
-  const all: Word[] = [...THEMES.flatMap((t) => t.words), ...PHRASES, ...GRAMMAR.flatMap((g) => g.examples), ...ALPHABET.map((l) => ({ ...l.example }))];
+  if (!k) return null;
+  const all: Word[] = [...THEMES.flatMap((t) => t.words), ...PHRASES, ...GRAMMAR.flatMap((g) => g.examples), ...ALPHABET.map((l) => ({ ...l.example })), ...courseWords(gender)];
   return all.find((w) => strip(w.he) === k || strip(w.tr) === k || w.fr.split(/[,;]/).some((f) => strip(f) === k)) ?? null;
 }
+
+/** « Comment dire « j'ai faim » ? » → « j'ai faim ». */
+const phraseOf = (q: string) => q.replace(/^\s*(comment (on )?dire|comment dit-on|on dit comment)\s*/i, "").replace(/[«»"“”?]/g, "").trim() || q;
 
 /** Assistant écrit (professeur, grammaire, traduction, dictionnaire). */
 export function ToolChat({ profile, llm, setLlm, mode, onBack }: { profile: Profile; llm: LlmSettings; setLlm: (l: LlmSettings) => void; mode: ModeId; onBack: () => void }) {
@@ -50,13 +61,15 @@ export function ToolChat({ profile, llm, setLlm, mode, onBack }: { profile: Prof
     setError("");
     try {
       let out: string;
-      const known = mode === "define" ? lookup(q) : null;
+      // Réponses écrites à la main d'abord : le petit modèle se trompe vite hors traduction.
+      const phrase = mode === "teacher" ? phraseOf(q) : q;
+      const known = mode === "define" || mode === "teacher" ? lookup(phrase, profile.gender ?? "m") : null;
       if (known) {
         // Mot présent dans la banque de ressources : réponse écrite à la main, sans IA.
         out = `${known.he}\n(${known.tr})\n${known.fr}${known.note ? `\n- ${known.note}` : ""}`;
-      } else if (mode === "translate") {
-        const fromTarget = HEBREW.test(q);
-        const tr = (await complete(llm, { messages: translateMessages(profile, q, !fromTarget), temperature: 0.1, maxTokens: 120 })).split("\n")[0];
+      } else if (mode === "translate" || mode === "teacher") {
+        const fromTarget = mode === "translate" && HEBREW.test(q);
+        const tr = (await complete(llm, { messages: translateMessages(profile, phrase, !fromTarget), temperature: 0.1, maxTokens: 120 })).split("\n")[0];
         out = tr;
       } else {
         out = await complete(llm, {

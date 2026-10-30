@@ -11,8 +11,14 @@ import { BackButton } from "./ui";
 
 const dayDone = (p: CourseProgress, id: string) => !!(p[id]?.speaking && p[id]?.scenario);
 
-export function Cours({ profile, progress, openDay, addWords }: { profile: Profile; progress: CourseProgress; openDay: (d: Day) => void; addWords: (w: NewWord[]) => void }) {
-  const [seg, setSeg] = useState<"path" | "res">("path");
+export type ResourceTab = "alpha" | "vocab" | "phrases" | "grammar";
+
+export function Cours({ profile, progress, openDay, addWords, startTab }: {
+  profile: Profile; progress: CourseProgress; openDay: (d: Day) => void; addWords: (w: NewWord[]) => void;
+  /** Ouvre directement une rubrique des ressources (ex. la grammaire depuis le hub). */
+  startTab?: ResourceTab;
+}) {
+  const [seg, setSeg] = useState<"path" | "res">(startTab ? "res" : "path");
   const current = COURSE.find((l) => l.cefr === profile.level && l.units.length) ?? COURSE[0];
   const [open, setOpen] = useState<string | null>(current.id);
   return (
@@ -24,7 +30,7 @@ export function Cours({ profile, progress, openDay, addWords }: { profile: Profi
           </button>
         ))}
       </div>
-      {seg === "res" ? <Resources profile={profile} addWords={addWords} /> : COURSE.map((lvl, n) => {
+      {seg === "res" ? <Resources profile={profile} addWords={addWords} startTab={startTab} /> : COURSE.map((lvl, n) => {
         const days = lvl.units.flatMap((u) => u.days);
         const done = days.filter((d) => dayDone(progress, d.id)).length;
         const isOpen = open === lvl.id;
@@ -130,8 +136,8 @@ export function DayScreen({ day, unitTitle, index, profile, progress, onBack, st
   );
 }
 
-function Resources({ profile, addWords }: { profile: Profile; addWords: (w: NewWord[]) => void }) {
-  const [tab, setTab] = useState<"alpha" | "vocab" | "phrases" | "grammar">("alpha");
+function Resources({ profile, addWords, startTab }: { profile: Profile; addWords: (w: NewWord[]) => void; startTab?: ResourceTab }) {
+  const [tab, setTab] = useState<ResourceTab>(startTab ?? "alpha");
   const [theme, setTheme] = useState(THEMES[0].id);
   const [added, setAdded] = useState<string[]>([]);
   const speech = LANGUAGES[profile.target].speech;
