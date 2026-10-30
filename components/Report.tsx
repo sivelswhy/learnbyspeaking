@@ -2,36 +2,34 @@
 import { SCENARIOS } from "@/lib/languages";
 import type { SessionRecord } from "@/lib/types";
 import { ScenarioIcon } from "./icons";
+import { Radar } from "./Radar";
 import { Btn, Card } from "./ui";
-
-export function Bar({ label, v }: { label: string; v: number }) {
-  return (
-    <div>
-      <div className="flex justify-between text-sm"><span>{label}</span><span className="text-muted">{v}/100</span></div>
-      <div className="mt-1 h-2 overflow-hidden rounded-full bg-line"><div className="h-full bg-accent" style={{ width: `${v}%` }} /></div>
-    </div>
-  );
-}
 
 export function Report({ s, rtl, onClose }: { s: SessionRecord; rtl: boolean; onClose: () => void }) {
   const r = s.report;
   const sc = SCENARIOS.find((x) => x.id === s.scenarioId);
   return (
-    <main className="mx-auto max-w-lg space-y-4 px-4 py-6">
-      <h1 className="text-2xl font-bold"><span className="flex items-center gap-2"><ScenarioIcon id={s.scenarioId} className="text-accent" /> Bilan · {s.title ?? sc?.title}</span></h1>
-      <p className="text-sm text-muted">{Math.max(1, Math.round(s.seconds / 60))} min · {s.turns} réponses</p>
+    <main className="mx-auto max-w-lg space-y-4 px-4 pb-28 pt-4">
+      <div className="text-center">
+        <span className="mx-auto grid size-12 place-items-center rounded-full bg-soft text-accent"><ScenarioIcon id={s.scenarioId} className="size-6" /></span>
+        <h1 className="mt-2 text-lg font-bold">Bilan · {s.title ?? sc?.title}</h1>
+        <p className="text-sm text-muted">{Math.max(1, Math.round(s.seconds / 60))} min · {s.turns} réponses</p>
+      </div>
       {r ? (
         <>
           <Card className="text-center">
-            <p className="text-6xl font-bold text-accent">{r.score}<span className="text-2xl text-muted">/100</span></p>
-            <p className="mt-2 text-sm text-muted">{r.scoreExplanation}</p>
-          </Card>
-          <Card className="space-y-3">
-            <Bar label="Participation" v={r.participation ?? r.grammar ?? 0} /><Bar label="Longueur des réponses" v={r.fluency} /><Bar label="Vocabulaire" v={r.vocabulary} />
+            <p className="font-medium">Score</p>
+            <p className="text-5xl font-bold text-accent">{r.score}<span className="text-xl text-muted">/100</span></p>
+            <Radar values={[
+              { label: "Participation", v: r.participation ?? r.grammar ?? 0 },
+              { label: "Longueur", v: r.fluency },
+              { label: "Vocabulaire", v: r.vocabulary },
+            ]} />
+            <p className="text-xs text-muted">{r.scoreExplanation}</p>
           </Card>
           {r.summary && <p>{r.summary}</p>}
           {(r.mainErrors?.length ?? 0) > 0 && <Card><h2 className="mb-1 font-semibold">Erreurs principales</h2><ul className="list-disc ps-5 text-sm">{r.mainErrors!.map((e) => <li key={e}>{e}</li>)}</ul></Card>}
-          {r.tips.length > 0 && <Card><h2 className="mb-1 font-semibold">Conseils</h2><ul className="list-disc ps-5 text-sm">{r.tips.map((e) => <li key={e}>{e}</li>)}</ul></Card>}
+          {r.tips.length > 0 && <Card><h2 className="mb-1 font-semibold">Conseils d&apos;amélioration <span className="text-sm font-normal">({r.tips.length})</span></h2><ul className="list-disc ps-5 text-sm">{r.tips.map((e) => <li key={e}>{e}</li>)}</ul></Card>}
         </>
       ) : (
         <Card className="text-sm text-muted">Le rapport détaillé n&apos;a pas pu être généré (l&apos;IA locale a échoué). La session est quand même enregistrée.</Card>
@@ -49,7 +47,9 @@ export function Report({ s, rtl, onClose }: { s: SessionRecord; rtl: boolean; on
           </ul>
         </Card>
       )}
-      <Btn onClick={onClose} className="w-full">Retour à l&apos;accueil</Btn>
+      <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-6">
+        <Btn onClick={onClose} className="mx-auto block min-h-14 w-full max-w-lg text-base">Retour à l&apos;accueil</Btn>
+      </div>
     </main>
   );
 }

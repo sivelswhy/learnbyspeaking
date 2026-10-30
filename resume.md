@@ -1,4 +1,4 @@
-# Résumé — où on en est (30/10/2026)
+# Résumé — où on en est (30/10/2026, après-midi)
 
 ## À reprendre, dans l'ordre
 
@@ -11,10 +11,10 @@
    ```
 2. **Tester l'app complète** avec les modèles hébergés : préparation (téléchargement), conversation, traduction, micro Whisper.
 3. **Pousser sur GitHub Pages** seulement après accord (« push »). Les commits locaux sont en avance sur `origin/main`.
-4. **Ménage** : `ollama rm hf.co/EMD123/DictaLM-3.0-1.7B-Instruct-Q4_K_M-GGUF:latest`. Ne pas toucher aux modèles Ollama déjà présents avant (`qwen3*`, `translategemma`).
+4. ~~Ménage Ollama~~ : fait (DictaLM GGUF de test supprimé ; `qwen3*` et `translategemma` gardés).
 5. Supprimer le jeton Hugging Face (huggingface.co/settings/tokens) une fois l'envoi fini.
 
-6. **Refaire l'interface au plus près des captures TalkFace envoyées** (sans copier logo, nom, photos ni contenus) — description ci-dessous, section « Interface à reproduire ».
+6. ~~Refaire l'interface d'après les captures~~ : fait, vérifié par captures 390 px (clair + sombre). Palette `--soft`/`--pink`/`shadow-card`, `BackButton`, accueil, hub, test (intro à anneaux ondulés, ligne de progression à points, heure des messages, bulle « moi »), rapport de niveau (onglets Rapport / Mes réponses, conseils par question avec Conseil + Exemple, filtre « À revoir », partage), bilan de session avec radar, cours (frise alternée), jour, entraînement (carte portrait + sous-titre, carte « Répète » avec boutons ronds). Pas repris : vidéo réelle de tutrice, mode « Améliorateur d'accent ».
 
 Plus tard : niveaux B1/B2 du parcours (vides, « Bientôt disponible »), test sur un vrai téléphone.
 

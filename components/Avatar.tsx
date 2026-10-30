@@ -13,12 +13,12 @@ export function Avatar({ speaking = false, size = 96, className = "" }: { speaki
         </clipPath>
       </defs>
       <g clipPath="url(#noa-clip)">
-        <rect width="120" height="120" fill="#dbe4ff" />
+        <rect width="120" height="120" fill="#e6e2ff" />
         {/* cheveux arrière */}
         <path d="M24 70 C18 30 40 14 60 14 C82 14 102 30 96 72 L100 120 L20 120 Z" fill="#3b2418" />
         {/* cou + épaules */}
         <rect x="51" y="78" width="18" height="16" rx="6" fill="#e9b48f" />
-        <path d="M18 120 C20 98 38 90 60 90 C82 90 100 98 102 120 Z" fill="#2a5bd7" />
+        <path d="M18 120 C20 98 38 90 60 90 C82 90 100 98 102 120 Z" fill="#4f46e5" />
         <path d="M50 90 L60 102 L70 90 Z" fill="#fff" opacity="0.9" />
         {/* visage */}
         <ellipse cx="60" cy="56" rx="23" ry="27" fill="#f2c4a0" />

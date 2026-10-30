@@ -1,6 +1,6 @@
 "use client";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { RiArrowLeftLine } from "react-icons/ri";
+import { RiArrowLeftSLine } from "react-icons/ri";
 
 export function Btn({
   variant = "solid",
@@ -9,19 +9,19 @@ export function Btn({
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "solid" | "ghost" | "soft" }) {
   const v = {
     solid: "bg-accent text-accent-ink font-semibold",
-    soft: "bg-accent/10 text-accent font-medium",
+    soft: "bg-soft text-accent font-medium",
     ghost: "border border-line text-ink",
   }[variant];
   return (
     <button
       {...p}
-      className={`min-h-11 rounded-xl px-4 text-sm transition active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 ${v} ${className}`}
+      className={`min-h-11 rounded-full px-5 text-sm transition active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 ${v} ${className}`}
     />
   );
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-line bg-card p-4 ${className}`}>{children}</div>;
+  return <div className={`rounded-2xl bg-card shadow-card p-4 ${className}`}>{children}</div>;
 }
 
 export function Chip({ active, children, ...p }: ButtonHTMLAttributes<HTMLButtonElement> & { active?: boolean }) {
@@ -39,15 +39,20 @@ export function Chip({ active, children, ...p }: ButtonHTMLAttributes<HTMLButton
 
 export function Header({ title, onBack, right }: { title: string; onBack?: () => void; right?: ReactNode }) {
   return (
-    <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-bg/90 px-4 py-2 backdrop-blur">
-      {onBack && (
-        <button onClick={onBack} aria-label="Retour" className="-ml-2 grid size-11 place-items-center text-xl">
-          <RiArrowLeftLine aria-hidden />
-        </button>
-      )}
-      <h1 className="flex-1 truncate text-lg font-semibold">{title}</h1>
-      {right}
+    <header className="sticky top-0 z-10 flex items-center gap-3 bg-bg/90 px-4 py-2 backdrop-blur">
+      {onBack && <BackButton onClick={onBack} />}
+      <h1 className={`flex-1 truncate text-lg font-bold ${onBack ? "text-center" : ""}`}>{title}</h1>
+      {right ?? (onBack && <span className="size-11 shrink-0" aria-hidden />)}
     </header>
+  );
+}
+
+/** Flèche retour ronde, comme sur les écrans plein page. */
+export function BackButton({ onClick, className = "" }: { onClick: () => void; className?: string }) {
+  return (
+    <button onClick={onClick} aria-label="Retour" className={`grid size-11 shrink-0 place-items-center rounded-full bg-card text-xl shadow-card active:scale-95 ${className}`}>
+      <RiArrowLeftSLine aria-hidden />
+    </button>
   );
 }
 

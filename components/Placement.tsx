@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { RiEyeLine, RiKeyboardLine, RiLightbulbLine, RiMicFill, RiStopFill, RiTranslate2, RiVolumeUpLine } from "react-icons/ri";
+import { RiEyeLine, RiKeyboardLine, RiLightbulbLine, RiShareBoxLine, RiStopFill, RiVoiceprintLine, RiTranslate2, RiVolumeUpLine } from "react-icons/ri";
 import { LANGUAGES, type Level } from "@/lib/languages";
 import type { LlmSettings } from "@/lib/llm";
 import { PLACEMENT, SCORING_EXPLANATION, estimateLevel, scoreAnswer, type AnswerScore, type PlacementQuestion } from "@/lib/placement";
@@ -20,26 +20,45 @@ export function Placement({ profile, llm, onDone, onSkip }: { profile: Profile; 
   return <Test profile={profile} llm={llm} onExit={onSkip} onFinish={(r) => { setResult(r); setPhase("report"); }} />;
 }
 
+/** Anneau ondulé : cercle déformé par quelques harmoniques. */
+function wavyPath(r: number, amp: number, k: number, phase: number) {
+  const pts: string[] = [];
+  for (let i = 0; i <= 96; i++) {
+    const a = (i / 96) * Math.PI * 2;
+    const rr = r + amp * Math.sin(k * a + phase) + amp * 0.6 * Math.sin((k + 2) * a - phase * 1.7);
+    pts.push(`${(100 + rr * Math.cos(a)).toFixed(1)},${(100 + rr * Math.sin(a)).toFixed(1)}`);
+  }
+  return `M${pts.join("L")}Z`;
+}
+
 function Intro({ onStart, onSkip }: { onStart: () => void; onSkip: () => void }) {
   return (
-    <main className="relative flex min-h-dvh flex-col items-center overflow-hidden bg-gradient-to-b from-[#3b6ee8] to-[#1d3fa8] px-6 pb-[max(env(safe-area-inset-bottom),20px)] pt-16 text-white">
+    <main className="relative flex min-h-dvh flex-col items-center overflow-hidden bg-gradient-to-b from-[#9a63e6] via-[#5b3fd1] to-[#5536d6] px-6 pb-[max(env(safe-area-inset-bottom),20px)] pt-16 text-white">
       <h1 className="text-center text-3xl font-bold leading-tight">Découvre ton niveau d&apos;hébreu en 3 minutes</h1>
-      <div className="relative my-auto grid size-64 place-items-center">
-        <svg viewBox="0 0 200 200" className="absolute inset-0 size-full animate-[spin_24s_linear_infinite]" aria-hidden>
-          {Array.from({ length: 14 }, (_, i) => (
-            <ellipse key={i} cx="100" cy="100" rx={70 + (i % 4) * 6} ry={60 + ((i * 3) % 5) * 5} fill="none" stroke={i % 2 ? "#a5c0ff" : "#ffffff"} strokeOpacity={0.18 + (i % 3) * 0.08} strokeWidth="0.8" transform={`rotate(${i * 13} 100 100)`} />
+      <div className="relative my-auto grid size-72 place-items-center">
+        <svg viewBox="0 0 200 200" className="absolute inset-0 size-full" aria-hidden>
+          <defs>
+            <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#f0a6ff" />
+              <stop offset="0.5" stopColor="#c084fc" />
+              <stop offset="1" stopColor="#7aa2ff" />
+            </linearGradient>
+          </defs>
+          {Array.from({ length: 18 }, (_, i) => (
+            <path key={i} className="ring-wobble" style={{ animationDelay: `${-i * 0.35}s` }} d={wavyPath(62 + (i % 6) * 1.6, 3 + (i % 4), 3 + (i % 3), i * 0.45)}
+              fill="none" stroke="url(#ring)" strokeOpacity={0.35 + (i % 3) * 0.12} strokeWidth="0.6" />
           ))}
         </svg>
-        <div className="flex items-center gap-2 text-3xl font-bold">
-          <span className="flex items-end gap-0.5" aria-hidden>
-            {[10, 18, 26, 18, 12].map((h, i) => <span key={i} className="w-1 rounded-full bg-white" style={{ height: h }} />)}
+        <div className="flex items-center gap-2.5 text-4xl font-bold">
+          <span className="flex items-center gap-[3px]" aria-hidden>
+            {[12, 22, 32, 22, 14].map((h, i) => <span key={i} className="w-1 rounded-full bg-white" style={{ height: h }} />)}
           </span>
           Parle
         </div>
       </div>
-      <p className="text-center font-semibold text-[#bfe6ff]">6 questions à l&apos;oral, de A1 à B2</p>
-      <p className="mb-6 text-center text-sm text-white/70">Notation transparente, calculée sur ton appareil</p>
-      <button onClick={onStart} className="min-h-14 w-full max-w-md rounded-full bg-white text-lg font-semibold text-[#1d3fa8] active:scale-[0.99]">Démarrer</button>
+      <p className="text-center text-lg font-semibold text-[#7ff0e0]">6 questions à l&apos;oral, de A1 à B2</p>
+      <p className="mb-6 text-center text-sm text-[#a9e9ff]/80">Notation transparente, calculée sur ton appareil</p>
+      <button onClick={onStart} className="min-h-14 w-full max-w-md rounded-full bg-white text-lg font-semibold text-accent active:scale-[0.99]">Démarrer</button>
       <button onClick={onSkip} className="mt-3 min-h-11 text-sm text-white/80 underline">Plus tard</button>
     </main>
   );
@@ -47,11 +66,14 @@ function Intro({ onStart, onSkip }: { onStart: () => void; onSkip: () => void })
 
 interface Turn { answer: string; score: AnswerScore }
 
+const clock = () => new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+
 function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSettings; onExit: () => void; onFinish: (r: PlacementResult) => void }) {
   const qs = PLACEMENT[profile.target] ?? [];
   const lang = LANGUAGES[profile.target];
   const gnd = profile.gender ?? "m";
   const [i, setI] = useState(0);
+  const [times, setTimes] = useState<string[]>(() => [clock()]);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [revealed, setRevealed] = useState(false);
   const [showTr, setShowTr] = useState(false);
@@ -86,6 +108,7 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
   function next() {
     if (i + 1 < qs.length) {
       setI(i + 1);
+      setTimes((t) => [...t, clock()]);
       setRevealed(false);
       setShowTr(false);
       setShowEx(false);
@@ -107,8 +130,10 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
   return (
     <div className="mx-auto flex h-dvh max-w-lg flex-col">
       <Header title="Test de niveau" onBack={onExit} />
-      <div className="flex gap-1 px-4 pt-2" aria-label={`Question ${i + 1} sur ${qs.length}`}>
-        {qs.map((_, k) => <span key={k} className={`h-1.5 flex-1 rounded-full ${k < turns.length ? "bg-accent" : k === i ? "bg-accent/40" : "bg-line"}`} />)}
+      <div className="relative mx-6 mt-2 h-1 rounded-full bg-accent/15" role="progressbar" aria-valuemin={0} aria-valuemax={qs.length} aria-valuenow={turns.length} aria-label={`Question ${i + 1} sur ${qs.length}`}>
+        <div className="h-full rounded-full bg-accent/60 transition-[width]" style={{ width: `${(turns.length / qs.length) * 100}%` }} />
+        <span className="absolute -start-1 top-1/2 grid size-3.5 -translate-y-1/2 place-items-center rounded-full bg-accent/70" />
+        <span className={`absolute -end-1 top-1/2 size-3.5 -translate-y-1/2 rounded-full ${turns.length === qs.length ? "bg-accent/70" : "bg-accent/25"}`} />
       </div>
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
         {qs.slice(0, i + 1).map((qq, k) => {
@@ -117,12 +142,12 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
           return (
             <div key={k} className="space-y-3">
               <div>
-                <div className="mb-1 flex items-center gap-2 text-sm"><Avatar size={28} /> <b>Noa</b> <span className="text-muted">{qq.level}</span></div>
-                <div className="rounded-2xl bg-card p-4 shadow-sm">
+                <div className="mb-1.5 flex items-center gap-2 text-sm"><Avatar size={30} /> <span className="font-medium">Noa</span> <span className="text-muted">{times[k]}</span></div>
+                <div className="rounded-2xl bg-card p-4 shadow-card">
                   <button onClick={() => setRevealed(true)} disabled={!current || revealed} className="block w-full text-start" aria-label={!current || revealed ? undefined : "Afficher la question"}>
-                    <p className={`${he} text-xl transition ${current && !revealed ? "select-none blur-md" : ""}`}>{qq.text[gnd]}</p>
+                    <p className={`${he} text-xl transition ${current && !revealed && !done ? "select-none blur-md" : ""}`}>{qq.text[gnd]}</p>
                   </button>
-                  {(!current || revealed) && <p className="mt-1 text-sm text-muted">{qq.transliteration[gnd]}</p>}
+                  {(!current || revealed || done) && <p className="mt-1 text-sm text-muted">{qq.transliteration[gnd]}</p>}
                   {current && (showTr || k < i) && <p className="mt-1 text-sm">{qq.translation[profile.native]}</p>}
                   {current && !done && (
                     <div className="mt-3 flex flex-wrap gap-3 text-sm font-medium">
@@ -133,13 +158,16 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
                     </div>
                   )}
                   {current && showEx && !done && (
-                    <p className="mt-2 rounded-xl bg-accent/10 p-3 text-sm"><span className={`${he} block text-base`}>{qq.sample.he[gnd]}</span>{qq.sample.tr[gnd]}</p>
+                    <p className="mt-2 rounded-xl bg-soft p-3 text-sm"><span className={`${he} block text-base`}>{qq.sample.he[gnd]}</span>{qq.sample.tr[gnd]}</p>
                   )}
                 </div>
               </div>
               {t && (
                 <>
-                  <p dir="auto" className={`${he} ms-auto max-w-[85%] rounded-2xl rounded-br-md bg-accent px-4 py-3 text-lg text-accent-ink`}>{t.answer || "—"}</p>
+                  <div className="flex flex-col items-end">
+                    <p className="mb-1 flex items-center gap-2 text-sm text-muted">moi <span className="grid size-7 place-items-center rounded-full bg-soft text-xs font-bold text-accent">{(profile.name || "?").slice(0, 1).toUpperCase()}</span></p>
+                    <p dir="auto" className={`${he} max-w-[85%] rounded-2xl rounded-tr-md bg-accent px-4 py-3 text-lg text-accent-ink`}>{t.answer || "—"}</p>
+                  </div>
                   <Feedback t={t} q={qq} gnd={gnd} he={he} speech={lang.speech} />
                 </>
               )}
@@ -150,7 +178,7 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
         <div ref={bottom} />
       </div>
 
-      <div className="border-t border-line bg-bg px-4 pb-[max(env(safe-area-inset-bottom),12px)] pt-3">
+      <div className="bg-bg px-4 pb-[max(env(safe-area-inset-bottom),12px)] pt-3">
         {done ? (
           <Btn onClick={next} className="min-h-14 w-full text-base">{i + 1 < qs.length ? "Question suivante" : "Voir mon rapport"}</Btn>
         ) : typing ? (
@@ -161,9 +189,9 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
         ) : (
           <button onClick={() => (voice.listening ? voice.stop() : (cancelSpeech(), voice.start()))} disabled={voice.transcribing}
             style={voice.listening && voice.level ? { boxShadow: `0 0 0 ${2 + voice.level * 10}px color-mix(in srgb, var(--accent) 25%, transparent)` } : undefined}
-            className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-accent/15 font-semibold text-accent disabled:opacity-60">
-            {voice.listening ? <RiStopFill aria-hidden className="size-5" /> : <RiMicFill aria-hidden className="size-5" />}
-            {voice.transcribing ? "Transcription…" : voice.listening ? "Je t'écoute… appuie pour terminer" : "Appuie pour répondre"}
+            className="flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-soft font-semibold text-accent disabled:opacity-60">
+            {voice.listening ? <RiStopFill aria-hidden className="size-5" /> : <RiVoiceprintLine aria-hidden className="size-5" />}
+            {voice.transcribing ? "Transcription…" : voice.listening ? "Je t'écoute… appuie pour terminer" : "Appuie pour enregistrer"}
           </button>
         )}
         {!done && (
@@ -184,12 +212,12 @@ function Feedback({ t, q, gnd, he, speech }: { t: Turn; q: PlacementQuestion; gn
   if (sc.words) good.push(`Tu as répondu en hébreu avec ${sc.words} mot${sc.words > 1 ? "s" : ""}.`);
   if (sc.relevance === 100) good.push("Ta réponse contient les mots attendus pour cette question.");
   return (
-    <div className="space-y-2 rounded-2xl bg-card p-4 text-sm shadow-sm">
+    <div className="space-y-2 rounded-2xl bg-card p-4 text-sm shadow-card">
       <p className="flex items-center justify-between font-semibold">{verdict} <span className="text-accent">{sc.score}/100</span></p>
       {good.length > 0 && <ul className="list-disc space-y-0.5 ps-5">{good.map((g) => <li key={g}>{g}</li>)}</ul>}
       <p><b>Conseil :</b> {q.tip}</p>
       {sc.words > 0 && sc.length < 100 && <p className="text-muted">Développe un peu plus : vise au moins {Math.ceil((sc.words * 100) / Math.max(sc.length, 1))} mots.</p>}
-      <div className="rounded-xl bg-accent/10 p-3">
+      <div className="rounded-xl bg-soft p-3">
         <p className="text-xs font-semibold uppercase text-accent">Exemple</p>
         <p className="flex items-center gap-2">
           <button onClick={() => speak(q.sample.he[gnd], speech, 0.85)} aria-label="Écouter l'exemple" className="text-accent"><RiVolumeUpLine aria-hidden /></button>
@@ -213,35 +241,85 @@ const LEVEL_TEXT: Record<Level, string> = {
 
 export function PlacementReport({ r, profile, onContinue }: { r: PlacementResult; profile: Profile; onContinue: () => void }) {
   const he = LANGUAGES[profile.target].rtl ? "he" : "";
+  const gnd = profile.gender ?? "m";
+  const qs = PLACEMENT[profile.target] ?? [];
+  const [tab, setTab] = useState<"report" | "answers">("report");
+  const [filter, setFilter] = useState<"all" | "review">("all");
+  const list = r.answers.map((a, k) => ({ ...a, k, q: qs[k] })).filter((a) => filter === "all" || a.score < 55);
+  const toReview = r.answers.filter((a) => a.score < 55).length;
+  const share = () => void navigator.share?.({ title: "Mon niveau d'hébreu", text: `Niveau estimé : ${r.level}. ${LEVEL_TEXT[r.level]}` }).catch(() => {});
   return (
     <div className="mx-auto max-w-lg pb-28">
-      <Header title="Rapport de niveau" />
-      <div className="space-y-4 p-4">
-        <div className="rounded-2xl bg-card p-4 text-center shadow-sm">
-          <p className="text-sm text-muted">Niveau estimé</p>
-          <p className="text-5xl font-bold text-accent">{r.level}</p>
-          <p className="mt-1 text-sm">{LEVEL_TEXT[r.level]}</p>
-          <Radar
-            values={[
-              { label: "Réponses", v: r.axes.answered },
-              { label: "Longueur", v: r.axes.length },
-              { label: "Vocabulaire", v: r.axes.vocabulary },
-              { label: "Pertinence", v: r.axes.relevance },
-            ]}
-          />
-          <p className="text-xs text-muted">{SCORING_EXPLANATION}</p>
+      <header className="sticky top-0 z-10 bg-bg/90 backdrop-blur">
+        <div className="flex items-center gap-3 px-4 pt-3">
+          <span className="size-11 shrink-0" aria-hidden />
+          <h1 className="flex-1 text-center font-bold">Rapport d&apos;expression orale</h1>
+          {typeof navigator !== "undefined" && "share" in navigator ? (
+            <button onClick={share} aria-label="Partager" className="grid size-11 shrink-0 place-items-center rounded-full bg-card shadow-card"><RiShareBoxLine aria-hidden className="size-5" /></button>
+          ) : <span className="size-11 shrink-0" aria-hidden />}
         </div>
-        <h2 className="font-semibold">Détail des réponses</h2>
-        {r.answers.map((a, k) => (
-          <div key={k} className="rounded-2xl bg-card p-4 text-sm shadow-sm">
-            <p className="flex items-start justify-between gap-2"><span className="text-base font-medium">{k + 1}. <span className={he}>{a.question}</span></span> <span className="shrink-0 font-semibold text-warn">{a.score} pts</span></p>
-            <p className="mt-2 text-xs font-semibold uppercase text-muted">Ta réponse</p>
-            <p dir="auto" className={he}>{a.answer || "—"}</p>
+        <div className="mt-2 grid grid-cols-2 border-b border-line" role="tablist">
+          {(["report", "answers"] as const).map((t) => (
+            <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`min-h-11 text-[15px] ${tab === t ? "font-semibold text-ink" : "text-muted"}`}>
+              <span className={`inline-block py-2 ${tab === t ? "border-b-2 border-ink" : ""}`}>{t === "report" ? "Rapport" : "Mes réponses"}</span>
+            </button>
+          ))}
+        </div>
+      </header>
+      <div className="space-y-4 p-4">
+        {tab === "report" && (
+          <div className="rounded-2xl bg-card p-4 text-center shadow-card">
+            <p className="font-medium">Niveau</p>
+            <p className="text-5xl font-bold text-accent">{r.level}</p>
+            <p className="mx-auto mt-1 max-w-xs text-sm text-muted">{LEVEL_TEXT[r.level]}</p>
+            <Radar
+              values={[
+                { label: "Réponses", v: r.axes.answered },
+                { label: "Longueur", v: r.axes.length },
+                { label: "Vocabulaire", v: r.axes.vocabulary },
+                { label: "Pertinence", v: r.axes.relevance },
+              ]}
+            />
+            <p className="text-xs text-muted">{SCORING_EXPLANATION}</p>
           </div>
-        ))}
+        )}
+        <div className="rounded-2xl bg-card py-4 shadow-card">
+          <h2 className="px-4 font-semibold">{tab === "report" ? "Conseils d'amélioration" : "Mes réponses"} <span className="text-sm font-normal">({r.answers.length})</span></h2>
+          <div className="mt-2 flex gap-5 border-b border-line px-4" role="tablist">
+            {(["all", "review"] as const).map((f) => (
+              <button key={f} role="tab" aria-selected={filter === f} onClick={() => setFilter(f)} className={`-mb-px min-h-10 border-b-2 text-[15px] ${filter === f ? "border-accent text-accent" : "border-transparent text-muted"}`}>
+                {f === "all" ? "Toutes" : `À revoir (${toReview})`}
+              </button>
+            ))}
+          </div>
+          <div className="space-y-3 px-4 pt-3">
+            {list.length === 0 && <p className="py-4 text-center text-sm text-muted">Rien à revoir, bravo !</p>}
+            {list.map((a) => (
+              <div key={a.k} className="overflow-hidden rounded-xl border border-line text-sm">
+                <p className="flex items-baseline gap-2 bg-soft px-3 py-2.5 text-base font-medium">
+                  <span className="flex-1">{a.k + 1}. <span className={he}>{a.question}</span></span>
+                  <span className="shrink-0 text-sm font-semibold text-[#f59e0b]"><span className="underline">{a.score}</span> pts</span>
+                </p>
+                <div className="space-y-3 p-3">
+                  <div><p className="font-semibold">Ta réponse</p><p dir="auto" className={`${he} text-muted`}>{a.answer || "—"}</p></div>
+                  {tab === "report" && a.q && (
+                    <>
+                      <div><p className="w-fit font-semibold underline decoration-accent/40 decoration-2 underline-offset-4">Conseil</p><p className="mt-1">{a.q.tip}</p></div>
+                      <div>
+                        <p className="w-fit font-semibold underline decoration-accent/40 decoration-2 underline-offset-4">Exemple</p>
+                        <p className={`${he} mt-1 text-base`}>{a.q.sample.he[gnd]}</p>
+                        <p className="text-muted">{a.q.sample.tr[gnd]} — {a.q.sample.fr}</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
       <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-6">
-        <Btn onClick={onContinue} className="mx-auto block min-h-14 w-full max-w-lg text-base">Commencer mon parcours {r.level}</Btn>
+        <Btn onClick={onContinue} className="mx-auto block min-h-14 w-full max-w-lg text-base">Fixer mon objectif et progresser</Btn>
       </div>
     </div>
   );

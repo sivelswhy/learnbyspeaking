@@ -1,13 +1,13 @@
 "use client";
 import { useState } from "react";
-import { RiArrowDownSLine, RiArrowUpSLine, RiBookOpenLine, RiCheckLine, RiLockLine, RiPlayFill, RiRobot2Line, RiVolumeUpLine } from "react-icons/ri";
+import { RiArrowDownSLine, RiArrowUpSLine, RiBookOpenFill, RiCheckLine, RiLockLine, RiPlayFill, RiRobot2Line, RiVolumeUpLine } from "react-icons/ri";
 import { COURSE, type Day, type Unit } from "@/lib/content/course-he";
 import { ALPHABET, GRAMMAR, PHRASES, THEMES, type Word } from "@/lib/content/resources-he";
 import { LANGUAGES } from "@/lib/languages";
 import { speak } from "@/lib/speech";
 import type { CourseProgress, NewWord, Profile } from "@/lib/types";
 import { Avatar } from "./Avatar";
-import { Header } from "./ui";
+import { BackButton } from "./ui";
 
 const dayDone = (p: CourseProgress, id: string) => !!(p[id]?.speaking && p[id]?.scenario);
 
@@ -17,31 +17,32 @@ export function Cours({ profile, progress, openDay, addWords }: { profile: Profi
   const [open, setOpen] = useState<string | null>(current.id);
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-1 rounded-xl bg-line/50 p-1" role="tablist">
+      <div className="grid grid-cols-2 gap-1 rounded-full bg-line/60 p-1" role="tablist">
         {(["path", "res"] as const).map((k) => (
-          <button key={k} role="tab" aria-selected={seg === k} onClick={() => setSeg(k)} className={`min-h-10 rounded-lg text-sm font-medium ${seg === k ? "bg-card shadow-sm" : "text-muted"}`}>
+          <button key={k} role="tab" aria-selected={seg === k} onClick={() => setSeg(k)} className={`min-h-10 rounded-full text-sm font-semibold ${seg === k ? "bg-card text-accent shadow-card" : "text-muted"}`}>
             {k === "path" ? "Parcours" : "Ressources"}
           </button>
         ))}
       </div>
-      {seg === "res" ? <Resources profile={profile} addWords={addWords} /> : COURSE.map((lvl) => {
+      {seg === "res" ? <Resources profile={profile} addWords={addWords} /> : COURSE.map((lvl, n) => {
         const days = lvl.units.flatMap((u) => u.days);
         const done = days.filter((d) => dayDone(progress, d.id)).length;
         const isOpen = open === lvl.id;
         return (
-          <div key={lvl.id} className="space-y-3">
+          <div key={lvl.id} className="space-y-4">
             <button onClick={() => setOpen(isOpen ? null : lvl.id)} disabled={!lvl.units.length}
-              className="flex w-full items-center gap-3 rounded-2xl border border-line bg-card p-3 text-left disabled:opacity-60">
-              <Avatar size={52} />
+              className="flex w-full items-center gap-4 rounded-2xl border border-soft bg-card p-4 text-left shadow-card disabled:opacity-60">
+              <Avatar size={56} />
               <span className="flex-1">
-                <span className="block font-semibold">{lvl.title}</span>
-                <span className="block text-sm text-muted">{lvl.cefr} · {lvl.units.length ? `${done}/${days.length} jours` : "Bientôt disponible"}</span>
+                <span className="block text-lg font-bold">{lvl.title}</span>
+                <span className="block text-muted">{lvl.cefr} · {lvl.units.length ? `${done}/${days.length} jours` : "Bientôt disponible"}</span>
+                {isOpen && n === 0 && <span className="block text-muted">Démarrage rapide</span>}
               </span>
-              <span className="grid size-9 place-items-center rounded-full bg-accent/10 text-accent">
-                {!lvl.units.length ? <RiLockLine aria-hidden /> : isOpen ? <RiArrowUpSLine aria-hidden /> : <RiArrowDownSLine aria-hidden />}
+              <span className="grid size-10 place-items-center rounded-full bg-soft text-accent">
+                {!lvl.units.length ? <RiLockLine aria-hidden /> : isOpen ? <RiArrowUpSLine aria-hidden className="size-5" /> : <RiArrowDownSLine aria-hidden className="size-5" />}
               </span>
             </button>
-            {isOpen && lvl.units.map((u) => <UnitPath key={u.id} unit={u} progress={progress} openDay={openDay} />)}
+            {isOpen && lvl.units.map((u, k) => <UnitPath key={u.id} unit={u} index={k + 1} progress={progress} openDay={openDay} />)}
           </div>
         );
       })}
@@ -49,34 +50,41 @@ export function Cours({ profile, progress, openDay, addWords }: { profile: Profi
   );
 }
 
-function UnitPath({ unit, progress, openDay }: { unit: Unit; progress: CourseProgress; openDay: (d: Day) => void }) {
+function UnitPath({ unit, index, progress, openDay }: { unit: Unit; index: number; progress: CourseProgress; openDay: (d: Day) => void }) {
   const done = unit.days.filter((d) => dayDone(progress, d.id)).length;
   return (
-    <div className="ms-4">
-      <div className="flex items-center gap-3 rounded-2xl bg-accent/10 p-3">
-        <span className="grid size-10 place-items-center rounded-full bg-card text-accent"><RiBookOpenLine aria-hidden /></span>
-        <span className="flex-1">
-          <span className="block font-semibold">{unit.title}</span>
-          <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-line"><span className="block h-full bg-accent" style={{ width: `${(done / unit.days.length) * 100}%` }} /></span>
+    <div className="px-3">
+      <div className="flex items-center gap-4 rounded-2xl border border-accent/15 bg-soft p-4">
+        <span className="grid size-12 shrink-0 place-items-center rounded-full bg-accent/10 text-accent"><RiBookOpenFill aria-hidden className="size-6" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-bold">Unité {index} · {unit.title}</span>
+          <span className="mt-2 block h-1 overflow-hidden rounded-full bg-line"><span className="block h-full bg-accent" style={{ width: `${(done / unit.days.length) * 100}%` }} /></span>
+          <span className="mt-2 inline-block rounded-full bg-accent/10 px-2.5 py-0.5 text-sm font-semibold text-accent">{done}/{unit.days.length}</span>
         </span>
-        <span className="rounded-full bg-card px-2 py-0.5 text-xs font-semibold text-accent">{done}/{unit.days.length}</span>
       </div>
-      <ol className="relative mt-2 space-y-2 border-s-2 border-line ps-4">
+      <ol className="relative py-3">
+        <span aria-hidden className="absolute inset-y-0 start-1/2 w-0.5 -translate-x-1/2 bg-line rtl:translate-x-1/2" />
         {unit.days.map((d, k) => {
           const p = progress[d.id];
           const complete = dayDone(progress, d.id);
+          const left = k % 2 === 0;
+          const card = (
+            <button onClick={() => openDay(d)} className="flex w-full items-center gap-2 rounded-2xl border border-line bg-card p-3 text-left shadow-card active:scale-[0.98]">
+              <span className="min-w-0 flex-1">
+                <span className="block font-bold">Jour {k + 1}</span>
+                <span className="block text-[15px] leading-snug">{d.title}</span>
+                <span className="block text-sm text-muted">{complete ? "Terminé" : p ? "En cours" : "À apprendre"}</span>
+              </span>
+              <RiPlayFill aria-hidden className="size-5 shrink-0 text-accent" />
+            </button>
+          );
           return (
-            <li key={d.id}>
-              <button onClick={() => openDay(d)} className="flex w-full items-center gap-3 rounded-2xl border border-line bg-card p-3 text-left active:scale-[0.99]">
-                <span className="flex-1">
-                  <span className="block text-xs font-semibold text-muted">Jour {k + 1}</span>
-                  <span className="block font-medium">{d.title}</span>
-                  <span className="block text-xs text-muted">{complete ? "Terminé" : p ? "En cours" : "À apprendre"}</span>
-                </span>
-                <span className={`grid size-9 place-items-center rounded-full ${complete ? "bg-good text-white" : "bg-accent/10 text-accent"}`}>
-                  {complete ? <RiCheckLine aria-hidden /> : <RiPlayFill aria-hidden />}
-                </span>
-              </button>
+            <li key={d.id} className="relative grid grid-cols-[1fr_3.5rem_1fr] items-center py-3">
+              <div>{left && card}</div>
+              <span className={`z-[1] mx-auto grid size-12 place-items-center rounded-full border-4 border-bg ${complete ? "bg-good text-white" : "bg-line text-muted"}`}>
+                {complete ? <RiCheckLine aria-hidden className="size-5" /> : <RiBookOpenFill aria-hidden className="size-5" />}
+              </span>
+              <div>{!left && card}</div>
             </li>
           );
         })}
@@ -92,28 +100,28 @@ export function DayScreen({ day, unitTitle, index, profile, progress, onBack, st
   const he = LANGUAGES[profile.target].rtl ? "he" : "";
   const p = progress[day.id] ?? {};
   const acts = [
-    { id: "speaking" as const, title: "Entraînement à la parole", sub: `${day.steps.length} étapes · ~4 min`, Icon: RiPlayFill, color: "bg-accent" },
-    { id: "scenario" as const, title: "Jeu de rôle avec Noa", sub: "Conversation libre · ~5 min", Icon: RiRobot2Line, color: "bg-[#d9468f]" },
+    { id: "speaking" as const, title: "Entraînement à la parole", sub: `${day.steps.length} étapes · ~4 min`, Icon: RiPlayFill, color: "bg-gradient-to-br from-[#6d63ff] to-accent" },
+    { id: "scenario" as const, title: "Jeu de rôle avec Noa", sub: "Conversation libre · ~5 min", Icon: RiRobot2Line, color: "bg-gradient-to-br from-[#f472b6] to-pink" },
   ];
   return (
     <div className="mx-auto max-w-lg">
-      <Header title="" onBack={onBack} />
+      <div className="px-4 pt-3"><BackButton onClick={onBack} /></div>
       <div className="px-4 pb-8 text-center">
         <div className="flex justify-center"><Avatar size={120} /></div>
         <p className="mt-3 text-sm font-semibold text-muted">{unitTitle} · Jour {index}</p>
         <h1 className="text-2xl font-bold">{day.title}</h1>
         <p className={`${he} mt-2 text-xl`}>{day.key.he[gnd]}</p>
         <p className="text-sm text-muted">{day.key.tr[gnd]} — {day.key.fr}</p>
-        <p className="mt-6 text-start text-sm font-semibold text-muted">2 activités</p>
-        <div className="mt-2 divide-y divide-line rounded-2xl bg-card text-start shadow-sm">
+        <p className="mt-8 text-start font-semibold text-muted">2 activités</p>
+        <div className="mt-2 rounded-2xl bg-card text-start shadow-card">
           {acts.map((a) => (
             <button key={a.id} onClick={() => start(a.id)} className="flex w-full items-center gap-3 p-4 text-left">
-              <span className={`grid size-12 place-items-center rounded-full text-white ${a.color}`}><a.Icon aria-hidden className="size-6" /></span>
+              <span className={`grid size-12 shrink-0 place-items-center rounded-full text-white ${a.color}`}><a.Icon aria-hidden className="size-6" /></span>
               <span className="flex-1">
                 <span className="block font-medium">{a.title}</span>
                 <span className="block text-sm text-muted">{a.sub}</span>
               </span>
-              <span className={`grid size-9 place-items-center rounded-full ${p[a.id] ? "bg-good text-white" : "bg-line/60 text-muted"}`}><RiCheckLine aria-hidden /></span>
+              <span className={`grid size-10 place-items-center rounded-full ${p[a.id] ? "bg-good text-white" : "bg-line text-card"}`}><RiCheckLine aria-hidden /></span>
             </button>
           ))}
         </div>
@@ -143,7 +151,7 @@ function Resources({ profile, addWords }: { profile: Profile; addWords: (w: NewW
       {tab === "alpha" && (
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {ALPHABET.map((l) => (
-            <button key={l.he} onClick={() => say(l.example.he)} className="rounded-2xl border border-line bg-card p-3 text-center">
+            <button key={l.he} onClick={() => say(l.example.he)} className="rounded-2xl bg-card shadow-card p-3 text-center">
               <span className="he block text-4xl">{l.he}{l.final && <span className="text-2xl text-muted"> {l.final}</span>}</span>
               <span className="block text-sm font-semibold">{l.name}</span>
               <span className="block text-xs text-muted">{l.sound}</span>
@@ -171,7 +179,7 @@ function Resources({ profile, addWords }: { profile: Profile; addWords: (w: NewW
       )}
       {tab === "phrases" && <WordList words={PHRASES} say={say} />}
       {tab === "grammar" && GRAMMAR.map((g) => (
-        <details key={g.id} className="rounded-2xl border border-line bg-card p-3">
+        <details key={g.id} className="rounded-2xl bg-card shadow-card p-3">
           <summary className="cursor-pointer font-semibold">{g.title}</summary>
           <p className="mt-2 text-sm">{g.rule}</p>
           <div className="mt-2"><WordList words={g.examples} say={say} /></div>
@@ -183,7 +191,7 @@ function Resources({ profile, addWords }: { profile: Profile; addWords: (w: NewW
 
 function WordList({ words, say }: { words: Word[]; say: (t: string) => void }) {
   return (
-    <ul className="divide-y divide-line rounded-2xl border border-line bg-card">
+    <ul className="divide-y divide-line rounded-2xl bg-card shadow-card">
       {words.map((w) => (
         <li key={w.he + w.fr} className="flex items-center gap-3 px-3 py-2">
           <button onClick={() => say(w.he)} aria-label={`Écouter ${w.tr}`} className="grid size-9 shrink-0 place-items-center text-accent"><RiVolumeUpLine aria-hidden /></button>

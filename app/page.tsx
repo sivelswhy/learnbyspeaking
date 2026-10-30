@@ -135,10 +135,10 @@ export default function Page() {
     <div className="mx-auto min-h-dvh max-w-lg px-4">
       <InstallPrompt />
       <nav className="sticky top-0 z-10 -mx-4 flex justify-center bg-bg/90 px-4 py-3 backdrop-blur" aria-label="Sections">
-        <div className="flex rounded-full border border-line bg-card p-1 shadow-sm" role="tablist">
+        <div className="flex rounded-full border border-line bg-card/80 p-1 shadow-card" role="tablist">
           {TABS.map((t) => (
             <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
-              className={`min-h-10 rounded-full px-4 text-sm font-medium ${tab === t.id ? "bg-accent/10 text-accent" : "text-ink"}`}>
+              className={`min-h-10 rounded-full px-4 text-[15px] font-semibold transition ${tab === t.id ? "bg-line/70 text-accent" : "text-ink"}`}>
               {t.label}
             </button>
           ))}

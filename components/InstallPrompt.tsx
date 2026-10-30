@@ -101,7 +101,7 @@ export function InstallPrompt() {
     <>
       {!guide && (
         <div role="dialog" aria-label="Installer l'application"
-          className="fixed inset-x-3 bottom-[max(env(safe-area-inset-bottom),12px)] z-30 mx-auto max-w-lg rounded-2xl border border-line bg-card p-4 shadow-lg">
+          className="fixed inset-x-3 bottom-[max(env(safe-area-inset-bottom),12px)] z-30 mx-auto max-w-lg rounded-2xl bg-card shadow-card p-4 shadow-lg">
           <div className="flex items-start gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-accent-ink">
               <RiSmartphoneLine aria-hidden className="size-5" />

@@ -79,7 +79,7 @@ export function Progress({ profile, sessions, rtl, onBack }: { profile: Profile;
         {[...sessions].reverse().map((s) => {
           const sc = SCENARIOS.find((x) => x.id === s.scenarioId);
           return (
-            <button key={s.id} onClick={() => setOpen(s)} className="flex w-full items-center justify-between rounded-2xl border border-line bg-card p-3 text-left">
+            <button key={s.id} onClick={() => setOpen(s)} className="flex w-full items-center justify-between rounded-2xl bg-card shadow-card p-3 text-left">
               <span className="flex items-center gap-3"><ScenarioIcon id={s.scenarioId} className="size-5 shrink-0 text-accent" /><span>{s.title ?? sc?.title}<span className="block text-xs text-muted">{new Date(s.date).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })} · {Math.max(1, Math.round(s.seconds / 60))} min</span></span></span>
               <span className="text-xl font-bold text-accent">{s.report?.score ?? "–"}</span>
             </button>

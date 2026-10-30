@@ -389,7 +389,7 @@ export function Conversation({
           </div>
         )}
         {repeat && (
-          <div className="rounded-2xl border border-line bg-card p-3 text-sm">
+          <div className="rounded-2xl bg-card shadow-card p-3 text-sm">
             <p className="text-xs font-semibold uppercase text-muted">Répète la phrase</p>
             <p className={`${lang.rtl ? "he" : ""} text-lg`}>{repeat.target}</p>
             {repeat.heard === undefined ? (
