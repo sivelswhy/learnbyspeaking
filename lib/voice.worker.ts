@@ -14,28 +14,38 @@ interface PiperConfig {
 
 let loaded: Promise<{ nikud: ort.InferenceSession; piper: ort.InferenceSession; cfg: PiperConfig }> | null = null;
 
-/** Télécharge un fichier (ou le lit depuis le cache) en signalant la progression. */
-async function fetchCached(url: string, onBytes: (n: number) => void): Promise<ArrayBuffer> {
+/**
+ * Télécharge un fichier (ou le lit depuis le cache) en signalant la progression.
+ * Un seul tampon de la taille finale : sur téléphone, plusieurs copies de 300 Mo font recharger la page.
+ */
+async function fetchCached(url: string, size: number, onBytes: (n: number) => void): Promise<Uint8Array> {
   const cache = await caches.open(VOICE_CACHE);
   const hit = await cache.match(url);
   if (hit) {
-    const buf = await hit.arrayBuffer();
+    const buf = new Uint8Array(await hit.arrayBuffer());
     onBytes(buf.byteLength);
     return buf;
   }
   const res = await fetch(url);
   if (!res.ok || !res.body) throw new Error(`HTTP ${res.status} pour ${url}`);
+  let buf = new Uint8Array(Number(res.headers.get("content-length")) || size);
+  let n = 0;
   const reader = res.body.getReader();
-  const parts: Uint8Array[] = [];
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
-    parts.push(value);
+    if (n + value.byteLength > buf.byteLength) {
+      const bigger = new Uint8Array(Math.max(buf.byteLength * 2, n + value.byteLength));
+      bigger.set(buf.subarray(0, n));
+      buf = bigger;
+    }
+    buf.set(value, n);
+    n += value.byteLength;
     onBytes(value.byteLength);
   }
-  const blob = new Blob(parts as BlobPart[]);
-  await cache.put(url, new Response(blob, { headers: { "Content-Type": "application/octet-stream" } }));
-  return blob.arrayBuffer();
+  buf = buf.subarray(0, n);
+  await cache.put(url, new Response(buf as BlobPart, { headers: { "Content-Type": "application/octet-stream" } }));
+  return buf;
 }
 
 function load() {
@@ -46,12 +56,13 @@ function load() {
       got += n;
       self.postMessage({ type: "progress", loaded: Math.min(got, total), total });
     };
-    const [nikudBuf, piperBuf, cfgBuf] = await Promise.all(VOICE_FILES.map((f) => fetchCached(f.url, tick)));
-    self.postMessage({ type: "compiling" });
+    // L'un après l'autre : pas deux gros tampons en mémoire en même temps.
+    const [nikudFile, piperFile, cfgFile] = VOICE_FILES;
     const opts: ort.InferenceSession.SessionOptions = { executionProviders: ["wasm"], graphOptimizationLevel: "all" };
-    const nikud = await ort.InferenceSession.create(new Uint8Array(nikudBuf), opts);
-    const piper = await ort.InferenceSession.create(new Uint8Array(piperBuf), opts);
-    const cfg = JSON.parse(new TextDecoder().decode(cfgBuf)) as PiperConfig;
+    const nikud = await ort.InferenceSession.create(await fetchCached(nikudFile.url, nikudFile.bytes, tick), opts);
+    const piper = await ort.InferenceSession.create(await fetchCached(piperFile.url, piperFile.bytes, tick), opts);
+    const cfg = JSON.parse(new TextDecoder().decode(await fetchCached(cfgFile.url, cfgFile.bytes, tick))) as PiperConfig;
+    self.postMessage({ type: "compiling" });
     return { nikud, piper, cfg };
   })();
   loaded.catch(() => (loaded = null));
