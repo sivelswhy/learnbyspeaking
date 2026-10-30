@@ -34,7 +34,7 @@ const fmtTime = (s: number) => {
 
 /** Barre de progression partagée (réglages, conversation, accueil). */
 export function LoadProgress({ ls, compact = false }: { ls: LoadState; compact?: boolean }) {
-  const label = ls.model === "whisper" ? "Whisper ivrit-ai (voix)" : ls.model === "voice" ? "Voix de Noa" : (WEBLLM_MODELS.find((m) => m.id === ls.model)?.label ?? ls.model);
+  const label = ls.model === "whisper" ? "Whisper ivrit-ai (voix)" : ls.model === "voice" ? "Voix de Noam" : (WEBLLM_MODELS.find((m) => m.id === ls.model)?.label ?? ls.model);
   if (ls.phase === "idle" || ls.phase === "ready") return null;
   if (ls.phase === "error") {
     return <p className="flex items-center gap-2 text-sm text-warn"><RiErrorWarningLine aria-hidden /> Échec du chargement : {ls.error?.slice(0, 140)}</p>;
@@ -179,8 +179,8 @@ export function LlmSetup({ llm, onChange, onReady }: { llm: LlmSettings; onChang
       </div>
 
       <div className="space-y-2 border-t border-line pt-4">
-        <h3 className="text-sm font-semibold">Voix de Noa</h3>
-        <div className="space-y-2" role="radiogroup" aria-label="Voix de Noa">
+        <h3 className="text-sm font-semibold">Voix de Noam</h3>
+        <div className="space-y-2" role="radiogroup" aria-label="Voix de Noam">
           {([
             ["natural", "Voix naturelle · 100 % locale", `≈ ${VOICE_MB} Mo · Phonikud + Piper, entraînée sur l'hébreu`],
             ["system", "Voix du système", "Aucun téléchargement · voix plus robotique, parfois absente"],

@@ -45,13 +45,13 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "moi", label: "Moi" },
 ];
 
-/** Discussion libre : Noa lance un sujet au hasard au lieu d'un simple « ça va ? ». */
+/** Discussion libre : Noam lance un sujet au hasard au lieu d'un simple « ça va ? ». */
 function topicScenario(target: keyof typeof TOPICS, topicId?: string): Scenario {
   const list = TOPICS[target] ?? [];
   const tp = list.find((x) => x.id === topicId) ?? list[Math.floor(Math.random() * list.length)];
   const base = SCENARIOS[0];
   return tp
-    ? { ...base, id: `topic-${tp.id}`, title: `Discussion · ${tp.label}`, goal: `Parler de : ${tp.label}`, role: "Noa, une tutrice israélienne chaleureuse et curieuse qui discute naturellement", opening: `Noa lance un sujet : ${tp.label.toLowerCase()}.`, starters: { [target]: tp.starter } }
+    ? { ...base, id: `topic-${tp.id}`, title: `Discussion · ${tp.label}`, goal: `Parler de : ${tp.label}`, role: "Noam, un tuteur israélien chaleureux et curieux qui discute naturellement", opening: `Noam lance un sujet : ${tp.label.toLowerCase()}.`, starters: { [target]: tp.starter } }
     : base;
 }
 
@@ -86,8 +86,8 @@ export default function Page() {
     case "setup":
       return (
         <main className="mx-auto max-w-lg space-y-4 px-4 py-8">
-          <h1 className="text-2xl font-bold">Prépare Noa, ta tutrice</h1>
-          <p className="text-muted">Tout tourne sur ton appareil : télécharge une fois le cerveau de Noa et la reconnaissance de ta voix.</p>
+          <h1 className="text-2xl font-bold">Prépare Noam, ton tuteur</h1>
+          <p className="text-muted">Tout tourne sur ton appareil : télécharge une fois le cerveau de Noam et la reconnaissance de ta voix.</p>
           <LlmSetup llm={st.llm} onChange={st.setLlm} onReady={() => setScreen(profile.placementDone ? { t: "tabs" } : { t: "placement" })} />
           {!ready && <Btn variant="ghost" className="w-full" onClick={() => setScreen({ t: "placement" })}>Continuer sans attendre</Btn>}
         </main>
@@ -149,7 +149,7 @@ export default function Page() {
       </nav>
       {!ready && (load.phase === "idle" || load.phase === "error") && (
         <button onClick={() => setScreen({ t: "setup" })} className="mb-4 w-full rounded-2xl border border-warn/40 bg-warn/10 p-3 text-left text-sm text-warn">
-          Noa n&apos;est pas encore téléchargée sur cet appareil. Touche ici pour la préparer.
+          Noam n&apos;est pas encore téléchargé sur cet appareil. Touche ici pour le préparer.
         </button>
       )}
       {tab === "parler" && (

@@ -12,7 +12,7 @@ export function TutorHub({ profile, onBack, open }: { profile: Profile; onBack: 
       <main className="flex-1 px-4 pb-28">
         <div className="flex flex-col items-center text-center">
           <Avatar size={128} />
-          <h1 className="mt-4 text-3xl font-bold">Noa</h1>
+          <h1 className="mt-4 text-3xl font-bold">Noam</h1>
           <p className="mt-2">Salut{profile.name ? ` ${profile.name}` : ""} !</p>
           <p className="mt-4 text-xl font-bold">Qu&apos;est-ce que je peux faire pour toi&nbsp;?</p>
         </div>

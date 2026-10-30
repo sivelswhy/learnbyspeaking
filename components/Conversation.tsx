@@ -474,7 +474,7 @@ function Bubble({
   const he = rtl ? "he" : "";
   return (
     <div className={`flex flex-col gap-2 ${user ? "items-end" : "items-start"}`}>
-      {!user && <p className="flex items-center gap-2 text-sm"><Avatar size={26} /> <b>Noa</b></p>}
+      {!user && <p className="flex items-center gap-2 text-sm"><Avatar size={26} /> <b>Noam</b></p>}
       <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${user ? "rounded-br-md bg-accent text-accent-ink" : "rounded-bl-md border border-line bg-card"}`}>
         <p className={`${he} text-lg leading-snug`} lang={lang}>{m.text}</p>
         {!user && m.extra?.transliteration && <p className="mt-1 text-sm text-muted">{m.extra.transliteration}</p>}

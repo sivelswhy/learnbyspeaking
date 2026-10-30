@@ -142,7 +142,7 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
           return (
             <div key={k} className="space-y-3">
               <div>
-                <div className="mb-1.5 flex items-center gap-2 text-sm"><Avatar size={30} /> <span className="font-medium">Noa</span> <span className="text-muted">{times[k]}</span></div>
+                <div className="mb-1.5 flex items-center gap-2 text-sm"><Avatar size={30} /> <span className="font-medium">Noam</span> <span className="text-muted">{times[k]}</span></div>
                 <div className="rounded-2xl bg-card p-4 shadow-card">
                   <button onClick={() => setRevealed(true)} disabled={!current || revealed} className="block w-full text-start" aria-label={!current || revealed ? undefined : "Afficher la question"}>
                     <p className={`${he} text-xl transition ${current && !revealed && !done ? "select-none blur-md" : ""}`}>{qq.text[gnd]}</p>

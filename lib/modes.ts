@@ -15,7 +15,7 @@ export interface Mode {
 }
 
 export const MODES: Mode[] = [
-  { id: "talk", kind: "talk", title: "Discussion libre", sub: "Noa lance un sujet" },
+  { id: "talk", kind: "talk", title: "Discussion libre", sub: "Noam lance un sujet" },
   { id: "daily", kind: "talk", title: "Sujets du quotidien", sub: "Choisis un thème · 5 min" },
   { id: "teacher", kind: "tool", title: "Professeur d'hébreu", sub: "Pose toutes tes questions", hello: "Pose-moi n'importe quelle question sur l'hébreu : un mot, une règle, une expression, la culture…", placeholder: "Ex. : comment dire « j'ai faim » ?" },
   { id: "grammar", kind: "tool", title: "Professeur de grammaire", sub: "Une règle expliquée simplement", hello: "Quelle règle veux-tu comprendre ? Je l'explique simplement, avec des exemples.", placeholder: "Ex. : le féminin des adjectifs" },

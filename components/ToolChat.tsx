@@ -98,7 +98,7 @@ export function ToolChat({ profile, llm, setLlm, mode, onBack }: { profile: Prof
         </div>
         {msgs.map((x, i) => <Bubble key={i} m={x} speech={lang.speech} />)}
         {stream && <Bubble m={{ role: "assistant", content: stream }} speech={lang.speech} />}
-        {busy && !stream && <p className="text-sm text-muted">Noa réfléchit…</p>}
+        {busy && !stream && <p className="text-sm text-muted">Noam réfléchit…</p>}
         {error && <p role="alert" className="rounded-xl bg-warn/10 p-3 text-sm text-warn">{error}</p>}
         <div ref={bottom} />
       </div>

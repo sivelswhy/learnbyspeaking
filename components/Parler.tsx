@@ -45,7 +45,7 @@ export function Parler({ profile, sessions, progress, go }: {
     [RiLineChartLine, profile.level, "Ton niveau"],
   ];
   const cards: { to: "hub" | "scenarios" | "placement"; title: string; sub: string; Icon?: IconType; tint?: string }[] = [
-    { to: "hub", title: "Parler avec Noa", sub: "Discussion libre, professeur, grammaire…" },
+    { to: "hub", title: "Parler avec Noam", sub: "Discussion libre, professeur, grammaire…" },
     { to: "scenarios", title: "Situations réelles", sub: "Restaurant, taxi, entretien…", Icon: RiQuestionAnswerLine, tint: "bg-gradient-to-br from-[#f472b6] to-pink" },
     { to: "placement", title: "Test de niveau", sub: profile.placementDone ? "Refaire le test · 3 min" : "Découvre ton niveau en 3 min", Icon: RiSpeedUpLine, tint: "bg-gradient-to-br from-[#6d63ff] to-accent" },
   ];
@@ -62,7 +62,7 @@ export function Parler({ profile, sessions, progress, go }: {
           </span>
         ))}
       </div>
-      <p className="text-lg">Salut{profile.name ? ` ${profile.name}` : ""} ! Je suis Noa !</p>
+      <p className="text-lg">Salut{profile.name ? ` ${profile.name}` : ""} ! Je suis Noam !</p>
 
       <div className="relative rounded-3xl bg-accent p-5 pt-6 text-accent-ink">
         <div className="pointer-events-none absolute -top-7 end-2"><Avatar size={104} /></div>
@@ -108,7 +108,7 @@ export function Parler({ profile, sessions, progress, go }: {
       <div className="fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-[max(env(safe-area-inset-bottom),12px)] pt-6">
         <button onClick={() => go("hub")} className="mx-auto flex min-h-14 w-full max-w-lg items-center gap-3 rounded-full border-[1.5px] border-accent bg-card ps-2 pe-2 text-left shadow-card">
           <Avatar size={40} />
-          <span className="flex-1 truncate text-muted">Je suis Noa, ta tutrice d&apos;hébreu</span>
+          <span className="flex-1 truncate text-muted">Je suis Noam, ton tuteur</span>
           <span className="grid size-10 place-items-center rounded-full bg-accent text-accent-ink"><RiMicFill aria-hidden className="size-5" /></span>
         </button>
       </div>

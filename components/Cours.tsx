@@ -101,7 +101,7 @@ export function DayScreen({ day, unitTitle, index, profile, progress, onBack, st
   const p = progress[day.id] ?? {};
   const acts = [
     { id: "speaking" as const, title: "Entraînement à la parole", sub: `${day.steps.length} étapes · ~4 min`, Icon: RiPlayFill, color: "bg-gradient-to-br from-[#6d63ff] to-accent" },
-    { id: "scenario" as const, title: "Jeu de rôle avec Noa", sub: "Conversation libre · ~5 min", Icon: RiRobot2Line, color: "bg-gradient-to-br from-[#f472b6] to-pink" },
+    { id: "scenario" as const, title: "Jeu de rôle avec Noam", sub: "Conversation libre · ~5 min", Icon: RiRobot2Line, color: "bg-gradient-to-br from-[#f472b6] to-pink" },
   ];
   return (
     <div className="mx-auto max-w-lg">

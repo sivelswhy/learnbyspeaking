@@ -9,7 +9,7 @@ import type { Profile } from "@/lib/types";
 import { Avatar } from "./Avatar";
 import { Btn, Header, wordMatch } from "./ui";
 
-/** Entraînement guidé : Noa parle (sous-titres), puis l'apprenant répète ou répond à voix haute. */
+/** Entraînement guidé : Noam parle (sous-titres), puis l'apprenant répète ou répond à voix haute. */
 export function SpeakingPractice({ day, profile, llm, onExit, onDone }: { day: Day; profile: Profile; llm: LlmSettings; onExit: () => void; onDone: () => void }) {
   const lang = LANGUAGES[profile.target];
   const gnd = profile.gender ?? "m";
