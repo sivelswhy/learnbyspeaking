@@ -1,5 +1,6 @@
 "use client";
 import { HF_MT_HE_EN_REPO } from "./hosting";
+import { whenAlive } from "./workerReady";
 import type { LangCode } from "./languages";
 
 /** Chaîne de modèles opus-mt par langue maternelle (pivot par l'anglais). */
@@ -10,6 +11,7 @@ const CHAINS: Partial<Record<LangCode, string[]>> = {
 };
 
 let worker: Worker | null = null;
+let alive: Promise<void> | null = null;
 let next = 1;
 let idle: ReturnType<typeof setTimeout> | null = null;
 
@@ -21,6 +23,7 @@ function scheduleUnload() {
     if (pending.size) return scheduleUnload();
     worker?.terminate();
     worker = null;
+    alive = null;
   }, IDLE_MS);
 }
 const pending = new Map<number, { resolve: (t: string) => void; reject: (e: Error) => void }>();
@@ -43,12 +46,20 @@ export function translateHebrew(text: string, native: LangCode): Promise<string>
       else p.resolve(e.data.text);
       scheduleUnload();
     };
+    alive = whenAlive(worker);
   }
   if (idle) clearTimeout(idle);
   const sentences = text.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
   const id = next++;
+  const w = worker;
   return new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject });
-    worker!.postMessage({ id, chain, sentences });
+    alive!.then(
+      () => w.postMessage({ id, chain, sentences }),
+      (err: Error) => {
+        pending.delete(id);
+        reject(err);
+      },
+    );
   });
 }

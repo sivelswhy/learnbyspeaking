@@ -5,10 +5,12 @@ const VERSION = "parle-v1";
 self.addEventListener("install", () => self.skipWaiting());
 
 self.addEventListener("activate", (event) => {
+  // Ne supprimer que les anciennes versions de NOTRE cache (parle-v1, parle-v2…) :
+  // les modèles (webllm/*, transformers-cache, parle-voice-*) pèsent des Go et sont gérés ailleurs.
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => /^parle-v\d+$/.test(k) && k !== VERSION).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });

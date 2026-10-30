@@ -1,5 +1,6 @@
 "use client";
 import type { LoadState } from "./llm";
+import { whenAlive } from "./workerReady";
 
 /** Reconnaissance vocale 100 % locale : Whisper ivrit-ai dans un worker (WebGPU). */
 export const WHISPER_MB = 560;
@@ -62,6 +63,7 @@ export function loadWhisper(): Promise<void> {
     setState({ phase: fromCache ? "init" : "download", fromCache, progress: 0, doneMB: 0, error: undefined });
     const dtype = await whisperDtype();
     worker = new Worker(new URL("./whisper.worker.ts", import.meta.url), { type: "module" });
+    await whenAlive(worker);
     const samples: [number, number][] = [];
     await new Promise<void>((resolve, reject) => {
       worker!.onmessage = (e) => {

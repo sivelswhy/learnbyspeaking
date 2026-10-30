@@ -29,3 +29,6 @@ self.onmessage = async (e: MessageEvent<{ id: number; chain: string[]; sentences
     self.postMessage({ id, error: err instanceof Error ? err.message : String(err) });
   }
 };
+
+// Prêt à recevoir des messages (voir lib/workerReady.ts).
+self.postMessage({ type: "alive" });

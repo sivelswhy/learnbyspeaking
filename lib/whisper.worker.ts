@@ -37,3 +37,6 @@ self.onmessage = async (e: MessageEvent<{ type: "load"; dtype: "q4" | "q4f16" } 
     self.postMessage({ type: "error", id: msg.type === "transcribe" ? msg.id : undefined, message: err instanceof Error ? err.message : String(err) });
   }
 };
+
+// Prêt à recevoir des messages (voir lib/workerReady.ts).
+self.postMessage({ type: "alive" });

@@ -1,6 +1,7 @@
 "use client";
 import type { MLCEngineInterface } from "@mlc-ai/web-llm";
 import { HF_DICTA_REPO, MODEL_HOST } from "./hosting";
+import { whenAlive } from "./workerReady";
 
 /** 100 % local et gratuit : WebLLM (WebGPU, dans le navigateur) ou Ollama (localhost). */
 export interface LlmSettings {
@@ -138,6 +139,7 @@ export async function loadWebLLM(model: string) {
       setState({ phase: "init", progress: 0, etaSec: null });
     }
     const worker = new Worker(new URL("./llm.worker.ts", import.meta.url), { type: "module" });
+    await whenAlive(worker);
     const e = await web.CreateWebWorkerMLCEngine(worker, model, {
       appConfig: cfg,
       initProgressCallback: (r) => {

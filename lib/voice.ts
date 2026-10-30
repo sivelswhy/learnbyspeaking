@@ -1,6 +1,7 @@
 "use client";
 import type { LoadState } from "./llm";
 import { VOICE_CACHE, VOICE_FILES, VOICE_MB } from "./voiceFiles";
+import { whenAlive } from "./workerReady";
 
 /** Voix hébraïque naturelle et locale (Phonikud + Piper) dans un worker ; la voix du système reste en secours. */
 export { VOICE_MB };
@@ -51,6 +52,7 @@ export function loadVoice(): Promise<void> {
     if (!fromCache) await navigator.storage?.persist?.().catch(() => false);
     setState({ phase: fromCache ? "init" : "download", fromCache, progress: 0, doneMB: 0, error: undefined });
     worker = new Worker(new URL("./voice.worker.ts", import.meta.url), { type: "module" });
+    await whenAlive(worker);
     const samples: [number, number][] = [];
     await new Promise<void>((resolve, reject) => {
       worker!.onmessage = (e) => {
