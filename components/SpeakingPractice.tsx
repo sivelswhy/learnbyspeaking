@@ -22,6 +22,11 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: { day: D
   const step: Step | undefined = day.steps[i];
   const finished = i >= day.steps.length;
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Étape courante : un rappel de fin de parole d'une étape déjà quittée ne doit plus rien déclencher.
+  const stepRef = useRef(i);
+  useEffect(() => {
+    stepRef.current = i;
+  }, [i]);
 
   const voice = useVoiceInput(llm.stt, profile.target, lang.speech, (t) => setHeard(t));
 
@@ -54,9 +59,12 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: { day: D
   // Lecture de chaque étape à son arrivée.
   useEffect(() => {
     if (!step) return;
+    const at = i;
+    const still = () => stepRef.current === at;
     const rate = LEVEL_RATE[profile.level] ?? 0.85;
     if (step.kind === "intro") {
       say(step.fr, "fr-FR", 1, () => {
+        if (!still()) return;
         let n = 3;
         setCountdown(n);
         timer.current = setInterval(() => {
@@ -67,7 +75,7 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: { day: D
       });
     } else {
       const text = step.kind === "repeat" ? step.line.he[gnd] : step.q.he[gnd];
-      say(text, lang.speech, rate, () => voice.start());
+      say(text, lang.speech, rate, () => still() && voice.start());
     }
     return () => {
       if (timer.current) clearInterval(timer.current);
@@ -143,7 +151,7 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: { day: D
               </div>
             )}
             <div className="mt-5 flex items-center justify-center gap-4">
-              <button onClick={() => { voice.stop(); setHeard(null); say(line!.he[gnd], lang.speech, 0.75, () => voice.start()); }} aria-label="Réécouter" className="grid size-12 place-items-center rounded-full bg-bg text-accent">
+              <button onClick={() => { const at = i; voice.stop(); setHeard(null); say(line!.he[gnd], lang.speech, 0.75, () => stepRef.current === at && voice.start()); }} aria-label="Réécouter" className="grid size-12 place-items-center rounded-full bg-bg text-accent">
                 <RiRestartLine aria-hidden className="size-6" />
               </button>
               <button onClick={() => (voice.listening ? voice.stop() : (cancelSpeech(), setHeard(null), voice.start()))} disabled={voice.transcribing}

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LANGUAGES, type Scenario } from "@/lib/languages";
 import { complete, errorMessage, parseJson, type LlmSettings, type Msg } from "@/lib/llm";
 import {
-  assistSchema, assistSystem, correctionsToWeakPoints, replyShots, suggestMessages, tidyReply, translateMessages,
+  assistSchema, assistSystem, correctionsToWeakPoints, pickGender, replyShots, suggestMessages, tidyReply, translateMessages,
   openingPrompt, replySystem,
 } from "@/lib/prompts";
 import { LEVEL_RATE, STT_ERRORS, cancelSpeech, hasVoice, speak, useRecognizer, useWhisperRecognizer } from "@/lib/speech";
@@ -17,7 +17,7 @@ import {
 import { Avatar } from "./Avatar";
 import { LlmSetup, allReady } from "./LlmSetup";
 import { whisperStore } from "@/lib/whisper";
-import { Btn, Header, wordMatch } from "./ui";
+import { Btn, Header, norm, wordMatch } from "./ui";
 
 type Status = "idle" | "listening" | "thinking" | "speaking";
 interface Assist {
@@ -201,15 +201,21 @@ export function Conversation({
       const history: Msg[] = msgs.current.map((m) => ({ role: m.role, content: m.text }));
       if (!history.length) history.push({ role: "user", content: openingPrompt() });
       try {
-        const out = await complete(llm, {
-          messages: [{ role: "system", content: replySystem(profile, sc, weak.current) }, ...replyShots(profile), ...history],
-          onToken: setStreaming,
-          signal: abort.current.signal,
-          maxTokens: 50,
-          temperature: 0.7,
-          antiRepeat: true,
-        });
-        const clean = tidyReply(out);
+        const said = new Set(msgs.current.filter((m) => m.role === "assistant").map((m) => norm(m.text)));
+        let clean = "";
+        // Le petit modèle reprend parfois mot pour mot une réplique précédente : on régénère une fois, plus librement.
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const out = await complete(llm, {
+            messages: [{ role: "system", content: replySystem(profile, sc, weak.current) }, ...replyShots(profile), ...history],
+            onToken: setStreaming,
+            signal: abort.current.signal,
+            maxTokens: 50,
+            temperature: attempt ? 1 : 0.7,
+            antiRepeat: true,
+          });
+          clean = pickGender(tidyReply(out), profile.gender ?? "m");
+          if (!said.has(norm(clean))) break;
+        }
         setStreaming("");
         if (!clean) {
           setStatus("idle");

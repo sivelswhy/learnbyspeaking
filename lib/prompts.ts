@@ -76,7 +76,27 @@ ${ex ? `\nExample of the expected style:\n${ex}` : ""}`;
 export function tidyReply(text: string): string {
   const flat = text.replace(/[*#_`>]/g, "").replace(/^\s*[-•]\s*/gm, "").replace(/\s*\n+\s*/g, " ").trim();
   const parts = flat.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [flat];
+  // Réponse coupée par la limite de longueur : on retire la phrase inachevée s'il reste une phrase complète.
+  if (parts.length > 1 && !/[.!?]$/.test(parts[parts.length - 1].trim())) parts.pop();
   return parts.slice(0, 2).join("").trim();
+}
+
+/** Lettres finales hébraïques et leur forme au milieu d'un mot (pour תומך + ת → תומכת). */
+const FINAL: Record<string, string> = { "ך": "כ", "ם": "מ", "ן": "נ", "ף": "פ", "ץ": "צ" };
+
+/**
+ * DictaLM écrit parfois les deux genres à la fois (« את/ה », « אוהב/ת »).
+ * On garde celui de l'apprenant, sauf quand Noam parle de lui (après « אני ») : masculin.
+ */
+export function pickGender(text: string, learner: "m" | "f"): string {
+  return text.replace(/(\S*?)([\u05d0-\u05ea]+)\/([\u05d0-\u05ea]{1,2})(?![\u05d0-\u05ea])/g, (all, pre: string, base: string, suf: string, off: number, whole: string) => {
+    const g = /אני\s+$/.test(whole.slice(Math.max(0, off - 6), off)) ? "m" : learner;
+    // « את/ה », aussi avec un préfixe (שאת/ה, ואת/ה)
+    if (base.endsWith("את") && base.length <= 3 && suf === "ה") return pre + base.slice(0, -2) + (g === "m" ? "אתה" : "את");
+    if (g === "m") return pre + base;
+    const last = base.slice(-1);
+    return pre + base.slice(0, -1) + (FINAL[last] ?? last) + suf;
+  });
 }
 
 type Chat = { role: "system" | "user" | "assistant"; content: string }[];
