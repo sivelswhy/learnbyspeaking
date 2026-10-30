@@ -7,6 +7,8 @@ export interface LlmSettings {
   provider: "webllm" | "ollama";
   /** Reconnaissance vocale : Whisper ivrit-ai local, ou celle du navigateur (envoie l'audio en ligne). */
   stt: "whisper" | "browser";
+  /** Voix de Noa en hébreu : voix naturelle locale (Phonikud + Piper) ou voix du système. */
+  voice: "natural" | "system";
   webllmModel: string;
   ollamaUrl: string;
   ollamaModel: string;
@@ -37,6 +39,7 @@ async function appConfig() {
 export const DEFAULT_LLM: LlmSettings = {
   provider: "webllm",
   stt: "whisper",
+  voice: "natural",
   webllmModel: DICTA_ID,
   ollamaUrl: "http://localhost:11434",
   ollamaModel: "qwen3:8b",
@@ -249,6 +252,10 @@ async function prefetch(model: string, list: { model_id: string; model: string }
 
 /** Au démarrage : si le modèle est déjà sur l'appareil, on le prépare sans rien demander. */
 export async function warmIfCached(s: LlmSettings) {
+  if (s.voice === "natural") {
+    const v = await import("./voice");
+    if (v.voiceStore.get().phase === "idle" && (await v.voiceCached())) v.loadVoice().catch(() => {});
+  }
   if (!hasWebGPU()) return;
   if (s.stt === "whisper") {
     const w = await import("./whisper");

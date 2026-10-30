@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Conversation } from "@/components/Conversation";
 import { Cours, DayScreen } from "@/components/Cours";
 import { InstallPrompt, registerServiceWorker } from "@/components/InstallPrompt";
-import { LlmSetup, allReady, useWhisperState } from "@/components/LlmSetup";
+import { LlmSetup, allReady, useVoiceState, useWhisperState } from "@/components/LlmSetup";
 import { Onboarding } from "@/components/Onboarding";
 import { Parler, ScenarioList, nextDay } from "@/components/Parler";
 import { Placement } from "@/components/Placement";
@@ -18,6 +18,7 @@ import { useLoadState } from "@/components/LlmSetup";
 import { ALL_DAYS, type Day } from "@/lib/content/course-he";
 import { LANGUAGES, SCENARIOS, type Scenario } from "@/lib/languages";
 import { warmIfCached } from "@/lib/llm";
+import { setVoiceEnabled } from "@/lib/voice";
 import type { ModeId } from "@/lib/modes";
 import { useStore } from "@/lib/store";
 import { TOPICS } from "@/lib/topics";
@@ -64,19 +65,21 @@ export default function Page() {
   const [screen, setScreen] = useState<Screen>({ t: "tabs" });
   const load = useLoadState();
   const ws = useWhisperState();
+  const vs = useVoiceState();
 
   useEffect(() => registerServiceWorker(), []);
   // Modèles déjà téléchargés : on les charge en tâche de fond dès l'ouverture.
   useEffect(() => {
     if (st.ready && st.profile) void warmIfCached(st.llm);
   }, [st.ready, st.profile, st.llm]);
+  useEffect(() => setVoiceEnabled(st.llm.voice === "natural"), [st.llm.voice]);
 
   if (!st.ready) return null;
   if (!st.profile) return <Onboarding onDone={(p) => { st.setProfile(p); setScreen({ t: "setup" }); }} />;
   const profile = st.profile;
   const rtl = LANGUAGES[profile.target].rtl;
   const home = () => setScreen({ t: "tabs" });
-  const ready = allReady(st.llm, ws);
+  const ready = allReady(st.llm, ws, vs);
   void load; // l'état de chargement re-rend la page quand le modèle est prêt
 
   switch (screen.t) {

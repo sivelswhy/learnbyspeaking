@@ -10,6 +10,8 @@
 
 6. ~~Refaire l'interface d'après les captures~~ : fait, vérifié par captures 390 px (clair + sombre). Palette `--soft`/`--pink`/`shadow-card`, `BackButton`, accueil, hub, test (intro à anneaux ondulés, ligne de progression à points, heure des messages, bulle « moi »), rapport de niveau (onglets Rapport / Mes réponses, conseils par question avec Conseil + Exemple, filtre « À revoir », partage), bilan de session avec radar, cours (frise alternée), jour, entraînement (carte portrait + sous-titre, carte « Répète » avec boutons ronds). Pas repris : vidéo réelle de tutrice, mode « Améliorateur d'accent ».
 
+7. **Voix naturelle de Noa (Piper)** — en place, non commitée au 30/10. Phonikud (vocalisation, ONNX int8, MIT, 308 Mo) + voix Piper « défaut » de Phonikud TTS (64 Mo, CC BY-NC), sur le CPU (onnxruntime-web) dans `lib/voice.worker.ts`. Règles portées en TypeScript dans `lib/phonikud/` : phonèmes identiques au Python sur 380/381 phrases de l'app, vocalisation 58/60, nombres 5994/5994 identiques à num2words. ~430 ms par phrase sur Mac. Réglage « Voix de Noa » (naturelle / système) dans la préparation ; la voix du système reste en secours. Voix masculine, alors que Noa est une tutrice.
+
 Plus tard : niveaux B1/B2 du parcours (vides, « Bientôt disponible »), test sur un vrai téléphone.
 
 ## Choix des modèles (testés)

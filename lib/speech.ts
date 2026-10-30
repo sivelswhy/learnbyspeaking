@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { cancelVoice, speakVoice, voiceStore } from "./voice";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type SR = any;
@@ -105,18 +106,29 @@ function loadVoices(): Promise<SpeechSynthesisVoice[]> {
 }
 
 export async function hasVoice(lang: string): Promise<boolean> {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
+  if (typeof window === "undefined") return false;
   const base = lang.split("-")[0];
+  const v = voiceStore.get().phase;
+  if (base === "he" && v !== "idle" && v !== "error") return true;
+  if (!("speechSynthesis" in window)) return false;
   const voices = await loadVoices();
   return voices.some((v) => v.lang.toLowerCase().startsWith(base));
 }
 
 export function cancelSpeech() {
+  cancelVoice();
   if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
 }
 
 export async function speak(text: string, lang: string, rate = 0.9, onEnd?: () => void): Promise<boolean> {
-  if (typeof window === "undefined" || !("speechSynthesis" in window) || !text) return false;
+  if (typeof window === "undefined" || !text) return false;
+  // Hébreu : la voix naturelle locale si elle est chargée, sinon la voix du système.
+  if (lang.startsWith("he")) {
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    if (speakVoice(text, rate, onEnd)) return true;
+  }
+  if (!("speechSynthesis" in window)) return false;
+  cancelVoice();
   const synth = window.speechSynthesis;
   synth.cancel();
   const base = lang.split("-")[0];

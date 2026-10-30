@@ -5,6 +5,7 @@ import {
   DEFAULT_LLM, WEBLLM_MODELS, complete, errorMessage, hasWebGPU, isCached, isReady, loadStore, loadWebLLM,
   type LlmSettings, type LoadState,
 } from "@/lib/llm";
+import { VOICE_MB, loadVoice, voiceCached, voiceStore } from "@/lib/voice";
 import { WHISPER_MB, loadWhisper, whisperCached, whisperStore } from "@/lib/whisper";
 import { Btn, Card } from "./ui";
 
@@ -16,9 +17,13 @@ export function useWhisperState(): LoadState {
   return useSyncExternalStore(whisperStore.subscribe, whisperStore.get, whisperStore.get);
 }
 
-/** Tout ce que l'app doit télécharger selon les réglages est prêt. */
-export function allReady(llm: LlmSettings, w: LoadState) {
-  return isReady(llm) && (llm.stt !== "whisper" || !hasWebGPU() || w.phase === "ready");
+export function useVoiceState(): LoadState {
+  return useSyncExternalStore(voiceStore.subscribe, voiceStore.get, voiceStore.get);
+}
+
+/** Tout ce que l'app doit télécharger selon les réglages est prêt. Sans `v`, la voix est ignorée : elle a un secours. */
+export function allReady(llm: LlmSettings, w: LoadState, v?: LoadState) {
+  return isReady(llm) && (llm.stt !== "whisper" || !hasWebGPU() || w.phase === "ready") && (!v || llm.voice !== "natural" || v.phase === "ready");
 }
 
 const fmtTime = (s: number) => {
@@ -29,7 +34,7 @@ const fmtTime = (s: number) => {
 
 /** Barre de progression partagée (réglages, conversation, accueil). */
 export function LoadProgress({ ls, compact = false }: { ls: LoadState; compact?: boolean }) {
-  const label = ls.model === "whisper" ? "Whisper ivrit-ai (voix)" : (WEBLLM_MODELS.find((m) => m.id === ls.model)?.label ?? ls.model);
+  const label = ls.model === "whisper" ? "Whisper ivrit-ai (voix)" : ls.model === "voice" ? "Voix de Noa" : (WEBLLM_MODELS.find((m) => m.id === ls.model)?.label ?? ls.model);
   if (ls.phase === "idle" || ls.phase === "ready") return null;
   if (ls.phase === "error") {
     return <p className="flex items-center gap-2 text-sm text-warn"><RiErrorWarningLine aria-hidden /> Échec du chargement : {ls.error?.slice(0, 140)}</p>;
@@ -41,7 +46,7 @@ export function LoadProgress({ ls, compact = false }: { ls: LoadState; compact?:
       <div className="flex items-center justify-between gap-2 text-sm">
         <span className="flex items-center gap-1.5 font-medium">
           {dl ? <RiDownloadCloud2Line aria-hidden /> : <RiCpuLine aria-hidden />}
-          {dl ? "Téléchargement" : ls.fromCache ? "Chargement depuis l'appareil" : "Préparation du GPU"}
+          {dl ? "Téléchargement" : ls.fromCache ? "Chargement depuis l'appareil" : ls.model === "voice" ? "Préparation de la voix" : "Préparation du GPU"}
           {!compact && <span className="font-normal text-muted">· {label}</span>}
         </span>
         <span className="tabular-nums text-muted">{pct} %</span>
@@ -52,7 +57,7 @@ export function LoadProgress({ ls, compact = false }: { ls: LoadState; compact?:
       <p className="text-xs tabular-nums text-muted">
         {dl
           ? `${ls.doneMB} / ${ls.totalMB || "?"} Mo${ls.mbps > 0.05 ? ` · ${ls.mbps.toFixed(1)} Mo/s` : ""} · ${ls.etaSec != null ? `encore ≈ ${fmtTime(ls.etaSec)}` : "calcul du temps restant…"}${ls.cachedMB > 0 ? ` · ${ls.cachedMB} Mo déjà sur l'appareil` : ""}`
-          : "Quelques secondes : compilation pour ta carte graphique."}
+          : ls.model === "voice" ? "Quelques secondes : préparation de la voix." : "Quelques secondes : compilation pour ta carte graphique."}
       </p>
       {dl && !compact && <p className="text-xs text-muted">Tu peux naviguer dans l&apos;app pendant ce temps. Une seule fois : ensuite le modèle se charge depuis l&apos;appareil.</p>}
     </div>
@@ -62,9 +67,12 @@ export function LoadProgress({ ls, compact = false }: { ls: LoadState; compact?:
 export function LlmSetup({ llm, onChange, onReady }: { llm: LlmSettings; onChange: (l: LlmSettings) => void; onReady?: () => void }) {
   const ls = useLoadState();
   const ws = useWhisperState();
+  const vs = useVoiceState();
   const [busy, setBusy] = useState(false);
   const [wCached, setWCached] = useState(false);
+  const [vCached, setVCached] = useState(false);
   const wLoading = ws.phase === "download" || ws.phase === "init";
+  const vLoading = vs.phase === "download" || vs.phase === "init";
   const [error, setError] = useState("");
   const [cached, setCached] = useState<Record<string, boolean>>({});
   const gpu = hasWebGPU();
@@ -73,12 +81,13 @@ export function LlmSetup({ llm, onChange, onReady }: { llm: LlmSettings; onChang
   useEffect(() => {
     Promise.all(WEBLLM_MODELS.map(async (m) => [m.id, await isCached(m.id)] as const)).then((r) => setCached(Object.fromEntries(r)));
     whisperCached().then(setWCached);
-  }, [ls.phase, ws.phase]);
+    voiceCached().then(setVCached);
+  }, [ls.phase, ws.phase, vs.phase]);
 
   // Si le chargement se termine pendant qu'on est sur cet écran, on enchaîne.
   useEffect(() => {
-    if (allReady(llm, ws)) onReady?.();
-  }, [ls.phase, ws, llm, onReady]);
+    if (allReady(llm, ws, vs)) onReady?.();
+  }, [ls.phase, ws, vs, llm, onReady]);
 
   async function go() {
     setError("");
@@ -88,6 +97,7 @@ export function LlmSetup({ llm, onChange, onReady }: { llm: LlmSettings; onChang
       await Promise.all([
         llm.provider === "webllm" ? loadWebLLM(llm.webllmModel) : complete(llm, { messages: [{ role: "user", content: "ok" }], maxTokens: 2 }),
         llm.stt === "whisper" && gpu ? loadWhisper() : Promise.resolve(),
+        llm.voice === "natural" ? loadVoice() : Promise.resolve(),
       ]);
       onReady?.();
     } catch (e) {
@@ -98,10 +108,11 @@ export function LlmSetup({ llm, onChange, onReady }: { llm: LlmSettings; onChang
   }
 
   const set = (p: Partial<LlmSettings>) => onChange({ ...llm, ...p });
-  const ready = allReady(llm, ws);
+  const ready = allReady(llm, ws, vs);
   const toDownloadMB =
     (llm.provider === "webllm" && !cached[llm.webllmModel] ? (WEBLLM_MODELS.find((m) => m.id === llm.webllmModel)?.mb ?? 0) : 0) +
-    (llm.stt === "whisper" && gpu && !wCached && ws.phase !== "ready" ? WHISPER_MB : 0);
+    (llm.stt === "whisper" && gpu && !wCached && ws.phase !== "ready" ? WHISPER_MB : 0) +
+    (llm.voice === "natural" && !vCached && vs.phase !== "ready" ? VOICE_MB : 0);
 
   return (
     <Card className="space-y-4">
@@ -167,11 +178,31 @@ export function LlmSetup({ llm, onChange, onReady }: { llm: LlmSettings; onChang
         {wLoading && <LoadProgress ls={ws} />}
       </div>
 
+      <div className="space-y-2 border-t border-line pt-4">
+        <h3 className="text-sm font-semibold">Voix de Noa</h3>
+        <div className="space-y-2" role="radiogroup" aria-label="Voix de Noa">
+          {([
+            ["natural", "Voix naturelle · 100 % locale", `≈ ${VOICE_MB} Mo · Phonikud + Piper, entraînée sur l'hébreu`],
+            ["system", "Voix du système", "Aucun téléchargement · voix plus robotique, parfois absente"],
+          ] as const).map(([v, label, note]) => (
+            <button key={v} role="radio" aria-checked={llm.voice === v} disabled={vLoading} onClick={() => set({ voice: v })}
+              className={`flex w-full items-center justify-between gap-3 rounded-xl border p-3 text-left disabled:opacity-60 ${llm.voice === v ? "border-accent bg-accent/10" : "border-line"}`}>
+              <span>
+                <span className="block text-sm font-semibold">{label}</span>
+                <span className="block text-xs text-muted">{note}</span>
+              </span>
+              {v === "natural" && (vCached || vs.phase === "ready") && <span className="flex shrink-0 items-center gap-1 text-xs text-good"><RiCheckboxCircleFill aria-hidden /> Sur l&apos;appareil</span>}
+            </button>
+          ))}
+        </div>
+        {vLoading && <LoadProgress ls={vs} />}
+      </div>
+
       {error && <p className="text-sm text-warn">{error}</p>}
 
-      <Btn onClick={go} disabled={busy || loadingThis || wLoading || (llm.provider === "webllm" && !gpu)} className="flex w-full items-center justify-center gap-2">
-        {(busy || loadingThis || wLoading) && <RiLoader4Line className="animate-spin" aria-hidden />}
-        {loadingThis || wLoading ? "Chargement en cours…" : ready ? "Prêt — continuer" : llm.provider === "ollama" ? "Tester la connexion"
+      <Btn onClick={go} disabled={busy || loadingThis || wLoading || vLoading || (llm.provider === "webllm" && !gpu)} className="flex w-full items-center justify-center gap-2">
+        {(busy || loadingThis || wLoading || vLoading) && <RiLoader4Line className="animate-spin" aria-hidden />}
+        {loadingThis || wLoading || vLoading ? "Chargement en cours…" : ready ? "Prêt — continuer" : llm.provider === "ollama" ? "Tester la connexion"
           : toDownloadMB === 0 ? "Activer (déjà téléchargé)" : `Télécharger (≈ ${(toDownloadMB / 1000).toFixed(1).replace(".", ",")} Go)`}
       </Btn>
       <button onClick={() => onChange(DEFAULT_LLM)} className="text-xs text-muted underline">Réglages par défaut</button>
