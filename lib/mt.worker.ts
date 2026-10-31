@@ -21,8 +21,16 @@ self.onmessage = async (e: MessageEvent<{ id: number; chain: string[]; sentences
     let cur = sentences;
     for (const model of chain) {
       const p = await get(model);
-      const out = (await p(cur, { num_beams: 2, max_new_tokens: 80 })) as { translation_text: string }[];
-      cur = out.map((o) => o.translation_text);
+      // Une phrase à la fois : traduites par lot, les phrases courtes se terminent par « ..??.. » (fin de phrase manquée).
+      const next: string[] = [];
+      for (const s of cur) {
+        const out = (await p(s, { num_beams: 2, max_new_tokens: 80 })) as { translation_text: string }[];
+        // Ponctuation répétée en fin de phrase, guillemet orphelin au début ou à la fin.
+        let t = out[0].translation_text.replace(/([.?!])[.?!]+$/, "$1").trim();
+        if ((t.match(/["״]/g) ?? []).length === 1) t = t.replace(/^["״]|["״]$/g, "").trim();
+        next.push(t);
+      }
+      cur = next;
     }
     self.postMessage({ id, text: cur.join(" ") });
   } catch (err) {

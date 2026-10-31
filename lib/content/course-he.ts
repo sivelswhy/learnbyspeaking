@@ -94,8 +94,8 @@ export const COURSE: CourseLevel[] = [
             rep(L(g("אני רעב", "אני רעבה"), g("Ani ra'ev", "Ani re'eva"), "J'ai faim")),
             rep(L(g("אני צמא", "אני צמאה"), g("Ani tsame", "Ani tsme'a"), "J'ai soif")),
             ask(L(g("אתה רעב?", "את רעבה?"), g("Ata ra'ev?", "At re'eva?"), "Tu as faim ?"), L(g("כן, אני מאוד רעב", "כן, אני מאוד רעבה"), g("Ken, ani me'od ra'ev", "Ken, ani me'od re'eva"), "Oui, j'ai très faim")),
-            rep(L("בואי נאכול משהו!", "Bo'i nokhal mashehu!", "Viens, on mange quelque chose ! (à une femme)")),
-          ], "un ami qui te propose d'aller manger", "Dire que tu as faim et choisir où manger", L(g("אתה רעב? בוא נאכול משהו!", "את רעבה? בואי נאכול משהו!"), g("Ata ra'ev? Bo nokhal mashehu!", "At re'eva? Bo'i nokhal mashehu!"), "Tu as faim ? Viens, on mange quelque chose !")),
+            rep(L("בואי נאכל משהו!", "Bo'i nokhal mashehu!", "Viens, on mange quelque chose ! (à une femme)")),
+          ], "un ami qui te propose d'aller manger", "Dire que tu as faim et choisir où manger", L(g("אתה רעב? בוא נאכל משהו!", "את רעבה? בואי נאכל משהו!"), g("Ata ra'ev? Bo nokhal mashehu!", "At re'eva? Bo'i nokhal mashehu!"), "Tu as faim ? Viens, on mange quelque chose !")),
           day("u2d4", "L'addition", L("אפשר את החשבון, בבקשה?", "Efshar et ha-kheshbon, bevakasha?", "L'addition, s'il vous plaît ?"), [
             intro("Pour demander l'addition : « efshar et ha-kheshbon ». « Efshar » veut dire « c'est possible »."),
             rep(L("אפשר את החשבון, בבקשה?", "Efshar et ha-kheshbon, bevakasha?", "L'addition, s'il vous plaît ?")),
@@ -125,7 +125,7 @@ export const COURSE: CourseLevel[] = [
             rep(L("לרחוב דיזנגוף, בבקשה", "Li-rekhov Dizengof, bevakasha", "Rue Dizengoff, s'il vous plaît")),
             rep(L("כמה זה יעלה?", "Kama ze ya'ale?", "Combien ça va coûter ?")),
             rep(L("עם מונה, בבקשה", "Im mone, bevakasha", "Avec le compteur, s'il vous plaît")),
-            ask(L("לאן נוסעים?", "Le'an nos'im?", "On va où ?"), L("לשדה התעופה, בבקשה", "La-sde ha-te'ufa, bevakasha", "À l'aéroport, s'il vous plaît")),
+            ask(L("לאן נוסעים?", "Le'an nos'im?", "On va où ?"), L("לשדה התעופה, בבקשה", "Li-sde ha-te'ufa, bevakasha", "À l'aéroport, s'il vous plaît")),
           ], "un chauffeur de taxi", "Donner ta destination et demander le prix", L("שלום! לאן נוסעים?", "Shalom! Le'an nos'im?", "Bonjour ! On va où ?")),
           day("u3d4", "Quelle heure est-il ?", L("מה השעה?", "Ma ha-sha'a?", "Quelle heure est-il ?"), [
             intro("Pour l'heure, on utilise les nombres féminins : « ha-sha'a shalosh », il est trois heures."),
@@ -202,8 +202,86 @@ export const COURSE: CourseLevel[] = [
       },
     ],
   },
-  { id: "int1", title: "Intermédiaire 1", cefr: "B1", units: [] },
+  {
+    id: "int1", title: "Intermédiaire 1", cefr: "B1",
+    units: [
+      {
+        id: "u6", title: "Raconter et donner son avis",
+        days: [
+          day("u6d1", "Quand j'étais petit…", L(g("כשהייתי ילד, גרתי בכפר", "כשהייתי ילדה, גרתי בכפר"), g("Ke-she-hayiti yeled, garti ba-kfar", "Ke-she-hayiti yalda, garti ba-kfar"), "Quand j'étais petit(e), j'habitais à la campagne"), [
+            intro("Pour raconter ton passé : « ke-she » (quand) collé au verbe, puis le passé en « ti » : hayiti, j'étais ; garti, j'habitais."),
+            rep(L(g("כשהייתי ילד, גרתי בכפר", "כשהייתי ילדה, גרתי בכפר"), g("Ke-she-hayiti yeled, garti ba-kfar", "Ke-she-hayiti yalda, garti ba-kfar"), "Quand j'étais petit(e), j'habitais à la campagne")),
+            rep(L("הלכתי לבית הספר ברגל", "Halakhti le-veit ha-sefer ba-regel", "J'allais à l'école à pied")),
+            ask(L("איפה גדלת?", g("Eifo gadalta?", "Eifo gadalt?"), "Tu as grandi où ?"), L("גדלתי בליון, בצרפת", "Gadalti be-Lyon, be-Tsarfat", "J'ai grandi à Lyon, en France")),
+            rep(L("זה היה מזמן!", "Ze haya mizman!", "C'était il y a longtemps !")),
+          ], "un ami qui te pose des questions sur ton enfance", "Raconter où et comment tu as grandi", L(g("ספר לי, איפה גדלת?", "ספרי לי, איפה גדלת?"), g("Saper li, eifo gadalta?", "Sapri li, eifo gadalt?"), "Raconte-moi, tu as grandi où ?")),
+          day("u6d2", "Demain, je…", L("מחר אני אלך לעבודה", "Makhar ani elekh la-avoda", "Demain, j'irai au travail"), [
+            intro("Au futur, « je » commence par la lettre alef : elekh (j'irai à pied), esa (j'irai en véhicule), e'ese (je ferai)."),
+            rep(L("מחר אני אלך לעבודה", "Makhar ani elekh la-avoda", "Demain, j'irai au travail")),
+            rep(L("בערב אני אבשל ארוחה", "Ba-erev ani avashel arukha", "Ce soir, je cuisinerai un repas")),
+            ask(L(g("מה תעשה בסוף השבוע?", "מה תעשי בסוף השבוע?"), g("Ma ta'ase be-sof ha-shavua?", "Ma ta'asi be-sof ha-shavua?"), "Qu'est-ce que tu feras ce week-end ?"), L("אני אפגוש חברים בתל אביב", "Ani efgosh khaverim be-Tel Aviv", "Je verrai des amis à Tel-Aviv")),
+            rep(L("נראה!", "Nir'e!", "On verra !")),
+          ], "une amie qui organise le week-end", "Dire ce que tu feras", L(g("יש לך תוכניות למחר?", "יש לך תוכניות למחר?"), g("Yesh lekha tokhniyot le-makhar?", "Yesh lakh tokhniyot le-makhar?"), "Tu as des projets pour demain ?")),
+          day("u6d3", "Parce que…", L(g("אני לומד עברית כי אני רוצה לגור בישראל", "אני לומדת עברית כי אני רוצה לגור בישראל"), g("Ani lomed ivrit ki ani rotse lagur be-Israel", "Ani lomedet ivrit ki ani rotsa lagur be-Israel"), "J'apprends l'hébreu parce que je veux vivre en Israël"), [
+            intro("Pour expliquer : « ki » (parce que) devant une phrase, « biglal » (à cause de) devant un nom, « kedei » (pour) devant un infinitif."),
+            rep(L(g("אני לומד עברית כי אני רוצה לגור בישראל", "אני לומדת עברית כי אני רוצה לגור בישראל"), g("Ani lomed ivrit ki ani rotse lagur be-Israel", "Ani lomedet ivrit ki ani rotsa lagur be-Israel"), "J'apprends l'hébreu parce que je veux vivre en Israël")),
+            rep(L("בגלל הגשם נשארתי בבית", "Biglal ha-geshem nisharti ba-bayit", "À cause de la pluie, je suis resté(e) à la maison")),
+            rep(L(g("אני חוסך כסף כדי לטייל", "אני חוסכת כסף כדי לטייל"), g("Ani khosekh kesef kedei letayel", "Ani khosekhet kesef kedei letayel"), "J'économise de l'argent pour voyager")),
+            ask(L(g("למה אתה לומד עברית?", "למה את לומדת עברית?"), g("Lama ata lomed ivrit?", "Lama at lomedet ivrit?"), "Pourquoi tu apprends l'hébreu ?"), L("כי יש לי משפחה בישראל", "Ki yesh li mishpakha be-Israel", "Parce que j'ai de la famille en Israël")),
+          ], "un camarade de cours d'hébreu", "Expliquer tes raisons", L(g("למה בחרת ללמוד עברית?", "למה בחרת ללמוד עברית?"), g("Lama bakharta lilmod ivrit?", "Lama bakhart lilmod ivrit?"), "Pourquoi tu as choisi d'apprendre l'hébreu ?")),
+          day("u6d4", "À mon avis", L("לדעתי, זה רעיון טוב", "Le-da'ati, ze ra'ayon tov", "À mon avis, c'est une bonne idée"), [
+            intro("Pour donner ton avis : « le-da'ati » (à mon avis) ou « ani khoshev / khoshevet she… » (je pense que…)."),
+            rep(L("לדעתי, זה רעיון טוב", "Le-da'ati, ze ra'ayon tov", "À mon avis, c'est une bonne idée")),
+            rep(L(g("אני חושב שזה יקר מדי", "אני חושבת שזה יקר מדי"), g("Ani khoshev she-ze yakar midai", "Ani khoshevet she-ze yakar midai"), "Je pense que c'est trop cher")),
+            rep(L(g("אני מסכים", "אני מסכימה"), g("Ani maskim", "Ani maskima"), "Je suis d'accord")),
+            ask(L(g("מה אתה חושב על תל אביב?", "מה את חושבת על תל אביב?"), g("Ma ata khoshev al Tel Aviv?", "Ma at khoshevet al Tel Aviv?"), "Qu'est-ce que tu penses de Tel-Aviv ?"), L("לדעתי, היא עיר יפה ומלאת חיים", "Le-da'ati, hi ir yafa u-mle'at khayim", "À mon avis, c'est une ville belle et pleine de vie")),
+          ], "un ami qui te demande ton avis", "Donner et défendre ton avis", L(g("מה דעתך, נלך למסעדה או נבשל בבית?", "מה דעתך, נלך למסעדה או נבשל בבית?"), g("Ma da'atkha, nelekh la-mis'ada o nevashel ba-bayit?", "Ma da'atekh, nelekh la-mis'ada o nevashel ba-bayit?"), "Qu'en penses-tu, on va au restaurant ou on cuisine à la maison ?")),
+        ],
+      },
+      {
+        id: "u7", title: "La vie pratique",
+        days: [
+          day("u7d1", "Chez le médecin", L("כואב לי הראש", "Ko'ev li ha-rosh", "J'ai mal à la tête"), [
+            intro("Pour dire où tu as mal : « ko'ev li » + la partie du corps ; « ko'evet li » si elle est féminine (ha-beten, le ventre)."),
+            rep(L("כואב לי הראש", "Ko'ev li ha-rosh", "J'ai mal à la tête")),
+            rep(L("כואבת לי הבטן", "Ko'evet li ha-beten", "J'ai mal au ventre")),
+            rep(L(g("אני מרגיש לא טוב", "אני מרגישה לא טוב"), g("Ani margish lo tov", "Ani margisha lo tov"), "Je ne me sens pas bien")),
+            ask(L("מה כואב לך?", g("Ma ko'ev lekha?", "Ma ko'ev lakh?"), "Où as-tu mal ?"), L("כואב לי הגרון", "Ko'ev li ha-garon", "J'ai mal à la gorge")),
+          ], "un médecin dans un dispensaire", "Expliquer ce qui ne va pas", L("שלום, מה הבעיה?", "Shalom, ma ha-be'aya?", "Bonjour, quel est le problème ?")),
+          day("u7d2", "Louer un appartement", L(g("אני מחפש דירה להשכרה", "אני מחפשת דירה להשכרה"), g("Ani mekhapes dira le-haskara", "Ani mekhapeset dira le-haskara"), "Je cherche un appartement à louer"), [
+            intro("Pour un appartement : « dira » (appartement), « kheder » (pièce), « skhar dira » (le loyer)."),
+            rep(L(g("אני מחפש דירה להשכרה", "אני מחפשת דירה להשכרה"), g("Ani mekhapes dira le-haskara", "Ani mekhapeset dira le-haskara"), "Je cherche un appartement à louer")),
+            rep(L("כמה חדרים יש בדירה?", "Kama khadarim yesh ba-dira?", "Combien de pièces il y a dans l'appartement ?")),
+            rep(L("כמה עולה שכר הדירה?", "Kama ole skhar ha-dira?", "Combien coûte le loyer ?")),
+            ask(L(g("איזו דירה אתה מחפש?", "איזו דירה את מחפשת?"), g("Eizo dira ata mekhapes?", "Eizo dira at mekhapeset?"), "Quel appartement tu cherches ?"), L("דירה עם שני חדרים, קרוב לים", "Dira im shnei khadarim, karov la-yam", "Un appartement de deux pièces, près de la mer")),
+          ], "un agent immobilier", "Décrire l'appartement que tu cherches et demander le prix", L(g("שלום! אתה מחפש דירה?", "שלום! את מחפשת דירה?"), g("Shalom! Ata mekhapes dira?", "Shalom! At mekhapeset dira?"), "Bonjour ! Vous cherchez un appartement ?")),
+          day("u7d3", "Au téléphone", L("אפשר לדבר עם דני?", "Efshar ledaber im Dani?", "Je peux parler à Dani ?"), [
+            intro("Au téléphone, on répond « halo ». Pour demander quelqu'un : « efshar ledaber im… » (je peux parler à…)."),
+            rep(L("הלו, מי מדבר?", "Halo, mi medaber?", "Allô, qui est à l'appareil ?")),
+            rep(L("אפשר לדבר עם דני?", "Efshar ledaber im Dani?", "Je peux parler à Dani ?")),
+            rep(L("אני אתקשר אחר כך", "Ani etkasher akhar kakh", "Je rappellerai plus tard")),
+            ask(L("הוא לא כאן. רוצה להשאיר הודעה?", g("Hu lo kan. Rotse lehash'ir hoda'a?", "Hu lo kan. Rotsa lehash'ir hoda'a?"), "Il n'est pas là. Tu veux laisser un message ?"), L("כן, תגידי לו שהתקשרתי", "Ken, tagidi lo she-hitkasharti", "Oui, dis-lui que j'ai appelé (à une femme)")),
+          ], "une collègue de Dani qui répond au téléphone", "Demander quelqu'un et laisser un message", L("הלו, משרד של דני, שלום.", "Halo, misrad shel Dani, shalom.", "Allô, bureau de Dani, bonjour.")),
+          day("u7d4", "Au supermarché", L(g("איפה אני יכול למצוא חלב?", "איפה אני יכולה למצוא חלב?"), g("Eifo ani yakhol limtso khalav?", "Eifo ani yekhola limtso khalav?"), "Où est-ce que je peux trouver du lait ?"), [
+            intro("Pour chercher un produit : « eifo ani yakhol / yekhola limtso… » (où est-ce que je peux trouver…)."),
+            rep(L(g("איפה אני יכול למצוא חלב?", "איפה אני יכולה למצוא חלב?"), g("Eifo ani yakhol limtso khalav?", "Eifo ani yekhola limtso khalav?"), "Où est-ce que je peux trouver du lait ?")),
+            rep(L("יש לכם לחם טרי?", "Yesh lakhem lekhem tari?", "Vous avez du pain frais ?")),
+            rep(L(g("אני צריך שקית, בבקשה", "אני צריכה שקית, בבקשה"), g("Ani tsarikh sakit, bevakasha", "Ani tsrikha sakit, bevakasha"), "J'ai besoin d'un sac, s'il vous plaît")),
+            ask(L("משהו נוסף?", "Mashehu nosaf?", "Autre chose ?"), L("לא, זה הכול. תודה!", "Lo, ze hakol. Toda!", "Non, c'est tout. Merci !")),
+          ], "un caissier de supermarché", "Trouver des produits et payer", L("שלום! מצאת הכול?", g("Shalom! Matsata hakol?", "Shalom! Matsat hakol?"), "Bonjour ! Vous avez tout trouvé ?")),
+        ],
+      },
+    ],
+  },
   { id: "int2", title: "Intermédiaire 2", cefr: "B2", units: [] },
 ];
 
 export const ALL_DAYS = COURSE.flatMap((l) => l.units.flatMap((u) => u.days.map((d) => ({ level: l, unit: u, day: d }))));
+
+const CEFR = ["A1", "A2", "B1", "B2", "C1", "C2"];
+
+/** Le niveau du parcours pour un apprenant : le sien, ou le plus haut déjà écrit en dessous (un B2 commence au B1). */
+export function courseLevelFor(level: string): CourseLevel {
+  const ready = COURSE.filter((l) => l.units.length && CEFR.indexOf(l.cefr) <= Math.max(0, CEFR.indexOf(level)));
+  return ready[ready.length - 1] ?? COURSE[0];
+}

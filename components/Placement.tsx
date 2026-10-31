@@ -3,7 +3,10 @@ import { useEffect, useRef, useState } from "react";
 import { RiEyeLine, RiKeyboardLine, RiLightbulbLine, RiShareBoxLine, RiStopFill, RiVoiceprintLine, RiTranslate2, RiVolumeUpLine } from "react-icons/ri";
 import { LANGUAGES, type Level } from "@/lib/languages";
 import type { LlmSettings } from "@/lib/llm";
-import { PLACEMENT, SCORING_EXPLANATION, estimateLevel, scoreAnswer, type AnswerScore, type PlacementQuestion } from "@/lib/placement";
+import { judge } from "@/lib/judge";
+import {
+  PLACEMENT, SCORING_EXPLANATION, SCORING_EXPLANATION_NO_AI, estimateLevel, scoreAnswer, type AnswerScore, type PlacementQuestion,
+} from "@/lib/placement";
 import { LEVEL_RATE, STT_ERRORS, cancelSpeech, speak, useVoiceInput } from "@/lib/speech";
 import type { PlacementResult, Profile } from "@/lib/types";
 import { Avatar } from "./Avatar";
@@ -57,14 +60,15 @@ function Intro({ onStart, onSkip }: { onStart: () => void; onSkip: () => void })
         </div>
       </div>
       <p className="text-center text-lg font-semibold text-[#7ff0e0]">6 questions à l&apos;oral, de A1 à B2</p>
-      <p className="mb-6 text-center text-sm text-[#a9e9ff]/80">Notation transparente, calculée sur ton appareil</p>
+      <p className="mb-6 text-center text-sm text-[#a9e9ff]/80">Notée par l&apos;IA, sur ton appareil</p>
       <button onClick={onStart} className="min-h-14 w-full max-w-md rounded-full bg-white text-lg font-semibold text-accent active:scale-[0.99]">Démarrer</button>
       <button onClick={onSkip} className="mt-3 min-h-11 text-sm text-white/80 underline">Plus tard</button>
     </main>
   );
 }
 
-interface Turn { answer: string; score: AnswerScore }
+/** score null : l'IA est en train de noter la réponse. */
+interface Turn { answer: string; score: AnswerScore | null }
 
 const clock = () => new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
@@ -97,9 +101,13 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
 
   function answer(a: string) {
     if (!q || done) return;
-    setTurns((t) => [...t, { answer: a, score: scoreAnswer(q, a) }]);
+    const k = i;
+    setTurns((t) => [...t, { answer: a, score: null }]);
     setText("");
     setTyping(false);
+    void judge(llm, q.text[gnd], a, gnd).then((ai) =>
+      setTurns((t) => t.map((turn, j) => (j === k ? { ...turn, score: scoreAnswer(q, a, ai) } : turn))),
+    );
   }
   useEffect(() => {
     answerRef.current = answer;
@@ -114,13 +122,16 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
       setShowEx(false);
       return;
     }
-    const scores = turns.map((t) => t.score.score);
-    const avg = (k: keyof AnswerScore) => Math.round(turns.reduce((a, t) => a + t.score[k], 0) / Math.max(1, turns.length));
+    const sc = turns.map((t) => t.score!);
+    const scores = sc.map((s) => s.score);
+    const avg = (k: "relevance" | "development" | "vocabulary" | "grammar") => Math.round(sc.reduce((a, s) => a + (s[k] ?? 0), 0) / Math.max(1, sc.length));
+    const ai = sc.some((s) => s.ai);
     onFinish({
       date: new Date().toISOString(),
       level: estimateLevel(qs, scores),
-      axes: { answered: avg("answered"), length: avg("length"), vocabulary: avg("vocabulary"), relevance: avg("relevance") },
-      answers: turns.map((t, k) => ({ question: qs[k].text[gnd], answer: t.answer, score: t.score.score })),
+      axes: { relevance: avg("relevance"), grammar: ai ? avg("grammar") : null, development: avg("development"), vocabulary: avg("vocabulary") },
+      ai,
+      answers: turns.map((t, k) => ({ question: qs[k].text[gnd], answer: t.answer, score: t.score!.score })),
     });
   }
 
@@ -180,7 +191,9 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
 
       <div className="bg-bg px-4 pb-[max(env(safe-area-inset-bottom),12px)] pt-3">
         {done ? (
-          <Btn onClick={next} className="min-h-14 w-full text-base">{i + 1 < qs.length ? "Question suivante" : "Voir mon rapport"}</Btn>
+          <Btn onClick={next} disabled={!turns[i]?.score} className="min-h-14 w-full text-base">
+            {!turns[i]?.score ? "Noam analyse ta réponse…" : i + 1 < qs.length ? "Question suivante" : "Voir mon rapport"}
+          </Btn>
         ) : typing ? (
           <form onSubmit={(e) => { e.preventDefault(); if (text.trim()) answer(text.trim()); }} className="flex gap-2">
             <input autoFocus value={text} onChange={(e) => setText(e.target.value)} dir="auto" aria-label="Ta réponse" placeholder="Écris en hébreu…" className="min-h-12 flex-1 rounded-xl border border-line bg-card px-3 text-base" />
@@ -191,7 +204,7 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
             style={voice.listening && voice.level ? { boxShadow: `0 0 0 ${2 + voice.level * 10}px color-mix(in srgb, var(--accent) 25%, transparent)` } : undefined}
             className="flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-soft font-semibold text-accent disabled:opacity-60">
             {voice.listening ? <RiStopFill aria-hidden className="size-5" /> : <RiVoiceprintLine aria-hidden className="size-5" />}
-            {voice.transcribing ? "Transcription…" : voice.listening ? "Je t'écoute… appuie pour terminer" : "Appuie pour enregistrer"}
+            {voice.transcribing ? "Transcription…" : voice.opening ? "Ouverture du micro…" : voice.listening ? "Je t'écoute… appuie pour terminer" : "Appuie pour enregistrer"}
           </button>
         )}
         {!done && (
@@ -207,16 +220,32 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
 
 function Feedback({ t, q, gnd, he, speech }: { t: Turn; q: PlacementQuestion; gnd: "m" | "f"; he: string; speech: string }) {
   const sc = t.score;
+  if (!sc) {
+    return <p className="animate-pulse rounded-2xl bg-card p-4 text-sm text-muted shadow-card">Noam analyse ta réponse…</p>;
+  }
   const verdict = sc.score >= 75 ? "Très bien !" : sc.score >= 55 ? "Bien joué !" : sc.words ? "Bon début !" : "Pas de souci, voici un modèle.";
-  const good: string[] = [];
-  if (sc.words) good.push(`Tu as répondu en hébreu avec ${sc.words} mot${sc.words > 1 ? "s" : ""}.`);
-  if (sc.relevance === 100) good.push("Ta réponse contient les mots attendus pour cette question.");
+  const notes: string[] = [];
+  if (sc.words) {
+    notes.push(sc.relevance >= 50 ? "Tu réponds bien à la question." : "Ta réponse ne semble pas répondre à la question : relis-la, ou touche « Traduire ».");
+    if (sc.grammar !== null) {
+      notes.push(sc.grammar >= 60 ? "Ta phrase semble correcte." : sc.grammar >= 35 ? "Ta phrase est compréhensible, mais il y a peut-être une faute : compare avec l'exemple." : "Il y a sans doute une faute (accord, conjugaison…) : compare avec l'exemple.");
+    }
+    if (sc.development < 100) notes.push("Développe un peu plus : ajoute un détail, ou une deuxième idée avec ו (et) ou כי (parce que).");
+  } else if (t.answer) {
+    notes.push("Je n'ai pas trouvé d'hébreu dans ta réponse : essaie de répondre en hébreu, même avec deux mots.");
+  }
   return (
     <div className="space-y-2 rounded-2xl bg-card p-4 text-sm shadow-card">
       <p className="flex items-center justify-between font-semibold">{verdict} <span className="text-accent">{sc.score}/100</span></p>
-      {good.length > 0 && <ul className="list-disc space-y-0.5 ps-5">{good.map((g) => <li key={g}>{g}</li>)}</ul>}
+      {notes.length > 0 && <ul className="list-disc space-y-0.5 ps-5">{notes.map((g) => <li key={g}>{g}</li>)}</ul>}
+      {sc.correction && (
+        <div>
+          <p className="font-semibold">Correction proposée par l&apos;IA</p>
+          <p className={`${he} text-base`}>{sc.correction}</p>
+          <p className="text-xs text-muted">L&apos;IA peut se tromper : vérifie avec l&apos;exemple.</p>
+        </div>
+      )}
       <p><b>Conseil :</b> {q.tip}</p>
-      {sc.words > 0 && sc.length < 100 && <p className="text-muted">Développe un peu plus : vise au moins {Math.ceil((sc.words * 100) / Math.max(sc.length, 1))} mots.</p>}
       <div className="rounded-xl bg-soft p-3">
         <p className="text-xs font-semibold uppercase text-accent">Exemple</p>
         <p className="flex items-center gap-2">
@@ -273,14 +302,23 @@ export function PlacementReport({ r, profile, onContinue }: { r: PlacementResult
             <p className="text-5xl font-bold text-accent">{r.level}</p>
             <p className="mx-auto mt-1 max-w-xs text-sm text-muted">{LEVEL_TEXT[r.level]}</p>
             <Radar
-              values={[
-                { label: "Réponses", v: r.axes.answered },
-                { label: "Longueur", v: r.axes.length },
-                { label: "Vocabulaire", v: r.axes.vocabulary },
-                { label: "Pertinence", v: r.axes.relevance },
-              ]}
+              values={
+                r.axes.development !== undefined
+                  ? [
+                      { label: "Pertinence", v: r.axes.relevance },
+                      ...(r.axes.grammar != null ? [{ label: "Grammaire", v: r.axes.grammar }] : []),
+                      { label: "Développement", v: r.axes.development },
+                      { label: "Vocabulaire", v: r.axes.vocabulary },
+                    ]
+                  : [
+                      { label: "Réponses", v: r.axes.answered ?? 0 },
+                      { label: "Longueur", v: r.axes.length ?? 0 },
+                      { label: "Vocabulaire", v: r.axes.vocabulary },
+                      { label: "Pertinence", v: r.axes.relevance },
+                    ]
+              }
             />
-            <p className="text-xs text-muted">{SCORING_EXPLANATION}</p>
+            <p className="text-xs text-muted">{r.ai ? SCORING_EXPLANATION : SCORING_EXPLANATION_NO_AI}</p>
           </div>
         )}
         <div className="rounded-2xl bg-card py-4 shadow-card">

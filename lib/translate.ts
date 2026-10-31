@@ -1,5 +1,5 @@
 "use client";
-import { HF_MT_HE_EN_REPO } from "./hosting";
+import { HF_MT_HE_EN_REPO, HF_MT_TO_HE_REPO } from "./hosting";
 import { whenAlive } from "./workerReady";
 import type { LangCode } from "./languages";
 
@@ -8,6 +8,13 @@ const CHAINS: Partial<Record<LangCode, string[]>> = {
   en: [HF_MT_HE_EN_REPO],
   fr: [HF_MT_HE_EN_REPO, "Xenova/opus-mt-en-fr"],
   es: [HF_MT_HE_EN_REPO, "Xenova/opus-mt-en-es"],
+};
+
+/** Vers l'hébreu : un modèle direct par langue maternelle. */
+const TO_HE: Partial<Record<LangCode, string[]>> = {
+  fr: [HF_MT_TO_HE_REPO.fr],
+  en: [HF_MT_TO_HE_REPO.en],
+  es: [HF_MT_TO_HE_REPO.es],
 };
 
 let worker: Worker | null = null;
@@ -36,6 +43,21 @@ export function canTranslate(target: LangCode, native: LangCode) {
 export function translateHebrew(text: string, native: LangCode): Promise<string> {
   const chain = CHAINS[native];
   if (!chain) return Promise.reject(new Error("unsupported"));
+  return run(chain, text);
+}
+
+export function canTranslateToHebrew(native: LangCode) {
+  return !!TO_HE[native];
+}
+
+/** Traduit de la langue maternelle vers l'hébreu (au masculin : voir lib/sayInHebrew.ts pour le féminin). */
+export function translateToHebrew(text: string, native: LangCode): Promise<string> {
+  const chain = TO_HE[native];
+  if (!chain) return Promise.reject(new Error("unsupported"));
+  return run(chain, text);
+}
+
+function run(chain: string[], text: string): Promise<string> {
   if (!worker) {
     worker = new Worker(new URL("./mt.worker.ts", import.meta.url), { type: "module" });
     worker.onmessage = (e) => {

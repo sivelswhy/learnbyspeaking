@@ -10,7 +10,6 @@ const LEVEL_STYLE: Record<string, string> = {
   C2: "fully native speech, no simplification",
 };
 
-const str = { type: "string" };
 
 /** Exemple de bon échange, pour caler le style des petits modèles. */
 const REPLY_EXAMPLE: Partial<Record<string, string>> = {
@@ -37,25 +36,39 @@ const HE_LEVEL: Record<string, string> = {
   C2: "עברית של דובר ילידי",
 };
 
+/** Rôle et objectif des scénarios en hébreu : DictaLM suit mal une description en français. */
+const HE_SCENE: Record<string, { role: string; goal: string }> = {
+  free: { role: "חבר נחמד שמדבר בטבעיות", goal: "לדבר על מה שבא לו" },
+  restaurant: { role: "מלצר במסעדה בתל אביב", goal: "להזמין אוכל ולבקש חשבון" },
+  market: { role: "מוכר בשוק הכרמל", goal: "לשאול מחיר ולקנות" },
+  meet: { role: "אדם נחמד שפוגשים בפעם הראשונה במסיבה", goal: "להציג את עצמו ולהכיר" },
+  hotel: { role: "פקיד קבלה במלון", goal: "לעשות צ'ק-אין ולשאול שאלות" },
+  airport: { role: "פקיד צ'ק-אין בנמל התעופה בן גוריון", goal: "צ'ק-אין, מזוודות ושער העלייה" },
+  taxi: { role: "נהג מונית", goal: "להגיד לאן נוסעים ולשאול על הדרך" },
+  daily: { role: "שכן נחמד וסקרן", goal: "לדבר על היום, על המשפחה ועל ההרגלים" },
+  study: { role: "חבר ללימודים באוניברסיטה", goal: "לדבר על הלימודים ועל הקורסים" },
+  interview: { role: "מראיין בראיון עבודה", goal: "לספר על הניסיון ועל המוטיבציה" },
+};
+
 /**
  * Appel 1 : la réponse parlée (streaming).
- * Pour l'hébreu, consignes en hébreu : DictaLM (entraîné sur l'hébreu) les suit bien mieux qu'en anglais.
+ * Pour l'hébreu, consignes en hébreu et au genre de l'apprenant : DictaLM (entraîné sur l'hébreu) les suit bien mieux qu'en anglais.
  */
-export function replySystem(p: Profile, sc: Pick<Scenario, "role" | "goal">, weak: string[]) {
+export function replySystem(p: Profile, sc: Pick<Scenario, "role" | "goal"> & { id?: string }, weak: string[]) {
   const t = LANGUAGES[p.target];
   if (p.target === "he") {
-    const you = p.gender === "f" ? "פני אל התלמידה בלשון נקבה (את, רוצה, אוהבת)." : "פנה אל התלמיד בלשון זכר (אתה, רוצה, אוהב).";
-    return `אתה משתתף בשיחה בעל פה עם תלמיד שלומד עברית (רמה ${p.level}).
-התפקיד שלך: ${sc.role} (התיאור בצרפתית). המטרה של התלמיד: ${sc.goal}.
+    const f = p.gender === "f";
+    const scene = (sc.id && HE_SCENE[sc.id]) || { role: `${sc.role} (התיאור בצרפתית)`, goal: sc.goal };
+    const who = f ? "תלמידה" : "תלמיד";
+    const you = f ? "פנה אליה תמיד בלשון נקבה: את, רוצה, אוהבת, תגידי, תרצי." : "פנה אליו תמיד בלשון זכר: אתה, רוצה, אוהב, תגיד, תרצה.";
+    return `אתה נועם. אתה מדבר בעל פה עם ${who} שלומד${f ? "ת" : ""} עברית (רמה ${p.level}).
+התפקיד שלך: ${scene.role}. המטרה של ה${who}: ${scene.goal}.
 כללים:
 - ענה בעברית בלבד: ${HE_LEVEL[p.level]}.
-- משפט אחד או שניים קצרים, כמו בשיחה אמיתית, ואז שאלה קצרה אחת שממשיכה את השיחה.
-- הגב למה שהתלמיד אמר. אל תחזור על אותה שאלה פעמיים.
+- תגובה קצרה מאוד (עד 10 מילים) ואז שאלה קצרה ופשוטה אחת.
+- הגב למה ש${f ? "היא אמרה" : "הוא אמר"}. אל תחזור על אותה שאלה פעמיים.
 - בלי רשימות, בלי כוכביות, בלי אימוג'י, בלי תרגום ובלי הסברים.
-- ${you}${weak.length ? `\n- תן לתלמיד הזדמנות לתרגל: ${weak.join("; ")}.` : ""}
-דוגמה:
-תלמיד: אני רוצה קפה
-אתה: בטח! קפה הפוך או שחור?`;
+- ${you}${weak.length ? `\n- תן הזדמנות לתרגל: ${weak.join("; ")}.` : ""}`;
   }
   const ex = REPLY_EXAMPLE[p.target];
   return `You are a native ${t.name} speaker having a spoken conversation with a language learner (level ${p.level}).
@@ -118,70 +131,116 @@ const TR_FIRST_PERSON: Record<string, [Record<"m" | "f", string>, string][]> = {
   es: [[{ m: "אני עייף.", f: "אני עייפה." }, "Estoy cansado."], [{ m: "אני צריך עזרה.", f: "אני צריכה עזרה." }, "Necesito ayuda."], [{ m: "אני גר בפריז.", f: "אני גרה בפריז." }, "Vivo en París."], [{ m: "אני מחפש את המפתחות.", f: "אני מחפשת את המפתחות." }, "Busco mis llaves."]],
 };
 
-/** Traduction d'une phrase cible -> langue maternelle (ou l'inverse si `reverse`). */
+/** Questions : sans elles, DictaLM répond à « Où est… ? » au lieu de le traduire. */
+const TR_QUESTIONS: Record<string, [string, string][]> = {
+  fr: [["איפה הבנק?", "Où est la banque ?"], ["אתה רוצה קפה?", "Tu veux un café ?"]],
+  en: [["איפה הבנק?", "Where is the bank?"], ["אתה רוצה קפה?", "Do you want a coffee?"]],
+  es: [["איפה הבנק?", "¿Dónde está el banco?"], ["אתה רוצה קפה?", "¿Quieres un café?"]],
+};
+
+/**
+ * Traduction d'une phrase cible -> langue maternelle (ou l'inverse si `reverse`).
+ * Chaque demande est présentée comme « traduis : … » : sinon le modèle répond à la phrase au lieu de la traduire.
+ */
 export function translateMessages(p: Profile, text: string, reverse = false): Chat {
   const n = LANGUAGES[p.native];
   const t = LANGUAGES[p.target];
   const g = p.gender ?? "m";
   const firstPerson = reverse && t.genderedYou ? (TR_FIRST_PERSON[p.native] ?? TR_FIRST_PERSON.en).map(([he, nat]) => [he[g], nat] as [string, string]) : [];
-  const shots = [...(TR_SHOTS[p.native] ?? TR_SHOTS.en), ...firstPerson];
+  const shots = [...(TR_SHOTS[p.native] ?? TR_SHOTS.en), ...(TR_QUESTIONS[p.native] ?? TR_QUESTIONS.en), ...firstPerson];
   const [from, to] = reverse ? [n.name, t.name] : [t.name, n.name];
+  const ask = (x: string) => `Translate into ${to}: ${x}`;
   return [
-    { role: "system", content: `You translate ${from} sentences into ${to}. Output only the translation.${reverse && t.genderedYou && p.gender ? ` The speaker is a ${p.gender === "f" ? "woman: write first-person verbs and adjectives in the feminine (אני רעבה, אני צריכה, אני גרה)" : "man: write first-person verbs and adjectives in the masculine (אני רעב, אני צריך, אני גר)"}.` : ""}` },
-    ...shots.flatMap(([he, nat]) => (reverse ? [{ role: "user" as const, content: nat }, { role: "assistant" as const, content: he }] : [{ role: "user" as const, content: he }, { role: "assistant" as const, content: nat }])),
-    { role: "user", content: text },
+    { role: "system", content: `You translate ${from} sentences into ${to}. Translate exactly, keep names and places, never answer the sentence. Output only the translation.${reverse && t.genderedYou && p.gender ? ` The speaker is a ${p.gender === "f" ? "woman: write first-person verbs and adjectives in the feminine (אני רעבה, אני צריכה, אני גרה)" : "man: write first-person verbs and adjectives in the masculine (אני רעב, אני צריך, אני גר)"}.` : ""}` },
+    ...shots.flatMap(([he, nat]) => (reverse ? [{ role: "user" as const, content: ask(nat) }, { role: "assistant" as const, content: he }] : [{ role: "user" as const, content: ask(he) }, { role: "assistant" as const, content: nat }])),
+    { role: "user", content: ask(text) },
   ];
 }
 
+/** Exemples très courts, niveau débutant : les suggestions sont faites pour être répétées à voix haute. */
 const SUG_SHOTS: [string, Record<"m" | "f", string>][] = [
-  ["שולחן לכמה אנשים?", { m: "שולחן לשניים, בבקשה.", f: "שולחן לשניים, בבקשה." }],
-  ["מה אתה רוצה לשתות?", { m: "אני רוצה מים, בבקשה.", f: "אני רוצה מים, בבקשה." }],
+  ["שולחן לכמה אנשים?", { m: "לשניים, בבקשה.", f: "לשניים, בבקשה." }],
+  ["מה אתה רוצה לשתות?", { m: "מים, בבקשה.", f: "מים, בבקשה." }],
   ["איך היה סוף השבוע?", { m: "היה טוב, הלכתי לים.", f: "היה טוב, הלכתי לים." }],
-  ["מאיפה אתה?", { m: "אני מצרפת, אני גר בפריז.", f: "אני מצרפת, אני גרה בפריז." }],
+  ["מאיפה אתה?", { m: "אני מצרפת.", f: "אני מצרפת." }],
+  ["מה אתה אוהב לעשות?", { m: "אני אוהב לקרוא.", f: "אני אוהבת לקרוא." }],
+  ["לאן נוסעים?", { m: "לתחנה המרכזית, בבקשה.", f: "לתחנה המרכזית, בבקשה." }],
+  ["יש לך הזמנה?", { m: "כן, על השם דני.", f: "כן, על השם דנה." }],
+  ["מה שלומך?", { m: "טוב, תודה. ומה איתך?", f: "טוב, תודה. ומה איתך?" }],
 ];
 
 /** Une réponse courte que l'apprenant pourrait dire (exemples au bon genre). */
 export function suggestMessages(p: Profile, partner: string): Chat {
   const g = p.gender ?? "m";
   return [
-    { role: "system", content: "כתוב תשובה קצרה ופשוטה אחת (משפט אחד) שתלמיד מתחיל יכול לענות." },
+    { role: "system", content: `כתוב תשובה קצרה מאוד (עד 6 מילים) ופשוטה ש${g === "f" ? "תלמידה מתחילה יכולה" : "תלמיד מתחיל יכול"} לענות.` },
     ...SUG_SHOTS.flatMap(([q, a]) => [{ role: "user" as const, content: q }, { role: "assistant" as const, content: a[g] }]),
     { role: "user", content: partner },
   ];
 }
 
-/** Exemples d'échanges courts, placés avant l'historique pour caler la longueur et le ton. */
-export function replyShots(p: Profile): Chat {
+/** Garde une suggestion courte : la première phrase, coupée à la virgule si elle reste longue. */
+export function tidySuggestion(text: string): string {
+  let s = tidyReply(text.split("\n")[0]);
+  const first = s.match(/^[^.!?]+[.!?]?/)?.[0]?.trim() ?? s;
+  if (first.split(/\s+/).length <= 8) s = first;
+  else s = first.split(/[,،]/)[0].trim();
+  // Pas d'alphabet latin ni de texte à compléter (« קוראים לי [שם] »).
+  return s.split(/\s+/).length <= 8 && !/[a-zA-Z[\]<>]/.test(s) ? s : "";
+}
+
+type Shot = [string, string];
+/** Exemples propres à chaque situation : un petit modèle tient bien mieux son rôle (serveur, vendeur…) avec eux. */
+const SCENE_SHOTS: Record<string, (f: boolean) => Shot[]> = {
+  restaurant: () => [["שולחן לשניים, בבקשה", "בבקשה, שבו כאן. מה תרצו לשתות?"], ["אני רוצה פיצה", "פיצה, מצוין. רוצה גם סלט?"], ["אפשר חשבון?", "בטח, הנה החשבון. היה טעים?"]],
+  market: () => [["כמה עולות העגבניות?", "עשרה שקלים לקילו. כמה לשים?"], ["זה יקר!", "בשבילך, שמונה שקלים. בסדר?"], ["קילו תפוחים, בבקשה", "בבקשה. עוד משהו?"]],
+  meet: (f) => [["קוראים לי טל", f ? "נעים מאוד, טל! מאיפה את?" : "נעים מאוד, טל! מאיפה אתה?"], ["אני מצרפת", f ? "צרפת, איזה יופי! מה את עושה בישראל?" : "צרפת, איזה יופי! מה אתה עושה בישראל?"]],
+  hotel: (f) => [["כן, יש לי הזמנה", "מצוין. על איזה שם?"], ["על השם כהן", f ? "הנה, חדר שתים עשרה. צריכה עזרה עם המזוודות?" : "הנה, חדר שתים עשרה. צריך עזרה עם המזוודות?"], ["יש ארוחת בוקר?", "כן, משבע עד עשר. עוד שאלה?"]],
+  airport: (f) => [["הנה הדרכון", f ? "תודה. לאן את טסה?" : "תודה. לאן אתה טס?"], ["לפריז", "יש לך מזוודות?"], ["מזוודה אחת", "בסדר. חלון או מעבר?"]],
+  taxi: (f) => [["לתחנה המרכזית, בבקשה", f ? "בסדר, יוצאים. את ממהרת?" : "בסדר, יוצאים. אתה ממהר?"], ["כמה זה עולה?", "בערך חמישים שקל. בסדר?"], ["כאן זה טוב, תודה", "בבקשה, חמישים שקל. במזומן או באשראי?"]],
+  daily: (f) => [["היה טוב, הלכתי לים", "איזה כיף! עם מי הלכת?"], ["עם חברים", f ? "יופי. ומה את עושה היום?" : "יופי. ומה אתה עושה היום?"], [f ? "היום אני עובדת" : "היום אני עובד", f ? "בהצלחה! איפה את עובדת?" : "בהצלחה! איפה אתה עובד?"]],
+  study: (f) => [["יש לי שיעור עברית", "גם לי! המורה נחמדה?"], ["כן, היא נחמדה", f ? "יופי. את לומדת הרבה בבית?" : "יופי. אתה לומד הרבה בבית?"]],
+  interview: (f) => [["קוראים לי טל, אני מצרפת", "נעים מאוד. מה המקצוע שלך?"], [f ? "אני מהנדסת" : "אני מהנדס", f ? "מעניין. למה את רוצה לעבוד אצלנו?" : "מעניין. למה אתה רוצה לעבוד אצלנו?"]],
+};
+
+/** Exemples d'échanges courts, placés avant l'historique pour caler la longueur, le ton, le genre et le rôle. */
+export function replyShots(p: Profile, sceneId?: string): Chat {
   if (p.target !== "he") return [];
-  const g = p.gender ?? "m";
-  return [
-    { role: "user", content: "שלום" },
-    { role: "assistant", content: "שלום! מה נשמע?" },
-    { role: "user", content: "אני רוצה מים" },
-    { role: "assistant", content: g === "f" ? "בטח. רוצה גם משהו לאכול?" : "בטח. רוצה גם משהו לאכול?" },
+  const f = p.gender === "f";
+  const scene = sceneId ? SCENE_SHOTS[sceneId]?.(f) : undefined;
+  const shots: Shot[] = scene ?? [
+    ["שלום", "שלום! מה שלומך?"],
+    ["אני בסדר, תודה", f ? "יופי! מאיפה את?" : "יופי! מאיפה אתה?"],
+    ["אני מצרפת", f ? "צרפת יפה! מה את אוהבת לעשות?" : "צרפת יפה! מה אתה אוהב לעשות?"],
+    ["אני רוצה מים", "בטח. רוצה גם משהו לאכול?"],
   ];
+  return shots.flatMap(([u, a]) => [{ role: "user" as const, content: u }, { role: "assistant" as const, content: a }]);
+}
+
+/** Formes de « tu » au mauvais genre (liste non exhaustive des plus fréquentes). */
+const MASC_YOU = /(^|[\s,.!?])(אתה|תגיד|תן|שים|קח|תבחר|תספר|ספר לי|בוא|תזמין|תרצה|תהנה|תיהנה|תצטרך|תוכל|אתה רוצה)(?=[\s,.!?]|$)/;
+const FEM_YOU = /(^|[\s,.!?])(תגידי|תני|שימי|קחי|תבחרי|תספרי|ספרי לי|בואי|תזמיני|תרצי|תהני|תיהני|תצטרכי|תוכלי)(?=[\s,.!?]|$)/;
+
+/** Noam est un homme : « אני » suivi d'une forme féminine (« אני שמחה ») est une faute. */
+const NOAM_FEM = /(^|[\s,.!?])(ו|ש|כש)?אני\s+(לא\s+)?(יכולה|שמחה|אוהבת|גרה|עובדת|לומדת|מבינה|חושבת|צריכה|מחפשת|יודעת|מדברת|הולכת|מצטערת|בטוחה|ממליצה|מציעה|נותנת|מכינה|מביאה)(?=[\s,.!?]|$)/;
+
+/** Défauts d'une réplique de Noam (0 = parfaite) : sert à choisir la meilleure de plusieurs tentatives. */
+export function replyFlaws(text: string, gender: "m" | "f", said: string[] = []): string[] {
+  const words = text.split(/\s+/).filter(Boolean).length;
+  const norm = (t: string) => t.replace(/[^\u05d0-\u05ea]/g, "");
+  return [
+    !text && "vide",
+    /[a-zA-Z]/.test(text) && "latin",
+    (gender === "f" ? MASC_YOU : FEM_YOU).test(text) && "genre",
+    NOAM_FEM.test(text) && "genre",
+    words > 16 && "long",
+    !text.includes("?") && "sans question",
+    said.some((s) => norm(s) === norm(text)) && "répétition",
+  ].filter((x): x is string => !!x);
 }
 
 export function openingPrompt() {
   return "(Start the conversation in character with one short greeting and one question.)";
-}
-
-/** Aides ponctuelles. */
-export const assistSchema = {
-  type: "object",
-  properties: { result: str, transliteration: str, example: str },
-  required: ["result", "transliteration", "example"],
-};
-
-export function assistSystem(p: Profile, kind: "translate" | "rephrase" | "help") {
-  const t = LANGUAGES[p.target];
-  const n = LANGUAGES[p.native];
-  const task = {
-    translate: `Traduis en ${n.name} le texte en ${t.name}. result = traduction. example = "".`,
-    rephrase: `Reformule le texte en ${t.name} de façon plus naturelle, comme un natif. result = reformulation. example = "".`,
-    help: `L'apprenant ne sait pas quoi répondre au message du partenaire (le texte). result = une réponse simple en ${t.name}, adaptée au niveau ${p.level}. example = explication en ${n.name}.`,
-  }[kind];
-  return `Tu aides un apprenant (langue maternelle : ${n.name}) à apprendre ${t.name}. ${t.tutorNotes}\n${task}\ntransliteration : ${t.needsTransliteration ? `transcription latine du texte en ${t.name} (celui de result si c'est du ${t.name}, sinon du texte donné)` : '""'}.`;
 }
 
 export function correctionsToWeakPoints(cs: Correction[]): string[] {
@@ -190,4 +249,105 @@ export function correctionsToWeakPoints(cs: Correction[]): string[] {
   const hints = cs.slice(-6).map((c) => c.explanation).filter(Boolean);
   const cats = [...count.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => `erreurs de ${k}`);
   return [...cats.slice(0, 2), ...hints.slice(0, 2)];
+}
+
+/* ---------- Dictionnaire (« Définir un mot ») : par l'exemple, comme la traduction ---------- */
+
+/** Exemples choisis parmi les faux amis avec l'anglais (« pain », « chat ») : sans eux, DictaLM lit le mot en anglais. */
+const WORD_SHOTS: [string, string][] = [
+  ["maison", "בית"],
+  ["pain", "לחם"],
+  ["manger", "לאכול"],
+  ["chat", "חתול"],
+  ["voiture", "מכונית"],
+  ["heureux", "שמח"],
+  ["lentement", "לאט"],
+  ["médecin", "רופא"],
+  ["fromage", "גבינה"],
+  ["demain", "מחר"],
+];
+
+/** Un mot (ou une courte expression) en français → le mot hébreu le plus courant, seul. */
+export function wordMessages(word: string): Chat {
+  const ask = (w: string) => `המילה בצרפתית: ${w}`;
+  return [
+    { role: "system", content: "תרגם מילה מצרפתית לעברית. כתוב רק את המילה בעברית, בלי ניקוד ובלי הסבר." },
+    ...WORD_SHOTS.flatMap(([fr, he]) => [{ role: "user" as const, content: ask(fr) }, { role: "assistant" as const, content: he }]),
+    { role: "user", content: ask(word) },
+  ];
+}
+
+const EXAMPLE_SHOTS: [string, string][] = [
+  ["בית", "יש לי בית קטן."],
+  ["לאכול", "אני רוצה לאכול."],
+  ["רופא", "הרופא נחמד."],
+  ["מחר", "נתראה מחר."],
+  ["לשחות", "אני אוהב לשחות."],
+  ["תחנת אוטובוס", "תחנת האוטובוס קרובה."],
+];
+
+/** Une phrase d'exemple très courte et simple avec le mot hébreu. */
+export function exampleMessages(he: string): Chat {
+  return [
+    { role: "system", content: "כתוב משפט אחד קצר מאוד (עד 5 מילים) ופשוט בעברית עם המילה. רק את המשפט." },
+    ...EXAMPLE_SHOTS.flatMap(([w, s]) => [{ role: "user" as const, content: w }, { role: "assistant" as const, content: s }]),
+    { role: "user", content: he },
+  ];
+}
+
+/* ---------- Passage au féminin d'une phrase traduite (le traducteur dédié écrit au masculin) ---------- */
+
+const FEM_SHOTS: [string, string][] = [
+  ["אני עייף.", "אני עייפה."],
+  ["אני מחפש את התחנה.", "אני מחפשת את התחנה."],
+  ["איפה השירותים?", "איפה השירותים?"],
+  ["אני לא מבין.", "אני לא מבינה."],
+  ["אני רוצה קפה, בבקשה.", "אני רוצה קפה, בבקשה."],
+  ["אני יכול לשלם בכרטיס?", "אני יכולה לשלם בכרטיס?"],
+  ["אתה גר פה?", "אתה גר פה?"],
+  ["אני גר בפריז ואני עובד בבנק.", "אני גרה בפריז ואני עובדת בבנק."],
+];
+
+/** Met au féminin ce que dit « je » (et seulement ça) : la personne qui parle est une femme. */
+export function feminineMessages(he: string): Chat {
+  return [
+    { role: "system", content: "המשפט נאמר על ידי אישה. שנה ללשון נקבה רק את מה שמתאר את הדוברת (אני). אל תשנה שום דבר אחר. כתוב רק את המשפט." },
+    ...FEM_SHOTS.flatMap(([m, f]) => [{ role: "user" as const, content: m }, { role: "assistant" as const, content: f }]),
+    { role: "user", content: he },
+  ];
+}
+
+/* ---------- Relance : une question courte quand la réplique de Noam n'en a pas ---------- */
+
+/** Une question courte qui prolonge l'échange (même genre que l'apprenant). */
+export function followUpMessages(p: Profile, learner: string, reply: string): Chat {
+  const f = p.gender === "f";
+  const ask = (a: string, b: string) => `${f ? "התלמידה אמרה" : "התלמיד אמר"}: ${a}\nנועם ענה: ${b}\nשאלה:`;
+  const shots: [string, string, string][] = [
+    ["אני גר בפריז", "פריז יפה מאוד.", f ? "מה את אוהבת לעשות שם?" : "מה אתה אוהב לעשות שם?"],
+    ["אני רוצה פיצה", "בסדר, פיצה אחת.", "רוצה גם משהו לשתות?"],
+    ["הלכתי לים", "כיף, הים נהדר בקיץ.", "עם מי הלכת?"],
+    ["אני עובד בבנק", "עבודה טובה.", f ? "את אוהבת את העבודה?" : "אתה אוהב את העבודה?"],
+  ];
+  return [
+    { role: "system", content: `כתוב שאלה אחת קצרה ופשוטה (עד 6 מילים) שממשיכה את השיחה. ${f ? "פנה אליה בלשון נקבה." : "פנה אליו בלשון זכר."} רק את השאלה.` },
+    ...shots.flatMap(([a, b, q]) => [{ role: "user" as const, content: ask(a, b) }, { role: "assistant" as const, content: q }]),
+    { role: "user", content: ask(learner, reply) },
+  ];
+}
+
+/** Garde la question si elle est courte, en hébreu, se termine par « ? » et respecte le genre. */
+export function tidyFollowUp(text: string, gender: "m" | "f"): string {
+  const q = tidyReply(text.split("\n")[0]).match(/[^.!?]*\?/)?.[0]?.trim() ?? "";
+  if (!q || q.split(/\s+/).length > 8 || /[a-zA-Z[\]<>]/.test(q) || !/[א-ת]/.test(q)) return "";
+  return replyFlaws(q, gender).includes("genre") ? "" : q;
+}
+
+/** Réplique + question de relance, en restant court : au-delà de 16 mots, on ne garde que la première phrase. */
+export function withFollowUp(reply: string, question: string): string {
+  if (!question) return reply;
+  const words = (t: string) => t.split(/\s+/).filter(Boolean).length;
+  if (words(reply) + words(question) <= 16) return `${reply} ${question}`;
+  const first = reply.match(/^[^.!?]+[.!?]/)?.[0]?.trim() ?? "";
+  return first && words(first) + words(question) <= 16 ? `${first} ${question}` : reply;
 }

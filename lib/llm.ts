@@ -330,6 +330,38 @@ async function completeWebLLM(o: CompleteOpts): Promise<string> {
   return text;
 }
 
+/**
+ * Probabilité que le modèle réponde « oui » (premier mot de sa réponse), entre 0 et 1.
+ * WebLLM : lue dans les probabilités des tokens, donc nuancée et sans tirage au sort.
+ * Ollama : réponse générée à température 0, donc 0 ou 1.
+ */
+export async function yesProbability(s: LlmSettings, messages: Msg[], yes = "כן", no = "לא"): Promise<number> {
+  const msgs = prepareMessages(messages, s.provider === "ollama" ? s.ollamaModel : s.webllmModel);
+  if (s.provider === "ollama") {
+    const out = stripThink(await completeOllama(s, { messages: msgs, temperature: 0, maxTokens: 4 })).trim();
+    return out.startsWith(yes) ? 1 : out.startsWith(no) ? 0 : 0.5;
+  }
+  if (!engine) throw new Error("MODEL_NOT_LOADED");
+  const r = await engine.chat.completions.create({
+    messages: msgs,
+    temperature: 0,
+    max_tokens: 1,
+    logprobs: true,
+    top_logprobs: 5,
+    stream: false,
+    ...(/qwen/i.test(engineModel) ? { extra_body: { enable_thinking: false } } : {}),
+  });
+  const top = r.choices[0]?.logprobs?.content?.[0]?.top_logprobs ?? [];
+  let py = 0;
+  let pn = 0;
+  for (const t of top) {
+    const w = t.token.trim();
+    if (w && yes.startsWith(w)) py += Math.exp(t.logprob);
+    else if (w && no.startsWith(w)) pn += Math.exp(t.logprob);
+  }
+  return py + pn > 0 ? py / (py + pn) : 0.5;
+}
+
 async function completeOllama(s: LlmSettings, o: CompleteOpts): Promise<string> {
   let res: Response;
   try {

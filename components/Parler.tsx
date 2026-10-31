@@ -1,7 +1,7 @@
 "use client";
 import { RiArrowRightSLine, RiCalendarCheckLine, RiCheckLine, RiFlashlightFill, RiLineChartLine, RiMicFill, RiQuestionAnswerLine, RiSearchLine, RiSpeedUpLine, RiTimeLine, RiTranslate2 } from "react-icons/ri";
 import type { IconType } from "react-icons";
-import { ALL_DAYS } from "@/lib/content/course-he";
+import { ALL_DAYS, courseLevelFor } from "@/lib/content/course-he";
 import { SCENARIOS } from "@/lib/languages";
 import type { CourseProgress, Profile, SessionRecord } from "@/lib/types";
 import { Avatar } from "./Avatar";
@@ -26,8 +26,8 @@ export function streak(sessions: SessionRecord[]) {
 }
 
 export function nextDay(progress: CourseProgress, level: string) {
-  const pool = ALL_DAYS.filter((x) => x.level.cefr === level);
-  const list = pool.length ? pool : ALL_DAYS;
+  const lvl = courseLevelFor(level);
+  const list = ALL_DAYS.filter((x) => x.level.id === lvl.id);
   return list.find((x) => !(progress[x.day.id]?.speaking && progress[x.day.id]?.scenario)) ?? list[list.length - 1];
 }
 

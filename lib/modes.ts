@@ -21,7 +21,7 @@ export const MODES: Mode[] = [
   // Leçons écrites à la main (Cours › Ressources) : un petit modèle explique la grammaire de façon trop peu fiable.
   { id: "grammar", kind: "tool", title: "Grammaire", sub: "Les règles expliquées simplement" },
   { id: "translate", kind: "tool", title: "Traduction intelligente", sub: "Avec prononciation et variantes", hello: "Écris une phrase en français ou en hébreu : je la traduis, avec la prononciation et des variantes.", placeholder: "Ex. : On se voit demain ?" },
-  { id: "define", kind: "tool", title: "Définir un mot", sub: "Dictionnaire intelligent", hello: "Donne-moi un mot en hébreu ou en français : sens, prononciation, genre, pluriel et exemples.", placeholder: "Ex. : שלום ou « maison »" },
+  { id: "define", kind: "tool", title: "Définir un mot", sub: "Dictionnaire intelligent", hello: "Donne-moi un mot en français ou en hébreu : je te donne le mot dans l'autre langue et un exemple. Les mots des ressources ont leur prononciation, vérifiée.", placeholder: "Ex. : hôpital ou שלום" },
 ];
 
 export function toolSystem(p: Profile, id: ModeId) {

@@ -154,6 +154,7 @@ export function useWhisperRecognizer(lang: string, onFinal: (text: string, confi
   const recRef = useRef<import("./whisper").Recording | null>(null);
   const [listening, setListening] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [opening, setOpening] = useState(false);
   const [level, setLevel] = useState(0);
   const [error, setError] = useState<SttError | null>(null);
   const supported = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia && "gpu" in navigator;
@@ -170,10 +171,13 @@ export function useWhisperRecognizer(lang: string, onFinal: (text: string, confi
     const { record, transcribe, loadWhisper } = await import("./whisper");
     void loadWhisper().catch(() => {}); // charge le modèle pendant qu'on parle
     let r: import("./whisper").Recording;
+    setOpening(true);
     try {
       r = await record(setLevel);
     } catch (e) {
       return setError(e instanceof DOMException && e.name === "NotAllowedError" ? "denied" : "other");
+    } finally {
+      setOpening(false);
     }
     recRef.current = r;
     setListening(true);
@@ -194,10 +198,14 @@ export function useWhisperRecognizer(lang: string, onFinal: (text: string, confi
     }
   }, [lang, supported]);
 
-  useEffect(() => () => recRef.current?.stop(), []);
+  // En quittant l'écran : on arrête l'écoute et on coupe le micro.
+  useEffect(() => () => {
+    recRef.current?.stop();
+    void import("./whisper").then((w) => w.closeMic());
+  }, []);
 
-  const interim = transcribing ? "Transcription…" : "";
-  return { supported, listening, transcribing, level, interim, error, start, stop, clearError: () => setError(null) };
+  const interim = opening ? "Ouverture du micro…" : transcribing ? "Transcription…" : "";
+  return { supported, listening, opening, transcribing, level, interim, error, start, stop, clearError: () => setError(null) };
 }
 
 /** Micro unifié : Whisper local si choisi et possible, sinon reconnaissance du navigateur. */
@@ -209,6 +217,7 @@ export function useVoiceInput(stt: "whisper" | "browser", target: string, speech
   return {
     ...rec,
     transcribing: useWhisper && whisper.transcribing,
+    opening: useWhisper && whisper.opening,
     level: useWhisper ? whisper.level : 0,
     start: () => void rec.start(),
   };

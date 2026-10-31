@@ -67,8 +67,10 @@ export interface Report {
   participation: number;
   vocabulary: number;
   fluency: number;
-  /** Anciennes sessions (notées par l'IA) : conservé pour l'historique. */
+  /** Grammaire notée par l'IA (sur 100). */
   grammar?: number;
+  /** Réponses en lien avec la question de Noam, jugées par l'IA (sur 100). Absent : bilan par règles. */
+  relevance?: number;
   mainErrors?: string[];
   tips: string[];
   summary: string;
@@ -89,6 +91,17 @@ export interface PlacementResult {
   date: string;
   level: Level;
   /** Axes 0-100, calculés à partir des réponses (voir lib/placement.ts). */
-  axes: { answered: number; length: number; vocabulary: number; relevance: number };
+  axes: {
+    relevance: number;
+    vocabulary: number;
+    /** null : grammaire non notée (IA indisponible). */
+    grammar?: number | null;
+    development?: number;
+    /** Anciens résultats (avant la notation par l'IA). */
+    answered?: number;
+    length?: number;
+  };
+  /** Noté avec l'IA (absent : ancien résultat, règles seules). */
+  ai?: boolean;
   answers: { question: string; answer: string; score: number }[];
 }

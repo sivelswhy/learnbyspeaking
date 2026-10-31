@@ -1,5 +1,6 @@
 "use client";
 import type { LoadState } from "./llm";
+import { isIOS } from "./device";
 import { whenAlive } from "./workerReady";
 
 /** Reconnaissance vocale 100 % locale : Whisper ivrit-ai dans un worker (WebGPU). */
@@ -132,15 +133,43 @@ export interface Recording {
   done: Promise<Float32Array | null>; // null = rien dit
 }
 
-export async function record(onLevel: (v: number) => void): Promise<Recording> {
+/**
+ * Micro gardé ouvert 30 s après chaque enregistrement : getUserMedia et la mise en route du micro prennent
+ * plusieurs centaines de millisecondes, pendant lesquelles le début de la phrase était perdu.
+ * Pas sur iOS : micro ouvert, le son passe dans l'écouteur et la voix de Noam devient très faible.
+ */
+const MIC_IDLE_MS = 30000;
+let mic: { stream: MediaStream; ctx: AudioContext; an: AnalyserNode } | null = null;
+let micTimer: ReturnType<typeof setTimeout> | undefined;
+
+async function openMic() {
+  clearTimeout(micTimer);
+  if (mic && mic.stream.getAudioTracks().some((t) => t.readyState === "live") && mic.ctx.state !== "closed") return mic;
+  closeMic();
   const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    // Sans réduction de bruit : elle met un temps à s'adapter et rogne les attaques de phrase (ה, א, ע faibles).
+    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: false, autoGainControl: true },
   });
   const ctx = new AudioContext();
-  const src = ctx.createMediaStreamSource(stream);
   const an = ctx.createAnalyser();
   an.fftSize = 1024;
-  src.connect(an);
+  ctx.createMediaStreamSource(stream).connect(an);
+  mic = { stream, ctx, an };
+  return mic;
+}
+
+/** Coupe le micro (et son voyant) tout de suite. */
+export function closeMic() {
+  clearTimeout(micTimer);
+  if (!mic) return;
+  mic.stream.getTracks().forEach((t) => t.stop());
+  void mic.ctx.close().catch(() => {});
+  mic = null;
+}
+
+export async function record(onLevel: (v: number) => void): Promise<Recording> {
+  const { stream, ctx, an } = await openMic();
+  if (ctx.state === "suspended") await ctx.resume().catch(() => {});
   const rec = new MediaRecorder(stream);
   const chunks: Blob[] = [];
   rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
@@ -175,23 +204,24 @@ export async function record(onLevel: (v: number) => void): Promise<Recording> {
 
   const done = new Promise<Float32Array | null>((resolve, reject) => {
     rec.onstop = async () => {
-      stream.getTracks().forEach((t) => t.stop());
       onLevel(0);
       try {
-        if (!spoke || !chunks.length) {
-          await ctx.close();
-          return resolve(null);
-        }
+        if (!spoke || !chunks.length) return resolve(null);
         const data = await new Blob(chunks, { type: rec.mimeType }).arrayBuffer();
-        const decoded = await ctx.decodeAudioData(data);
-        await ctx.close();
-        resolve(await to16kMono(decoded));
+        resolve(await to16kMono(await ctx.decodeAudioData(data)));
       } catch (e) {
         reject(e);
+      } finally {
+        // Après le décodage, qui a besoin du contexte audio.
+        if (isIOS()) closeMic();
+        else micTimer = setTimeout(closeMic, MIC_IDLE_MS);
       }
     };
   });
+  // On ne rend la main (« Je t'écoute ») qu'une fois l'enregistrement vraiment lancé.
+  const started = new Promise<void>((r) => (rec.onstart = () => r()));
   rec.start();
+  await Promise.race([started, new Promise((r) => setTimeout(r, 1000))]);
   raf = requestAnimationFrame(loop);
   return { stop, done };
 }

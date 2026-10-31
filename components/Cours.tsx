@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { RiArrowDownSLine, RiArrowUpSLine, RiBookOpenFill, RiCheckLine, RiLockLine, RiPlayFill, RiRobot2Line, RiVolumeUpLine } from "react-icons/ri";
-import { COURSE, type Day, type Unit } from "@/lib/content/course-he";
+import { COURSE, courseLevelFor, type Day, type Unit } from "@/lib/content/course-he";
 import { ALPHABET, GRAMMAR, PHRASES, THEMES, type Word } from "@/lib/content/resources-he";
 import { LANGUAGES } from "@/lib/languages";
 import { speak } from "@/lib/speech";
@@ -19,7 +19,7 @@ export function Cours({ profile, progress, openDay, addWords, startTab }: {
   startTab?: ResourceTab;
 }) {
   const [seg, setSeg] = useState<"path" | "res">(startTab ? "res" : "path");
-  const current = COURSE.find((l) => l.cefr === profile.level && l.units.length) ?? COURSE[0];
+  const current = courseLevelFor(profile.level);
   const [open, setOpen] = useState<string | null>(current.id);
   return (
     <div className="space-y-4">

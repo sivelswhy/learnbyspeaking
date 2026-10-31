@@ -1,12 +1,12 @@
-# Résumé — où on en est (30/10/2026, après-midi)
+# Résumé — où on en est (31/10/2026, soir)
 
 ## À reprendre, dans l'ordre
 
 1. ~~Envoyer les 2 modèles sur Hugging Face~~ : fait le 30/10 (`sivelsguy/DictaLM-3.0-1.7B-Instruct-q4f16_1-MLC`, `sivelsguy/opus-mt-tc-big-he-en-onnx`, tous les fichiers présents).
 2. ~~Tester l'app avec les modèles hébergés~~ : fait le 30/10 (Chrome, WebGPU Metal). Préparation ~95 s (1,7 Go), 1re réplique de Noa ~4 s, transcription Whisper exacte en ~3 s, réponse ~5 s, traduction opus-mt correcte. 1re utilisation plus lente (~110 s) : téléchargement du traducteur (465 Mo). `.env.local` renommé en `.env.local.off` pour ce test.
-3. **Pousser sur GitHub Pages** seulement après accord (« push »). Les commits locaux sont en avance sur `origin/main`.
+3. ~~Pousser sur GitHub Pages~~ : fait le 31/10 (`93d5b8b`). Ne pousser qu'après accord (« push »).
 4. ~~Ménage Ollama~~ : fait (DictaLM GGUF de test supprimé ; `qwen3*` et `translategemma` gardés).
-5. Supprimer le jeton Hugging Face (huggingface.co/settings/tokens) une fois l'envoi fini.
+5. Supprimer le jeton Hugging Face (huggingface.co/settings/tokens) : plus d'envoi prévu après celui des traducteurs (31/10).
 
 6. ~~Refaire l'interface d'après les captures~~ : fait, vérifié par captures 390 px (clair + sombre). Palette `--soft`/`--pink`/`shadow-card`, `BackButton`, accueil, hub, test (intro à anneaux ondulés, ligne de progression à points, heure des messages, bulle « moi »), rapport de niveau (onglets Rapport / Mes réponses, conseils par question avec Conseil + Exemple, filtre « À revoir », partage), bilan de session avec radar, cours (frise alternée), jour, entraînement (carte portrait + sous-titre, carte « Répète » avec boutons ronds). Pas repris : vidéo réelle de tutrice, mode « Améliorateur d'accent ».
 
@@ -15,7 +15,23 @@
 8. ~~Fiabilité en production~~ (30/10) : le service worker effaçait les caches des modèles (corrigé) ; production compilée avec webpack (Turbopack cassait le worker Whisper) ; chaque worker signale `alive`. Mémoire réduite : Whisper q4f16, chargement séquentiel, traducteur déchargé après 45 s, iPhone sans Whisper par défaut. Batterie de 25 parcours de bout en bout dans Chrome : tout passe. Safari non automatisable ici, iPhone non testé.
 9. ~~Hub~~ : « Professeur d'hébreu » → « Comment dire… ? » (phrases du cours au bon genre, sinon traduction avec exemples au genre de l'apprenant) ; « Professeur de grammaire » → leçons écrites à la main (Cours › Ressources › Grammaire). DictaLM n'est pas fiable pour expliquer.
 
-Plus tard : niveaux B1/B2 du parcours (vides, « Bientôt disponible »), test sur un vrai téléphone.
+10. **IA testée et corrigée partout (31/10)**, sur DictaLM 4 bits (MLX, groupes de 32 comme WebLLM, mais quantification pas identique) avec les vraies consignes de l'app (bancs d'essai : scratchpad de la session, `jiti`) :
+    - **Test de niveau noté par l'IA** (`lib/placement.ts`) : pertinence (probabilité du « oui », échelle log), grammaire (30 % probabilité + 70 % mots gardés par la correction de l'IA), développement et vocabulaire par règles. Sur 90 réponses étiquetées : justes ≥ 75 dans 87-97 % des cas, fautives < 75 dans 88-92 %, hors sujet ≤ 25 dans 100 %. Correction proposée affichée si elle change peu de mots. Plus de « Tu as répondu en hébreu avec N mots ».
+    - **Conversation** : consignes au genre de l'apprenant, rôle des scénarios en hébreu, 4 exemples d'échange, jusqu'à 3 essais avec choix de la réplique la moins fautive (`replyFlaws`). Sur 108 répliques : trop longues 12 → 0, sans question 64 → 20, genre faux 4 → 0. Suggestions : > 8 mots 142/216 → 0.
+    - **Traducteurs dédiés vers l'hébreu** : `opus-mt-fr-he`, `en-he`, `es-he` convertis en ONNX 8 bits (≈ 145 Mo chacun, `~/learnbyspeaking-models/convert_mt_to_he.py`), 30/30 phrases justes contre ~20/30 pour DictaLM (qui répondait aux questions). Passage au féminin par DictaLM sous garde-fou (`lib/sayInHebrew.ts`) : 11/11 justes, 0 dérapage. Utilisés par « Comment dire », Traduction, Aide, dictionnaire. Traduction phrase par phrase dans le worker (par lots, les phrases finissaient en « ..?? »).
+    - **Dictionnaire** : `public/dict-fr-he.json` (Wiktionnaire, CC BY-SA, 4 615 mots français, 4 564 hébreux, ≈ 200 Ko compressé ; `~/learnbyspeaking-models/dict/extract_dict.py`) : nikud, prononciation, genre, pluriel ; verbes à l'infinitif. « Définir un mot » : dictionnaire → traducteur → DictaLM vérifié ; exemple gardé seulement si sa traduction contient le mot. « hopital » sans accent trouvé.
+    - **Micro** : gardé ouvert 30 s entre deux réponses (sauf iOS), « Ouverture du micro… » tant qu'il n'est pas prêt, sans réduction de bruit (rognait le début des phrases).
+    - ~~Envoyer les 3 traducteurs sur Hugging Face~~ : fait le 31/10 (`sivelsguy/opus-mt-{fr,en,es}-he-onnx`, Apache-2.0, vérifiés en les téléchargeant depuis Hugging Face). Sources dans `~/learnbyspeaking-models/`.
+
+11. **Deuxième passe (31/10, soir)** :
+    - Conversation : question de relance ajoutée quand Noam n'en pose pas (`followUpMessages`, sans dépasser 16 mots) → sans question 20/108 → 1/108 ; suggestions mises au féminin pour une apprenante (table des 40 formes courantes + DictaLM sous garde-fou, aussi après שאני/ואני/כשאני).
+    - **Bilan de conversation noté par l'IA** (`scoreSessionAI`, `lib/judge.ts` partagé avec le test) : pertinence (sans pénaliser une question en retour ni une réplique de Noam sans question), grammaire, participation, vocabulaire ; « Phrases à revoir » avec les corrections de l'IA. Plus de « N réponses avec X mots ».
+    - Corrections de style (טוב → נהדר) ignorées si l'IA juge la phrase correcte (`rewordedOnly`).
+    - Test de niveau : attend le modèle s'il finit de se charger (sinon il notait par règles juste après l'ouverture de l'app).
+    - Traduction : guillemet orphelin retiré.
+    - **Cours** : faute corrigée (נאכול → נאכל), transcription « li-sde ha-te'ufa » ; **niveau B1 écrit** (unités 6 « Raconter et donner son avis » et 7 « La vie pratique », 8 jours) ; un apprenant B2 commence au B1 (`courseLevelFor`) au lieu du A1.
+
+Plus tard : niveau B2 du parcours (vide, « Bientôt disponible »), test sur un vrai téléphone.
 
 ## Choix des modèles (testés)
 

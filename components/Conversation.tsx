@@ -1,13 +1,15 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LANGUAGES, type Scenario } from "@/lib/languages";
-import { complete, errorMessage, parseJson, type LlmSettings, type Msg } from "@/lib/llm";
+import { complete, errorMessage, type LlmSettings, type Msg } from "@/lib/llm";
 import {
-  assistSchema, assistSystem, correctionsToWeakPoints, pickGender, replyShots, suggestMessages, tidyReply, translateMessages,
+  correctionsToWeakPoints, followUpMessages, withFollowUp, pickGender, replyFlaws, replyShots, suggestMessages, tidyFollowUp, tidyReply, tidySuggestion, translateMessages,
   openingPrompt, replySystem,
 } from "@/lib/prompts";
 import { LEVEL_RATE, STT_ERRORS, cancelSpeech, hasVoice, speak, useRecognizer, useWhisperRecognizer } from "@/lib/speech";
-import { scoreSession } from "@/lib/sessionScore";
+import { judge } from "@/lib/judge";
+import { scoreSessionAI } from "@/lib/sessionScore";
+import { feminize } from "@/lib/sayInHebrew";
 import { canTranslate, translateHebrew } from "@/lib/translate";
 import type { Correction, Message, NewWord, Profile, SessionRecord } from "@/lib/types";
 import {
@@ -17,7 +19,7 @@ import {
 import { Avatar } from "./Avatar";
 import { LlmSetup, allReady } from "./LlmSetup";
 import { whisperStore } from "@/lib/whisper";
-import { Btn, Header, norm, wordMatch } from "./ui";
+import { Btn, Header, wordMatch } from "./ui";
 
 type Status = "idle" | "listening" | "thinking" | "speaking";
 interface Assist {
@@ -149,8 +151,12 @@ export function Conversation({
           }
         }
         const suggestions: string[] = [];
-        for (const temperature of [0.3, 0.8]) {
-          const out = tidyReply((await complete(llm, { messages: suggestMessages(profile, reply), temperature, maxTokens: 40 })).split("\n")[0]);
+        // Deux réponses courtes ; une suggestion trop longue ou mêlée d'alphabet latin est écartée.
+        for (const temperature of [0.3, 0.7, 1]) {
+          if (suggestions.length >= 2) break;
+          let out = tidySuggestion(await complete(llm, { messages: suggestMessages(profile, reply), temperature, maxTokens: 30 }));
+          // Apprenante : « אני מבקר » → « אני מבקרת » (passage au féminin sous garde-fou).
+          if (out && profile.gender === "f") out = await feminize(llm, out);
           if (/[\u0590-\u05FF]/.test(out) && !suggestions.includes(out)) suggestions.push(out);
         }
         update((m) =>
@@ -201,20 +207,35 @@ export function Conversation({
       const history: Msg[] = msgs.current.map((m) => ({ role: m.role, content: m.text }));
       if (!history.length) history.push({ role: "user", content: openingPrompt() });
       try {
-        const said = new Set(msgs.current.filter((m) => m.role === "assistant").map((m) => norm(m.text)));
+        const said = msgs.current.filter((m) => m.role === "assistant").map((m) => m.text);
+        const g = profile.gender ?? "m";
         let clean = "";
-        // Le petit modèle reprend parfois mot pour mot une réplique précédente : on régénère une fois, plus librement.
-        for (let attempt = 0; attempt < 2; attempt++) {
+        let best = Infinity;
+        // Jusqu'à 3 essais : on garde la réplique avec le moins de défauts (genre, longueur, pas de question, répétition…).
+        for (const temperature of [0.5, 0.8, 1]) {
           const out = await complete(llm, {
-            messages: [{ role: "system", content: replySystem(profile, sc, weak.current) }, ...replyShots(profile), ...history],
+            messages: [{ role: "system", content: replySystem(profile, sc, weak.current) }, ...replyShots(profile, sc.id), ...history],
             onToken: setStreaming,
             signal: abort.current.signal,
             maxTokens: 50,
-            temperature: attempt ? 1 : 0.7,
+            temperature,
             antiRepeat: true,
           });
-          clean = pickGender(tidyReply(out), profile.gender ?? "m");
-          if (!said.has(norm(clean))) break;
+          const cand = pickGender(tidyReply(out), g);
+          const flaws = replyFlaws(cand, g, said);
+          // Poids : genre, alphabet latin et répétition comptent plus qu'une question manquante.
+          const cost = flaws.reduce((a, f) => a + (f === "sans question" || f === "long" ? 1 : 3), 0);
+          if (cost < best) {
+            best = cost;
+            clean = cand;
+          }
+          if (cost === 0 || abort.current.signal.aborted) break;
+        }
+        // Pas de question : on en ajoute une courte, pour que l'apprenant sache quoi répondre.
+        const lastUser = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
+        if (clean && !clean.includes("?") && lastUser && !abort.current.signal.aborted) {
+          const q = tidyFollowUp(await complete(llm, { messages: followUpMessages(profile, lastUser, clean), temperature: 0.3, maxTokens: 25 }), g);
+          if (q && !said.some((x) => x.includes(q))) clean = withFollowUp(clean, q);
         }
         setStreaming("");
         if (!clean) {
@@ -277,18 +298,28 @@ export function Conversation({
   }
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
 
+  /**
+   * « Aide » : une réponse courte que l'apprenant peut dire, avec sa traduction (traducteur dédié).
+   * « Traduire » : traducteur dédié d'abord. DictaLM seulement à défaut (ses consignes JSON donnaient des paragraphes).
+   */
   async function runAssist(kind: Assist["kind"], t: string) {
     setAssistBusy(true);
     setAssist(null);
+    const toNative = async (he: string) =>
+      (canTranslate(profile.target, profile.native) ? await translateHebrew(he, profile.native).catch(() => "") : "") ||
+      (await complete(llm, { messages: translateMessages(profile, he), temperature: 0.1, maxTokens: 100 })).split("\n")[0];
     try {
-      const raw = await complete(llm, {
-        messages: [{ role: "system", content: assistSystem(profile, kind) }, { role: "user", content: t }],
-        schema: assistSchema,
-        temperature: 0.2,
-        maxTokens: 400,
-      });
-      const r = parseJson<Partial<Assist>>(raw, {});
-      setAssist({ kind, result: r.result ?? "", transliteration: r.transliteration ?? "", example: r.example ?? "" });
+      if (kind === "help") {
+        let result = "";
+        for (const temperature of [0.3, 0.7, 1]) {
+          result = tidySuggestion(await complete(llm, { messages: suggestMessages(profile, t), temperature, maxTokens: 30 }));
+          if (result && profile.gender === "f") result = await feminize(llm, result);
+          if (/[\u0590-\u05FF]/.test(result)) break;
+        }
+        setAssist({ kind, result, transliteration: "", example: result ? await toNative(result) : "" });
+      } else {
+        setAssist({ kind, result: await toNative(t), transliteration: "", example: "" });
+      }
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -296,7 +327,7 @@ export function Conversation({
     }
   }
 
-  function finish() {
+  async function finish() {
     interrupt();
     const userTurns = msgs.current.filter((m) => m.role === "user");
     const seconds = Math.round((Date.now() - t0.current) / 1000);
@@ -307,7 +338,11 @@ export function Conversation({
       id: uid(), date: new Date().toISOString(), scenarioId: sc.id, title: sc.title, seconds, turns: userTurns.length,
       corrections, words: newWords.current,
     };
-    base.report = scoreSession(userTurns.map((m) => m.text), profile.level);
+    // Chaque réponse avec la réplique de Noam qui la précède : l'IA juge si elle y répond et si elle est correcte.
+    const turns = msgs.current.flatMap((m, i) =>
+      m.role === "user" ? [{ question: [...msgs.current.slice(0, i)].reverse().find((x) => x.role === "assistant")?.text ?? "", answer: m.text }] : [],
+    );
+    base.report = await scoreSessionAI(turns, profile.level, (t) => judge(llm, t.question, t.answer, profile.gender ?? "m"));
     onFinish(base, newWords.current);
   }
 

@@ -7,6 +7,9 @@ import { ALL_DAYS, type Line } from "@/lib/content/course-he";
 import { ALPHABET, GRAMMAR, PHRASES, THEMES, type Word } from "@/lib/content/resources-he";
 import { MODES, toolSystem, type ModeId } from "@/lib/modes";
 import { translateMessages } from "@/lib/prompts";
+import { defineWord, formatDefinition, plain, wordOf } from "@/lib/define";
+import { sayInHebrew } from "@/lib/sayInHebrew";
+import { canTranslate, translateHebrew } from "@/lib/translate";
 import { speak } from "@/lib/speech";
 import type { Profile } from "@/lib/types";
 import { Avatar } from "./Avatar";
@@ -16,7 +19,8 @@ import { whisperStore } from "@/lib/whisper";
 
 const HEBREW = /[֐-׿]/;
 
-const strip = (w: string) => w.toLowerCase().replace(/[\u0591-\u05C7]/g, "").replace(/[^\p{L}\s']/gu, "").trim();
+/** Comparaison sans nikud, sans accents ni majuscules : « hopital » trouve « hôpital ». */
+const strip = (w: string) => w.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f\u0591-\u05C7]/g, "").replace(/[^\p{L}\s']/gu, "").trim();
 
 /** Phrases du cours, au genre de l'apprenant. */
 function courseWords(gender: "m" | "f"): Word[] {
@@ -62,15 +66,21 @@ export function ToolChat({ profile, llm, setLlm, mode, onBack }: { profile: Prof
     try {
       let out: string;
       // Réponses écrites à la main d'abord : le petit modèle se trompe vite hors traduction.
-      const phrase = mode === "teacher" ? phraseOf(q) : q;
-      const known = mode === "define" || mode === "teacher" ? lookup(phrase, profile.gender ?? "m") : null;
+      const phrase = mode === "teacher" ? phraseOf(q) : mode === "define" ? wordOf(q) : q;
+      const known = mode === "define" || mode === "teacher" ? lookup(phrase, profile.gender ?? "m") ?? (mode === "define" ? lookup(plain(phrase), profile.gender ?? "m") : null) : null;
       if (known) {
         // Mot présent dans la banque de ressources : réponse écrite à la main, sans IA.
         out = `${known.he}\n(${known.tr})\n${known.fr}${known.note ? `\n- ${known.note}` : ""}`;
+      } else if (mode === "define") {
+        // Mot hébreu trouvé par DictaLM, vérifié en le retraduisant avec le traducteur dédié.
+        out = formatDefinition(await defineWord(llm, profile, q));
+      } else if (mode === "translate" && HEBREW.test(q)) {
+        // Hébreu → langue maternelle : traducteur dédié (opus-mt), DictaLM seulement à défaut.
+        const tr = canTranslate(profile.target, profile.native) ? await translateHebrew(q, profile.native).catch(() => "") : "";
+        out = tr || (await complete(llm, { messages: translateMessages(profile, q), temperature: 0.1, maxTokens: 120 })).split("\n")[0];
       } else if (mode === "translate" || mode === "teacher") {
-        const fromTarget = mode === "translate" && HEBREW.test(q);
-        const tr = (await complete(llm, { messages: translateMessages(profile, phrase, !fromTarget), temperature: 0.1, maxTokens: 120 })).split("\n")[0];
-        out = tr;
+        // Vers l'hébreu : traducteur dédié, puis passage au féminin si besoin (DictaLM, sous contrôle).
+        out = await sayInHebrew(llm, profile, phrase);
       } else {
         out = await complete(llm, {
           messages: [{ role: "system", content: toolSystem(profile, mode) }, ...next.slice(-8)],

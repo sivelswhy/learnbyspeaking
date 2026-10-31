@@ -123,7 +123,7 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: { day: D
           <div className="w-full rounded-3xl bg-card p-6 shadow-card">
             <div className="flex justify-center"><Avatar speaking={talking} size={72} /></div>
             <span className="mt-4 inline-block rounded-md bg-accent px-3 py-1.5 text-lg font-bold text-accent-ink">
-              {talking ? "Écoute…" : voice.listening ? (step.kind === "repeat" ? "Répète maintenant…" : "Réponds maintenant…") : voice.transcribing ? "Transcription…" : step.kind === "repeat" ? "Répète" : "Réponds"}
+              {talking ? "Écoute…" : voice.opening ? "Ouverture du micro…" : voice.listening ? (step.kind === "repeat" ? "Répète maintenant…" : "Réponds maintenant…") : voice.transcribing ? "Transcription…" : step.kind === "repeat" ? "Répète" : "Réponds"}
             </span>
             {line && (
               <>

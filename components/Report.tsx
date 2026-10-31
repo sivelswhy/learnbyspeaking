@@ -20,15 +20,24 @@ export function Report({ s, rtl, onClose }: { s: SessionRecord; rtl: boolean; on
           <Card className="text-center">
             <p className="font-medium">Score</p>
             <p className="text-5xl font-bold text-accent">{r.score}<span className="text-xl text-muted">/100</span></p>
-            <Radar values={[
-              { label: "Participation", v: r.participation ?? r.grammar ?? 0 },
-              { label: "Longueur", v: r.fluency },
-              { label: "Vocabulaire", v: r.vocabulary },
-            ]} />
+            <Radar values={
+              r.relevance !== undefined
+                ? [
+                    { label: "Pertinence", v: r.relevance },
+                    { label: "Grammaire", v: r.grammar ?? 0 },
+                    { label: "Participation", v: r.participation },
+                    { label: "Vocabulaire", v: r.vocabulary },
+                  ]
+                : [
+                    { label: "Participation", v: r.participation ?? r.grammar ?? 0 },
+                    { label: "Longueur", v: r.fluency },
+                    { label: "Vocabulaire", v: r.vocabulary },
+                  ]
+            } />
             <p className="text-xs text-muted">{r.scoreExplanation}</p>
           </Card>
           {r.summary && <p>{r.summary}</p>}
-          {(r.mainErrors?.length ?? 0) > 0 && <Card><h2 className="mb-1 font-semibold">Erreurs principales</h2><ul className="list-disc ps-5 text-sm">{r.mainErrors!.map((e) => <li key={e}>{e}</li>)}</ul></Card>}
+          {(r.mainErrors?.length ?? 0) > 0 && <Card><h2 className="mb-1 font-semibold">{r.relevance !== undefined ? "Phrases à revoir (corrections de l'IA)" : "Erreurs principales"}</h2><ul className="list-disc ps-5 text-sm">{r.mainErrors!.map((e) => <li key={e} dir="auto" className={rtl ? "he" : ""}>{e}</li>)}</ul></Card>}
           {r.tips.length > 0 && <Card><h2 className="mb-1 font-semibold">Conseils d&apos;amélioration <span className="text-sm font-normal">({r.tips.length})</span></h2><ul className="list-disc ps-5 text-sm">{r.tips.map((e) => <li key={e}>{e}</li>)}</ul></Card>}
         </>
       ) : (
