@@ -273,7 +273,75 @@ export const COURSE: CourseLevel[] = [
       },
     ],
   },
-  { id: "int2", title: "Intermédiaire 2", cefr: "B2", units: [] },
+  {
+    id: "int2", title: "Intermédiaire 2", cefr: "B2",
+    units: [
+      {
+        id: "u8", title: "Hypothèses et nuances",
+        days: [
+          day("u8d1", "Si j'étais…", L(g("אם הייתי עשיר, הייתי נוסע לכל העולם", "אם הייתי עשירה, הייתי נוסעת לכל העולם"), g("Im hayiti ashir, hayiti nose'a le-khol ha-olam", "Im hayiti ashira, hayiti nosa'at le-khol ha-olam"), "Si j'étais riche, je voyagerais dans le monde entier"), [
+            intro("Le conditionnel se forme avec « hayiti » suivi du verbe au présent : hayiti nose'a, je voyagerais. « Im » veut dire « si »."),
+            rep(L(g("אם הייתי עשיר, הייתי נוסע לכל העולם", "אם הייתי עשירה, הייתי נוסעת לכל העולם"), g("Im hayiti ashir, hayiti nose'a le-khol ha-olam", "Im hayiti ashira, hayiti nosa'at le-khol ha-olam"), "Si j'étais riche, je voyagerais dans le monde entier")),
+            rep(L(g("הייתי שמח לעזור", "הייתי שמחה לעזור"), g("Hayiti same'akh la'azor", "Hayiti smekha la'azor"), "Je serais content(e) d'aider")),
+            rep(L(g("אילו ידעתי, הייתי בא", "אילו ידעתי, הייתי באה"), g("Ilu yadati, hayiti ba", "Ilu yadati, hayiti ba'a"), "Si j'avais su, je serais venu(e)")),
+            ask(L(g("מה היית עושה עם מיליון שקל?", "מה היית עושה עם מיליון שקל?"), g("Ma hayita ose im milyon shekel?", "Ma hayit osa im milyon shekel?"), "Qu'est-ce que tu ferais avec un million de shekels ?"), L("הייתי קונה דירה ליד הים", g("Hayiti kone dira leyad ha-yam", "Hayiti kona dira leyad ha-yam"), "J'achèterais un appartement près de la mer")),
+          ], "un ami qui rêve à voix haute", "Imaginer et faire des hypothèses", L(g("אם היית יכול לגור בכל מקום, איפה היית גר?", "אם היית יכולה לגור בכל מקום, איפה היית גרה?"), g("Im hayita yakhol lagur be-khol makom, eifo hayita gar?", "Im hayit yekhola lagur be-khol makom, eifo hayit gara?"), "Si tu pouvais vivre n'importe où, où est-ce que tu vivrais ?")),
+          day("u8d2", "Nuancer", L("מצד אחד זה נוח, מצד שני זה יקר", "Mi-tsad ekhad ze no'akh, mi-tsad sheni ze yakar", "D'un côté c'est pratique, de l'autre c'est cher"), [
+            intro("Pour nuancer : « mi-tsad ekhad… mi-tsad sheni… » (d'un côté… de l'autre…), « lamrot she… » (bien que…), « be-sakh ha-kol » (dans l'ensemble)."),
+            rep(L("מצד אחד זה נוח, מצד שני זה יקר", "Mi-tsad ekhad ze no'akh, mi-tsad sheni ze yakar", "D'un côté c'est pratique, de l'autre c'est cher")),
+            rep(L("למרות שירד גשם, יצאנו לטייל", "Lamrot she-yarad geshem, yatsanu letayel", "Bien qu'il ait plu, nous sommes sortis nous promener")),
+            rep(L(g("בסך הכול, אני מרוצה", "בסך הכול, אני מרוצה"), g("Be-sakh ha-kol, ani merutse", "Be-sakh ha-kol, ani merutsa"), "Dans l'ensemble, je suis satisfait(e)")),
+            ask(L("מה דעתך על עבודה מהבית?", g("Ma da'atkha al avoda me-ha-bayit?", "Ma da'atekh al avoda me-ha-bayit?"), "Qu'est-ce que tu penses du travail à la maison ?"), L("מצד אחד זה נוח, מצד שני חסרים לי האנשים", "Mi-tsad ekhad ze no'akh, mi-tsad sheni khaserim li ha-anashim", "D'un côté c'est pratique, de l'autre les gens me manquent")),
+          ], "une collègue qui hésite à travailler de chez elle", "Peser le pour et le contre", L("אני חושבת לעבוד מהבית. מה דעתך?", g("Ani khoshevet la'avod me-ha-bayit. Ma da'atkha?", "Ani khoshevet la'avod me-ha-bayit. Ma da'atekh?"), "Je pense travailler de chez moi. Qu'est-ce que tu en penses ?")),
+          day("u8d3", "Regrets et souhaits", L(g("הלוואי שהייתי מדבר עברית שוטפת", "הלוואי שהייתי מדברת עברית שוטפת"), g("Halevai she-hayiti medaber ivrit shotefet", "Halevai she-hayiti medaberet ivrit shotefet"), "Si seulement je parlais couramment hébreu"), [
+            intro("Pour un souhait : « halevai » (si seulement). Pour un regret : « khaval she… » (dommage que…) ou « ani mitsta'er / mitsta'eret she… » (je regrette que…)."),
+            rep(L(g("הלוואי שהייתי מדבר עברית שוטפת", "הלוואי שהייתי מדברת עברית שוטפת"), g("Halevai she-hayiti medaber ivrit shotefet", "Halevai she-hayiti medaberet ivrit shotefet"), "Si seulement je parlais couramment hébreu")),
+            rep(L("חבל שלא הספקתי לראות את הכול", "Khaval she-lo hispakti lir'ot et ha-kol", "Dommage que je n'aie pas eu le temps de tout voir")),
+            ask(L(g("על מה אתה מצטער?", "על מה את מצטערת?"), g("Al ma ata mitsta'er?", "Al ma at mitsta'eret?"), "Qu'est-ce que tu regrettes ?"), L(g("אני מצטער שלא למדתי עברית קודם", "אני מצטערת שלא למדתי עברית קודם"), g("Ani mitsta'er she-lo lamadti ivrit kodem", "Ani mitsta'eret she-lo lamadti ivrit kodem"), "Je regrette de ne pas avoir appris l'hébreu plus tôt")),
+          ], "un ami qui parle de ses rêves", "Exprimer des regrets et des souhaits", L(g("אם היית יכול לשנות משהו בעבר, מה היית משנה?", "אם היית יכולה לשנות משהו בעבר, מה היית משנה?"), g("Im hayita yakhol leshanot mashehu ba-avar, ma hayita meshane?", "Im hayit yekhola leshanot mashehu ba-avar, ma hayit meshana?"), "Si tu pouvais changer quelque chose dans le passé, qu'est-ce que tu changerais ?")),
+          day("u8d4", "Raconter une histoire", L("פתאום התחיל לרדת גשם", "Pit'om hitkhil laredet geshem", "Soudain, il a commencé à pleuvoir"), [
+            intro("Pour enchaîner un récit : « kodem » (d'abord), « akhar kakh » (ensuite), « pit'om » (soudain), « ba-sof » (à la fin)."),
+            rep(L("קודם הלכנו לשוק, אחר כך ישבנו בבית קפה", "Kodem halakhnu la-shuk, akhar kakh yashavnu be-veit kafe", "D'abord on est allés au marché, ensuite on s'est assis dans un café")),
+            rep(L("פתאום התחיל לרדת גשם", "Pit'om hitkhil laredet geshem", "Soudain, il a commencé à pleuvoir")),
+            rep(L("בסוף הכול נגמר טוב", "Ba-sof ha-kol nigmar tov", "À la fin, tout s'est bien terminé")),
+            ask(L("מה קרה בטיול?", "Ma kara ba-tiyul?", "Qu'est-ce qui s'est passé pendant le voyage ?"), L("הלכנו לאיבוד, אבל מצאנו מסעדה נהדרת", "Halakhnu le-ibud, aval matsanu mis'ada nehederet", "On s'est perdus, mais on a trouvé un super restaurant")),
+          ], "une amie qui veut entendre une anecdote", "Raconter une histoire avec des étapes", L(g("ספר לי משהו מצחיק שקרה לך", "ספרי לי משהו מצחיק שקרה לך"), g("Saper li mashehu matskhik she-kara lekha", "Sapri li mashehu matskhik she-kara lakh"), "Raconte-moi un truc drôle qui t'est arrivé")),
+        ],
+      },
+      {
+        id: "u9", title: "Travail et société",
+        days: [
+          day("u9d1", "L'entretien d'embauche", L("יש לי ניסיון של חמש שנים בתחום", "Yesh li nisayon shel khamesh shanim ba-tkhum", "J'ai cinq ans d'expérience dans le domaine"), [
+            intro("En entretien : « nisayon » (expérience), « tkhum » (domaine), « tsevet » (équipe). Les qualités s'accordent avec toi : akhra'i / akhra'it (responsable)."),
+            rep(L("יש לי ניסיון של חמש שנים בתחום", "Yesh li nisayon shel khamesh shanim ba-tkhum", "J'ai cinq ans d'expérience dans le domaine")),
+            rep(L(g("אני אחראי ויודע לעבוד בצוות", "אני אחראית ויודעת לעבוד בצוות"), g("Ani akhra'i ve-yode'a la'avod be-tsevet", "Ani akhra'it ve-yoda'at la'avod be-tsevet"), "Je suis responsable et je sais travailler en équipe")),
+            ask(L(g("למה אתה רוצה לעבוד אצלנו?", "למה את רוצה לעבוד אצלנו?"), g("Lama ata rotse la'avod etslenu?", "Lama at rotsa la'avod etslenu?"), "Pourquoi veux-tu travailler chez nous ?"), L("כי החברה שלכם מובילה בתחום", "Ki ha-khevra shelakhem movila ba-tkhum", "Parce que votre entreprise est leader dans le domaine")),
+          ], "une recruteuse dans une start-up de Tel-Aviv", "Présenter ton expérience et tes qualités", L(g("ספר לי על הניסיון המקצועי שלך", "ספרי לי על הניסיון המקצועי שלך"), g("Saper li al ha-nisayon ha-miktso'i shelkha", "Sapri li al ha-nisayon ha-miktso'i shelakh"), "Parle-moi de ton expérience professionnelle")),
+          day("u9d2", "En réunion", L(g("אני מציע שנדחה את הפגישה", "אני מציעה שנדחה את הפגישה"), g("Ani matsi'a she-nidkhe et ha-pgisha", "Ani matsi'a she-nidkhe et ha-pgisha"), "Je propose qu'on reporte la réunion"), [
+            intro("Pour proposer : « ani matsi'a she… » + futur (je propose que…). Pour décider ensemble : « bo'u… » + futur (allons…, décidons…)."),
+            rep(L(g("אני מציע שנדחה את הפגישה", "אני מציעה שנדחה את הפגישה"), g("Ani matsi'a she-nidkhe et ha-pgisha", "Ani matsi'a she-nidkhe et ha-pgisha"), "Je propose qu'on reporte la réunion")),
+            rep(L(g("אני לא בטוח שזה רעיון טוב", "אני לא בטוחה שזה רעיון טוב"), g("Ani lo batu'akh she-ze ra'ayon tov", "Ani lo betukha she-ze ra'ayon tov"), "Je ne suis pas sûr(e) que ce soit une bonne idée")),
+            rep(L("בואו נחליט עד יום חמישי", "Bo'u nakhlit ad yom khamishi", "Décidons d'ici jeudi")),
+            ask(L("מתי נוח לכולם להיפגש?", "Matai no'akh le-kulam lehipagesh?", "Quand est-ce que ça arrange tout le monde de se réunir ?"), L("ביום ראשון בבוקר, אם אפשר", "Be-yom rishon ba-boker, im efshar", "Dimanche matin, si possible")),
+          ], "un chef d'équipe en réunion", "Proposer, accepter ou refuser une idée", L("יש לנו בעיה עם לוח הזמנים. מה אתם מציעים?", "Yesh lanu be'aya im lu'akh ha-zmanim. Ma atem matsi'im?", "On a un problème de calendrier. Qu'est-ce que vous proposez ?")),
+          day("u9d3", "L'actualité", L("קראתי בחדשות שהמחירים עלו", "Karati ba-khadashot she-ha-mekhirim alu", "J'ai lu dans les infos que les prix ont augmenté"), [
+            intro("Pour rapporter une information : « karati she… » (j'ai lu que…), « shamati she… » (j'ai entendu que…), « lefi… » (selon…)."),
+            rep(L("קראתי בחדשות שהמחירים עלו", "Karati ba-khadashot she-ha-mekhirim alu", "J'ai lu dans les infos que les prix ont augmenté")),
+            rep(L("לפי התחזית, מחר יהיה חם", "Lefi ha-takhazit, makhar yihye kham", "D'après la météo, demain il fera chaud")),
+            rep(L("שמעתי שיש שביתה ברכבת", "Shamati she-yesh shvita ba-rakevet", "J'ai entendu qu'il y a une grève des trains")),
+            ask(L("מה חדש בחדשות?", "Ma khadash ba-khadashot?", "Quoi de neuf dans l'actualité ?"), L("שמעתי שפותחים קו רכבת חדש", "Shamati she-potkhim kav rakevet khadash", "J'ai entendu qu'on ouvre une nouvelle ligne de train")),
+          ], "un voisin qui commente l'actualité", "Rapporter une information et réagir", L("שמעת מה קרה אתמול?", g("Shamata ma kara etmol?", "Shamat ma kara etmol?"), "Tu as entendu ce qui s'est passé hier ?")),
+          day("u9d4", "Une réclamation", L("אני רוצה להגיש תלונה", g("Ani rotse lehagish tluna", "Ani rotsa lehagish tluna"), "Je voudrais déposer une réclamation"), [
+            intro("Pour te plaindre poliment : « le-marbe ha-tsa'ar » (malheureusement), « hayiti rotse / rotsa… » (je voudrais…)."),
+            rep(L("אני רוצה להגיש תלונה", g("Ani rotse lehagish tluna", "Ani rotsa lehagish tluna"), "Je voudrais déposer une réclamation")),
+            rep(L("למרבה הצער, ההזמנה הגיעה שבורה", "Le-marbe ha-tsa'ar, ha-hazmana higi'a shvura", "Malheureusement, la commande est arrivée cassée")),
+            rep(L("הייתי רוצה לקבל החזר כספי", g("Hayiti rotse lekabel hekhzer kaspi", "Hayiti rotsa lekabel hekhzer kaspi"), "Je voudrais être remboursé(e)")),
+            ask(L("איך אפשר לעזור?", "Eikh efshar la'azor?", "Comment peut-on vous aider ?"), L("קניתי מכונת קפה והיא לא עובדת", "Kaniti mekhonat kafe ve-hi lo ovedet", "J'ai acheté une machine à café et elle ne marche pas")),
+          ], "un employé du service client", "Expliquer un problème et obtenir une solution", L("שירות לקוחות, שלום. במה אפשר לעזור?", "Sherut lakokhot, shalom. Ba-me efshar la'azor?", "Service client, bonjour. Comment puis-je vous aider ?")),
+        ],
+      },
+    ],
+  },
 ];
 
 export const ALL_DAYS = COURSE.flatMap((l) => l.units.flatMap((u) => u.days.map((d) => ({ level: l, unit: u, day: d }))));

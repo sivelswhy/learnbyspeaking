@@ -134,17 +134,30 @@ export interface Recording {
 }
 
 /**
- * Micro gardé ouvert 30 s après chaque enregistrement : getUserMedia et la mise en route du micro prennent
- * plusieurs centaines de millisecondes, pendant lesquelles le début de la phrase était perdu.
+ * Micro ouvert dès l'arrivée sur un écran où l'on parle, et gardé ouvert ensuite : getUserMedia et la mise en route
+ * du micro prennent plusieurs centaines de millisecondes, pendant lesquelles le début de la phrase était perdu
+ * (vérifié avec un faux micro à 400 ms d'ouverture : « שלום » disparaissait à chaque fois).
+ * Fermé en quittant l'écran, ou après 5 min sans enregistrement.
  * Pas sur iOS : micro ouvert, le son passe dans l'écouteur et la voix de Noam devient très faible.
  */
-const MIC_IDLE_MS = 30000;
-let mic: { stream: MediaStream; ctx: AudioContext; an: AnalyserNode } | null = null;
+const MIC_IDLE_MS = 5 * 60_000;
+type Mic = { stream: MediaStream; ctx: AudioContext; an: AnalyserNode };
+let mic: Mic | null = null;
 let micTimer: ReturnType<typeof setTimeout> | undefined;
 
-async function openMic() {
+/** Ouverture en cours : un toucher pendant l'ouverture anticipée attend ce micro au lieu d'en ouvrir un second. */
+let opening: Promise<Mic> | null = null;
+
+function openMic(): Promise<Mic> {
   clearTimeout(micTimer);
-  if (mic && mic.stream.getAudioTracks().some((t) => t.readyState === "live") && mic.ctx.state !== "closed") return mic;
+  if (mic && mic.stream.getAudioTracks().some((t) => t.readyState === "live") && mic.ctx.state !== "closed") return Promise.resolve(mic);
+  opening ??= doOpenMic().finally(() => {
+    opening = null;
+  });
+  return opening;
+}
+
+async function doOpenMic(): Promise<Mic> {
   closeMic();
   const stream = await navigator.mediaDevices.getUserMedia({
     // Sans réduction de bruit : elle met un temps à s'adapter et rogne les attaques de phrase (ה, א, ע faibles).
@@ -156,6 +169,13 @@ async function openMic() {
   ctx.createMediaStreamSource(stream).connect(an);
   mic = { stream, ctx, an };
   return mic;
+}
+
+/** Ouvre le micro à l'avance (hors iOS), pour que le premier enregistrement ne perde pas le début de la phrase. */
+export async function warmMic(): Promise<void> {
+  if (isIOS() || mic) return;
+  await openMic();
+  micTimer = setTimeout(closeMic, MIC_IDLE_MS);
 }
 
 /** Coupe le micro (et son voyant) tout de suite. */

@@ -29,6 +29,9 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: { day: D
   }, [i]);
 
   const voice = useVoiceInput(llm.stt, profile.target, lang.speech, (t) => setHeard(t));
+  // Micro ouvert dès l'arrivée sur l'écran : le premier enregistrement ne perd pas le début de la phrase.
+  const prewarm = voice.prewarm;
+  useEffect(() => prewarm(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const say = useCallback(
     (text: string, speechLang: string, rate: number, after?: () => void) => {

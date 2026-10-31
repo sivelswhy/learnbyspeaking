@@ -116,6 +116,12 @@ export function Conversation({
   useEffect(() => {
     startRef.current = rec.start;
   });
+  // Micro ouvert dès que la conversation est prête : le premier enregistrement ne perd pas le début de la phrase.
+  const usesWhisper = rec === whisperRec;
+  const prewarm = whisperRec.prewarm;
+  useEffect(() => {
+    if (ready && usesWhisper) prewarm();
+  }, [ready, usesWhisper, prewarm]);
 
   const say = useCallback(
     async (t: string) => {

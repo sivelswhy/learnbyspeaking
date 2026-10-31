@@ -90,6 +90,9 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
 
   const answerRef = useRef<(a: string) => void>(() => {});
   const voice = useVoiceInput(llm.stt, profile.target, lang.speech, (heard) => answerRef.current(heard));
+  // Micro ouvert dès l'arrivée sur l'écran : le premier enregistrement ne perd pas le début de la phrase.
+  const prewarm = voice.prewarm;
+  useEffect(() => prewarm(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (q && !done) void speak(q.text[gnd], lang.speech, LEVEL_RATE[profile.level] ?? 0.85);

@@ -31,7 +31,11 @@
     - Traduction : guillemet orphelin retiré.
     - **Cours** : faute corrigée (נאכול → נאכל), transcription « li-sde ha-te'ufa » ; **niveau B1 écrit** (unités 6 « Raconter et donner son avis » et 7 « La vie pratique », 8 jours) ; un apprenant B2 commence au B1 (`courseLevelFor`) au lieu du A1.
 
-Plus tard : niveau B2 du parcours (vide, « Bientôt disponible »), test sur un vrai téléphone.
+12. ~~Niveau B2 du cours~~ (31/10) : unités 8 « Hypothèses et nuances » (conditionnel, nuancer, regrets et souhaits, raconter) et 9 « Travail et société » (entretien, réunion, actualité, réclamation), 8 jours. Parcours complet A1 → B2 : 36 jours, tous déroulés dans Chrome sans erreur.
+
+13. ~~Début de phrase coupé au micro~~ (31/10) : reproduit avec un faux micro qui met 400-800 ms à s'ouvrir (l'élève parle dès le toucher) : l'ancienne version perdait « שלום » 6 fois sur 6. Correction : micro ouvert dès l'arrivée sur un écran où l'on parle (conversation, test, entraînement), gardé ouvert jusqu'à la sortie de l'écran ou 5 min sans enregistrement, et un toucher pendant l'ouverture attend ce micro au lieu d'en ouvrir un second (`warmMic`, `openMic` dans `lib/whisper.ts`). Phrase complète 6 fois sur 6. Pas sur iOS (voix de Noam trop faible micro ouvert).
+
+Plus tard : test sur un vrai téléphone (iPhone), confirmation du micro avec une vraie voix.
 
 ## Choix des modèles (testés)
 

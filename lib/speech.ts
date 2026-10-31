@@ -198,6 +198,11 @@ export function useWhisperRecognizer(lang: string, onFinal: (text: string, confi
     }
   }, [lang, supported]);
 
+  /** Ouvre le micro à l'avance (voir warmMic). Sans effet si l'accès est refusé : l'erreur s'affichera au toucher. */
+  const prewarm = useCallback(() => {
+    if (supported) void import("./whisper").then((w) => w.warmMic()).catch(() => {});
+  }, [supported]);
+
   // En quittant l'écran : on arrête l'écoute et on coupe le micro.
   useEffect(() => () => {
     recRef.current?.stop();
@@ -205,7 +210,7 @@ export function useWhisperRecognizer(lang: string, onFinal: (text: string, confi
   }, []);
 
   const interim = opening ? "Ouverture du micro…" : transcribing ? "Transcription…" : "";
-  return { supported, listening, opening, transcribing, level, interim, error, start, stop, clearError: () => setError(null) };
+  return { supported, listening, opening, transcribing, level, interim, error, start, stop, prewarm, clearError: () => setError(null) };
 }
 
 /** Micro unifié : Whisper local si choisi et possible, sinon reconnaissance du navigateur. */
@@ -218,6 +223,9 @@ export function useVoiceInput(stt: "whisper" | "browser", target: string, speech
     ...rec,
     transcribing: useWhisper && whisper.transcribing,
     opening: useWhisper && whisper.opening,
+    prewarm: () => {
+      if (useWhisper) whisper.prewarm();
+    },
     level: useWhisper ? whisper.level : 0,
     start: () => void rec.start(),
   };
