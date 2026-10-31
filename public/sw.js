@@ -1,6 +1,7 @@
 // Service worker : l'app s'ouvre hors ligne une fois visitée.
 // Les modèles d'IA ne passent pas ici : WebLLM gère son propre cache.
-const VERSION = "parle-v1";
+// v2 : purge les 404 que la v1 avait pu garder (page blanche si un fichier JS manquait).
+const VERSION = "parle-v2";
 
 self.addEventListener("install", () => self.skipWaiting());
 
@@ -25,8 +26,10 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(VERSION).then((c) => c.put(req, copy));
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(VERSION).then((c) => c.put(req, copy));
+          }
           return res;
         })
         .catch(() => caches.match(req).then((r) => r || caches.match(self.registration.scope))),
@@ -34,15 +37,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Fichiers versionnés de Next : cache d'abord.
+  // Fichiers versionnés de Next : cache d'abord. Seules les réponses valides sont gardées :
+  // un 404 passager (déploiement en cours) mis en cache bloquerait l'app pour toujours.
   if (url.pathname.includes("/_next/static/")) {
     event.respondWith(
       caches.match(req).then(
         (hit) =>
-          hit ||
+          (hit && hit.ok && hit) ||
           fetch(req).then((res) => {
-            const copy = res.clone();
-            caches.open(VERSION).then((c) => c.put(req, copy));
+            if (res.ok) {
+              const copy = res.clone();
+              caches.open(VERSION).then((c) => c.put(req, copy));
+            }
             return res;
           }),
       ),
@@ -61,7 +67,7 @@ self.addEventListener("fetch", (event) => {
           }
           return res;
         })
-        .catch(() => hit);
+        .catch(() => hit || Response.error());
       return hit || net;
     }),
   );

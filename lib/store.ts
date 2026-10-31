@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import type { CourseProgress, PlacementResult, Profile, SessionRecord, VocabCard, NewWord } from "./types";
 import { lowMemoryDevice } from "./device";
 import { DEFAULT_LLM, type LlmSettings } from "./llm";
+import { LANGUAGES } from "./languages";
 
 const K = { profile: "lbs.profile", sessions: "lbs.sessions", vocab: "lbs.vocab", llm: "lbs.llm", course: "lbs.course", placement: "lbs.placement" };
 
@@ -33,8 +34,10 @@ export function useStore() {
 
   useEffect(() => {
     // Lecture unique au montage : localStorage n'existe pas côté serveur.
+    // Profil d'une ancienne version (langue absente ou inconnue) : valeurs par défaut plutôt qu'un plantage.
+    const p = read<Profile | null>(K.profile, null);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setProfileState(read<Profile | null>(K.profile, null));
+    setProfileState(p && typeof p === "object" ? { ...p, native: p.native in LANGUAGES ? p.native : "fr", target: p.target in LANGUAGES ? p.target : "he" } : null);
     setSessions(read<SessionRecord[]>(K.sessions, []));
     setVocab(read<VocabCard[]>(K.vocab, []));
     // Sur iPhone, Whisper (≈ 760 Mo) en plus du reste fait recharger la page : reconnaissance d'Apple par défaut.
