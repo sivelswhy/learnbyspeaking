@@ -3,18 +3,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LANGUAGES, type Scenario } from "@/lib/languages";
 import { complete, errorMessage, type LlmSettings, type Msg } from "@/lib/llm";
 import {
-  correctionsToWeakPoints, followUpMessages, withFollowUp, pickGender, replyFlaws, replyShots, suggestMessages, tidyFollowUp, tidyReply, tidySuggestion, translateMessages,
+  correctionsToWeakPoints, followUpMessages, withFollowUp, pickGender, replyFlaws, replyShots, tidyFollowUp, tidyReply, translateMessages,
   openingPrompt, replySystem,
 } from "@/lib/prompts";
 import { LEVEL_RATE, STT_ERRORS, cancelSpeech, hasVoice, speak, useRecognizer, useWhisperRecognizer } from "@/lib/speech";
 import { judge } from "@/lib/judge";
 import { scoreSessionAI } from "@/lib/sessionScore";
-import { feminize } from "@/lib/sayInHebrew";
 import { canTranslate, translateHebrew } from "@/lib/translate";
 import type { Correction, Message, NewWord, Profile, SessionRecord } from "@/lib/types";
 import {
   RiArrowLeftRightLine, RiHand, RiHeadphoneLine, RiLightbulbLine, RiMicFill, RiMicLine,
-  RiQuestionLine, RiRepeatLine, RiSendPlaneFill, RiStopFill, RiTranslate2, RiVolumeUpLine,
+  RiRepeatLine, RiSendPlaneFill, RiStopFill, RiTranslate2, RiVolumeUpLine,
 } from "react-icons/ri";
 import { Avatar } from "./Avatar";
 import { LlmSetup, allReady } from "./LlmSetup";
@@ -23,7 +22,7 @@ import { Btn, Header, wordMatch } from "./ui";
 
 type Status = "idle" | "listening" | "thinking" | "speaking";
 interface Assist {
-  kind: "translate" | "rephrase" | "help";
+  kind: "translate" | "rephrase";
   result: string;
   transliteration: string;
   example: string;
@@ -136,7 +135,7 @@ export function Conversation({
   );
 
   /**
-   * En arrière-plan : traduction + 2 réponses possibles.
+   * En arrière-plan : traduction de la réplique (pas de réponses suggérées : c'est à l'apprenant de répondre).
    * Pas de correction grammaticale automatique : nos tests montrent qu'un modèle local de 1,7 Md
    * change le sens des phrases et rate les fautes d'accord ; afficher ses « corrections » tromperait.
    */
@@ -156,15 +155,6 @@ export function Conversation({
             machine = true;
           }
         }
-        const suggestions: string[] = [];
-        // Deux réponses courtes ; une suggestion trop longue ou mêlée d'alphabet latin est écartée.
-        for (const temperature of [0.3, 0.7, 1]) {
-          if (suggestions.length >= 2) break;
-          let out = tidySuggestion(await complete(llm, { messages: suggestMessages(profile, reply), temperature, maxTokens: 30 }));
-          // Apprenante : « אני מבקר » → « אני מבקרת » (passage au féminin sous garde-fou).
-          if (out && profile.gender === "f") out = await feminize(llm, out);
-          if (/[\u0590-\u05FF]/.test(out) && !suggestions.includes(out)) suggestions.push(out);
-        }
         update((m) =>
           m.map((x) =>
             x.id === assistantId
@@ -175,7 +165,6 @@ export function Conversation({
                     transliteration: x.extra?.transliteration ?? "",
                     translation: translation === null ? (x.extra?.translation ?? "") : translation.trim(),
                     machine: translation !== null && machine,
-                    suggestions,
                     locked: x.extra?.locked,
                   },
                 }
@@ -204,7 +193,7 @@ export function Conversation({
         const text = starter.text[g];
         update((m) => [...m, {
           id, role: "assistant", text, analyzing: true,
-          extra: { transliteration: starter.transliteration[g], translation: starter.translation[profile.native] ?? "", suggestions: [], locked: !!starter.translation[profile.native] },
+          extra: { transliteration: starter.transliteration[g], translation: starter.translation[profile.native] ?? "", locked: !!starter.translation[profile.native] },
         }]);
         void analyze(id, text, !!starter.translation[profile.native]);
         await say(text);
@@ -305,7 +294,6 @@ export function Conversation({
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
 
   /**
-   * « Aide » : une réponse courte que l'apprenant peut dire, avec sa traduction (traducteur dédié).
    * « Traduire » : traducteur dédié d'abord. DictaLM seulement à défaut (ses consignes JSON donnaient des paragraphes).
    */
   async function runAssist(kind: Assist["kind"], t: string) {
@@ -315,17 +303,7 @@ export function Conversation({
       (canTranslate(profile.target, profile.native) ? await translateHebrew(he, profile.native).catch(() => "") : "") ||
       (await complete(llm, { messages: translateMessages(profile, he), temperature: 0.1, maxTokens: 100 })).split("\n")[0];
     try {
-      if (kind === "help") {
-        let result = "";
-        for (const temperature of [0.3, 0.7, 1]) {
-          result = tidySuggestion(await complete(llm, { messages: suggestMessages(profile, t), temperature, maxTokens: 30 }));
-          if (result && profile.gender === "f") result = await feminize(llm, result);
-          if (/[\u0590-\u05FF]/.test(result)) break;
-        }
-        setAssist({ kind, result, transliteration: "", example: result ? await toNative(result) : "" });
-      } else {
-        setAssist({ kind, result: await toNative(t), transliteration: "", example: "" });
-      }
+      setAssist({ kind, result: await toNative(t), transliteration: "", example: "" });
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -396,7 +374,7 @@ export function Conversation({
             {assistBusy ? "…" : assist && (
               <>
                 <p className="mb-1 text-xs font-semibold uppercase text-accent">
-                  {{ translate: "Traduction", explain: "Explication", rephrase: "Plus naturel", help: "Tu peux répondre" }[assist.kind]}
+                  {{ translate: "Traduction", explain: "Explication", rephrase: "Plus naturel",  }[assist.kind]}
                 </p>
                 {assist.explain ? (
                   <div className="space-y-2">
@@ -420,12 +398,12 @@ export function Conversation({
                   </div>
                 ) : (
                   <>
-                    <p className={assist.kind === "rephrase" || assist.kind === "help" ? `${lang.rtl ? "he " : ""}text-lg` : ""}>{assist.result}</p>
+                    <p className={assist.kind === "rephrase" ? `${lang.rtl ? "he " : ""}text-lg` : ""}>{assist.result}</p>
                     {assist.transliteration && <p className="text-muted">{assist.transliteration}</p>}
                     {assist.example && <p className="mt-1 text-muted">{assist.example}</p>}
                   </>
                 )}
-                {(assist.kind === "rephrase" || assist.kind === "help") && (
+                {assist.kind === "rephrase" && (
                   <div className="mt-2 flex gap-2">
                     <Btn variant="soft" onClick={() => say(assist.result)} className="flex items-center gap-1.5"><RiVolumeUpLine aria-hidden /> Écouter</Btn>
                     <Btn variant="soft" onClick={() => setText(assist.result)} className="flex items-center gap-1.5"><RiArrowLeftRightLine aria-hidden /> Utiliser</Btn>
@@ -457,13 +435,6 @@ export function Conversation({
       </div>
 
       <div className="border-t border-line bg-bg px-4 pb-[max(env(safe-area-inset-bottom),12px)] pt-3">
-        {lastAssistant?.extra?.suggestions?.length ? (
-          <div className="-mx-1 mb-2 flex gap-2 overflow-x-auto px-1">
-            {lastAssistant.extra.suggestions.map((s) => (
-              <button key={s} onClick={() => setText(s)} className={`${lang.rtl ? "he" : ""} min-h-9 shrink-0 rounded-full border border-line bg-card px-3 text-sm`}>{s}</button>
-            ))}
-          </div>
-        ) : null}
         <form onSubmit={(e) => { e.preventDefault(); void send(text); }} className="mb-3 flex gap-2">
           <input
             value={text} onChange={(e) => setText(e.target.value)}
@@ -476,7 +447,6 @@ export function Conversation({
         <div className="flex items-center justify-between">
           <div className="flex w-24 flex-col gap-1">
             <Btn variant="ghost" onClick={() => lastAssistant && say(lastAssistant.text)} disabled={!lastAssistant} className="flex !min-h-9 items-center justify-center gap-1 !px-2"><RiRepeatLine aria-hidden /> Répéter</Btn>
-            <Btn variant="ghost" onClick={() => lastAssistant && runAssist("help", lastAssistant.text)} disabled={!lastAssistant || assistBusy} className="flex !min-h-9 items-center justify-center gap-1 !px-2"><RiQuestionLine aria-hidden /> Aide</Btn>
           </div>
           <button
             onClick={mic} disabled={busy || finishing || transcribing}

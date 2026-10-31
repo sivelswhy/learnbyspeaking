@@ -157,38 +157,6 @@ export function translateMessages(p: Profile, text: string, reverse = false): Ch
   ];
 }
 
-/** Exemples très courts, niveau débutant : les suggestions sont faites pour être répétées à voix haute. */
-const SUG_SHOTS: [string, Record<"m" | "f", string>][] = [
-  ["שולחן לכמה אנשים?", { m: "לשניים, בבקשה.", f: "לשניים, בבקשה." }],
-  ["מה אתה רוצה לשתות?", { m: "מים, בבקשה.", f: "מים, בבקשה." }],
-  ["איך היה סוף השבוע?", { m: "היה טוב, הלכתי לים.", f: "היה טוב, הלכתי לים." }],
-  ["מאיפה אתה?", { m: "אני מצרפת.", f: "אני מצרפת." }],
-  ["מה אתה אוהב לעשות?", { m: "אני אוהב לקרוא.", f: "אני אוהבת לקרוא." }],
-  ["לאן נוסעים?", { m: "לתחנה המרכזית, בבקשה.", f: "לתחנה המרכזית, בבקשה." }],
-  ["יש לך הזמנה?", { m: "כן, על השם דני.", f: "כן, על השם דנה." }],
-  ["מה שלומך?", { m: "טוב, תודה. ומה איתך?", f: "טוב, תודה. ומה איתך?" }],
-];
-
-/** Une réponse courte que l'apprenant pourrait dire (exemples au bon genre). */
-export function suggestMessages(p: Profile, partner: string): Chat {
-  const g = p.gender ?? "m";
-  return [
-    { role: "system", content: `כתוב תשובה קצרה מאוד (עד 6 מילים) ופשוטה ש${g === "f" ? "תלמידה מתחילה יכולה" : "תלמיד מתחיל יכול"} לענות.` },
-    ...SUG_SHOTS.flatMap(([q, a]) => [{ role: "user" as const, content: q }, { role: "assistant" as const, content: a[g] }]),
-    { role: "user", content: partner },
-  ];
-}
-
-/** Garde une suggestion courte : la première phrase, coupée à la virgule si elle reste longue. */
-export function tidySuggestion(text: string): string {
-  let s = tidyReply(text.split("\n")[0]);
-  const first = s.match(/^[^.!?]+[.!?]?/)?.[0]?.trim() ?? s;
-  if (first.split(/\s+/).length <= 8) s = first;
-  else s = first.split(/[,،]/)[0].trim();
-  // Pas d'alphabet latin ni de texte à compléter (« קוראים לי [שם] »).
-  return s.split(/\s+/).length <= 8 && !/[a-zA-Z[\]<>]/.test(s) ? s : "";
-}
-
 type Shot = [string, string];
 /** Exemples propres à chaque situation : un petit modèle tient bien mieux son rôle (serveur, vendeur…) avec eux. */
 const SCENE_SHOTS: Record<string, (f: boolean) => Shot[]> = {

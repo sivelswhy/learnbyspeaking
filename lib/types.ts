@@ -30,7 +30,6 @@ export interface NewWord {
 export interface Extra {
   transliteration: string;
   translation: string;
-  suggestions: string[];
   /** Translittération/traduction écrites à la main : l'analyse IA ne les remplace pas. */
   locked?: boolean;
   /** Traduction faite par le modèle local : à signaler comme approximative. */
@@ -43,7 +42,7 @@ export interface Message {
   text: string;
   /** Analyse du tuteur sur cette réponse de l'apprenant (null = aucune erreur). */
   correction?: Correction | null;
-  /** Traduction / translittération / suggestions, sur les messages du tuteur. */
+  /** Traduction / translittération, sur les messages du tuteur. */
   extra?: Extra;
   analyzing?: boolean;
 }

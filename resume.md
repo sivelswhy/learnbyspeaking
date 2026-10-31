@@ -35,6 +35,8 @@
 
 13. ~~Début de phrase coupé au micro~~ (31/10) : reproduit avec un faux micro qui met 400-800 ms à s'ouvrir (l'élève parle dès le toucher) : l'ancienne version perdait « שלום » 6 fois sur 6. Correction : micro ouvert dès l'arrivée sur un écran où l'on parle (conversation, test, entraînement), gardé ouvert jusqu'à la sortie de l'écran ou 5 min sans enregistrement, et un toucher pendant l'ouverture attend ce micro au lieu d'en ouvrir un second (`warmMic`, `openMic` dans `lib/whisper.ts`). Phrase complète 6 fois sur 6. Pas sur iOS (voix de Noam trop faible micro ouvert).
 
+14. Conversation sans aide à la réponse (31/10) : plus de réponses suggérées sous les répliques de Noam, plus de bouton « Aide » (c'est à l'apprenant de répondre). Restent « Répéter » et « Traduire ».
+
 Plus tard : test sur un vrai téléphone (iPhone), confirmation du micro avec une vraie voix.
 
 ## Choix des modèles (testés)
