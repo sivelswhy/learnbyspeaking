@@ -24,7 +24,7 @@ export function Placement({ profile, llm, onDone, onSkip, onGender }: {
   const [result, setResult] = useState<PlacementResult | null>(null);
   if (phase === "intro") return <Intro onStart={() => setPhase("test")} onSkip={onSkip} gender={profile.gender} onGender={LANGUAGES[profile.target].genderedYou ? onGender : undefined} />;
   if (phase === "report" && result) return <PlacementReport r={result} profile={profile} onContinue={() => onDone(result)} />;
-  return <Test profile={profile} llm={llm} onExit={onSkip} onFinish={(r) => { setResult(r); setPhase("report"); }} />;
+  return <Test profile={profile} llm={llm} onExit={onGender ? undefined : onSkip} onFinish={(r) => { setResult(r); setPhase("report"); }} />;
 }
 
 /** Anneau ondulé : cercle déformé par quelques harmoniques. */
@@ -40,9 +40,9 @@ function wavyPath(r: number, amp: number, k: number, phase: number) {
 
 function Intro({ onStart, onSkip, gender, onGender }: { onStart: () => void; onSkip: () => void; gender?: Gender; onGender?: (g: Gender) => void }) {
   return (
-    <main className="relative flex min-h-dvh flex-col items-center overflow-hidden bg-gradient-to-b from-[#9a63e6] via-[#5b3fd1] to-[#5536d6] px-6 pb-[max(env(safe-area-inset-bottom),20px)] pt-16 text-white">
+    <main className="fixed inset-0 flex flex-col items-center overflow-y-auto bg-gradient-to-b from-[#9a63e6] via-[#5b3fd1] to-[#5536d6] px-6 pt-10 text-white">
       <h1 className="text-center text-3xl font-bold leading-tight">Découvre ton niveau d&apos;hébreu en 3 minutes</h1>
-      <div className="relative my-auto grid size-72 place-items-center">
+      <div className="relative my-auto grid size-[min(18rem,26dvh)] shrink-0 place-items-center">
         <svg viewBox="0 0 200 200" className="absolute inset-0 size-full" aria-hidden>
           <defs>
             <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
@@ -63,10 +63,12 @@ function Intro({ onStart, onSkip, gender, onGender }: { onStart: () => void; onS
           Parle
         </div>
       </div>
-      <p className="text-center text-lg font-semibold text-[#7ff0e0]">6 questions à l&apos;oral, de A1 à B2</p>
-      <p className="mb-6 text-center text-sm text-[#a9e9ff]/80">Notée par l&apos;IA, sur ton appareil</p>
+      <p className="mt-2 text-center text-lg font-semibold text-[#7ff0e0]">6 questions à l&apos;oral, de A1 à B2</p>
+      <p className="mb-4 text-center text-sm text-[#a9e9ff]/80">Notée par l&apos;IA, sur ton appareil</p>
+      {/* Boutons toujours visibles, même sur un écran bas : le reste de la page défile derrière. */}
+      <div className="sticky bottom-0 mt-auto flex w-[calc(100%+3rem)] flex-col items-center bg-[#5536d6] px-6 pb-[max(env(safe-area-inset-bottom),16px)] pt-3 shadow-[0_-12px_16px_-4px_#5536d6]">
       {onGender && (
-        <div className="mb-5 w-full max-w-md text-center">
+        <div className="mb-4 w-full max-w-md text-center">
           <p className="text-sm font-medium">En hébreu, Noam s&apos;adresse à toi au…</p>
           <div className="mt-2 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Genre">
             {([["m", "Masculin"], ["f", "Féminin"]] as const).map(([g, label]) => (
@@ -77,7 +79,8 @@ function Intro({ onStart, onSkip, gender, onGender }: { onStart: () => void; onS
         </div>
       )}
       <button onClick={onStart} disabled={!!onGender && !gender} className="min-h-14 w-full max-w-md rounded-full bg-white text-lg font-semibold text-accent active:scale-[0.99] disabled:opacity-50">{onGender && !gender ? "Choisis d'abord ci-dessus" : "Démarrer"}</button>
-      <button onClick={onSkip} className="mt-3 min-h-11 text-sm text-white/80 underline">Plus tard</button>
+      <button onClick={onSkip} className="mt-2 min-h-11 text-sm text-white/80 underline">Plus tard</button>
+      </div>
     </main>
   );
 }
@@ -87,7 +90,7 @@ interface Turn { answer: string; score: AnswerScore | null }
 
 const clock = () => new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
-function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSettings; onExit: () => void; onFinish: (r: PlacementResult) => void }) {
+function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSettings; onExit?: () => void; onFinish: (r: PlacementResult) => void }) {
   const qs = PLACEMENT[profile.target] ?? [];
   const lang = LANGUAGES[profile.target];
   const gnd = profile.gender ?? "m";
