@@ -1,4 +1,5 @@
 "use client";
+import { useId } from "react";
 
 /**
  * Shuli (שולי), le renard tuteur : illustration maison (ni photo, ni personnage existant).
@@ -15,7 +16,17 @@ const BROWS: Record<Mood, [string, string]> = {
   wink: ["M104 166 Q136 150 166 164", "M234 150 Q264 134 296 152"],
 };
 
+/** Nombre stable (0-1) tiré de l'identifiant du composant : chaque renard cligne à son propre rythme, sans hasard côté serveur. */
+function seed(id: string) {
+  let h = 0;
+  for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return (h % 1000) / 1000;
+}
+
 export function Avatar({ speaking = false, size = 96, className = "", mood = "happy" }: { speaking?: boolean; size?: number; className?: string; mood?: Mood }) {
+  const r = seed(useId());
+  // Petits avatars : pas de clignement (beaucoup à l'écran en même temps) ; grands : rythme propre à chacun.
+  const blink = size >= 80 ? { animationDelay: `${-r * 6}s`, animationDuration: `${4 + r * 3}s` } : { animation: "none" };
   return (
     <svg viewBox="0 0 400 400" width={size} height={size} className={className} role="img" aria-label={speaking ? "Shuli parle" : "Shuli"}>
       <defs>
@@ -52,7 +63,7 @@ export function Avatar({ speaking = false, size = 96, className = "", mood = "ha
               <path d="M234 220 Q262 190 290 220" />
             </g>
           ) : (
-          <g className="noa-eyes">
+          <g className="noa-eyes" style={blink}>
             <ellipse cx="138" cy="210" rx="30" ry="36" fill="#fff" />
             <ellipse cx="141" cy="215" rx="16" ry="18" fill="#2a1f1a" />
             <circle cx="147" cy="208" r="5.8" fill="#fff" />
