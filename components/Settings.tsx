@@ -10,7 +10,7 @@ export function Settings({ profile, llm, setLlm, setProfile, reset, onBack }: {
   setProfile: (p: Profile) => void; reset: () => void; onBack?: () => void;
 }) {
   return (
-    <div className="mx-auto max-w-lg">
+    <div className="mx-auto max-w-lg lg:max-w-3xl">
       <Header title="Réglages" onBack={onBack} />
       <div className="space-y-4 p-4">
         <LlmSetup llm={llm} onChange={setLlm} />

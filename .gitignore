@@ -42,3 +42,7 @@ next-env.d.ts
 
 # Captures de référence (interface tierce) : ne pas publier
 design-refs/
+
+# App macOS : paquet compilé et menu Debug local
+/mac/build/
+/mac/Debug.local.swift

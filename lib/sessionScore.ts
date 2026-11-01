@@ -36,7 +36,7 @@ export function scoreSession(answers: string[], level: Level): Report {
   };
 }
 
-/** Une réponse de l'apprenant et la question de Noam à laquelle elle répond. */
+/** Une réponse de l'apprenant et la question de Shuli à laquelle elle répond. */
 export interface Turn {
   question: string;
   answer: string;
@@ -46,7 +46,7 @@ export interface Turn {
 export const MAX_JUDGED = 8;
 
 /**
- * Bilan noté par l'IA : pour chaque réponse, est-elle en lien avec la question de Noam, est-elle correcte (et sa correction).
+ * Bilan noté par l'IA : pour chaque réponse, est-elle en lien avec la question de Shuli, est-elle correcte (et sa correction).
  * 35 % pertinence, 40 % grammaire, 10 % participation, 15 % variété du vocabulaire.
  * `judge` renvoie null si le modèle n'est pas disponible : on revient au bilan par règles.
  */
@@ -57,7 +57,7 @@ export async function scoreSessionAI(turns: Turn[], level: Level, judge: (t: Tur
   for (const t of judged) {
     const ai = await judge(t);
     if (!ai) return rules;
-    // Conversation : sans question de Noam, ou avec une question en retour (« כמה זה עולה? »), la réplique n'est pas hors sujet.
+    // Conversation : sans question de Shuli, ou avec une question en retour (« כמה זה עולה? »), la réplique n'est pas hors sujet.
     if (!t.question.includes("?") || t.answer.trim().endsWith("?")) ai.relevance = 1;
     read.push({ t, ...readJudgement(t.answer, ai) });
   }
@@ -72,7 +72,7 @@ export async function scoreSessionAI(turns: Turn[], level: Level, judge: (t: Tur
     .slice(0, 4)
     .map((r) => `« ${r.t.answer.trim()} » → « ${r.correction} »`);
   const tips: string[] = [];
-  if (onTopic < read.length) tips.push("Certaines réponses ne suivaient pas la question de Noam : écoute-la jusqu'au bout, ou touche « Traduire » avant de répondre.");
+  if (onTopic < read.length) tips.push("Certaines réponses ne suivaient pas la question de Shuli : écoute-la jusqu'au bout, ou touche « Traduire » avant de répondre.");
   if (mainErrors.length) tips.push("Relis les corrections ci-dessus à voix haute : c'est le moyen le plus rapide de retenir la bonne forme. (L'IA peut se tromper.)");
   if (rules.fluency < 70) tips.push("Ajoute un détail à tes réponses : une deuxième idée avec ו (et) ou כי (parce que).");
   if (turns.length < 6) tips.push("Reste plus longtemps dans la conversation : 6 échanges ou plus.");
@@ -82,7 +82,7 @@ export async function scoreSessionAI(turns: Turn[], level: Level, judge: (t: Tur
     relevance,
     grammar,
     score: Math.round(relevance * 0.35 + grammar * 0.4 + rules.participation * 0.1 + rules.vocabulary * 0.15),
-    scoreExplanation: `Score calculé par l'IA (DictaLM, sur ton appareil) et par des règles : 35 % pertinence (tes réponses suivent-elles la question de Noam ?), 40 % grammaire (l'IA juge chaque phrase et propose une correction), 10 % participation (objectif 6 réponses), 15 % variété du vocabulaire.${judged.length < turns.length ? ` L'IA a noté tes ${judged.length} dernières réponses.` : ""} L'IA peut se tromper ; la prononciation n'est pas notée.`,
+    scoreExplanation: `Score calculé par l'IA (DictaLM, sur ton appareil) et par des règles : 35 % pertinence (tes réponses suivent-elles la question de Shuli ?), 40 % grammaire (l'IA juge chaque phrase et propose une correction), 10 % participation (objectif 6 réponses), 15 % variété du vocabulaire.${judged.length < turns.length ? ` L'IA a noté tes ${judged.length} dernières réponses.` : ""} L'IA peut se tromper ; la prononciation n'est pas notée.`,
     mainErrors,
     tips,
     summary: `${onTopic} de tes ${read.length} réponses suivent bien la conversation, et ${correct} sont correctes selon l'IA.`,

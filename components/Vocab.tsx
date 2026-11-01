@@ -20,7 +20,7 @@ export function Vocab({ profile, vocab, review, onBack }: { profile: Profile; vo
   }
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div className="mx-auto max-w-lg lg:max-w-3xl">
       <Header title="Vocabulaire" onBack={onBack} />
       <div className="space-y-4 p-4">
         {vocab.length === 0 && <p className="text-muted">Tes mots appris en conversation apparaîtront ici automatiquement.</p>}

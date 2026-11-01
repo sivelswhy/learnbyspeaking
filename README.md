@@ -1,4 +1,4 @@
-# Parle — apprends l'hébreu en parlant
+# LearnBySpeaking — apprends l'hébreu en parlant
 
 App web (PWA) pour apprendre l'hébreu à l'oral avec Noa, une tutrice IA. 100 % gratuite et locale : aucune clé API, aucun serveur, aucun compte.
 

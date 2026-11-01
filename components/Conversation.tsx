@@ -293,21 +293,18 @@ export function Conversation({
   }
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
 
-  /**
-   * « Traduire » : traducteur dédié d'abord. DictaLM seulement à défaut (ses consignes JSON donnaient des paragraphes).
-   */
-  async function runAssist(kind: Assist["kind"], t: string) {
-    setAssistBusy(true);
-    setAssist(null);
-    const toNative = async (he: string) =>
-      (canTranslate(profile.target, profile.native) ? await translateHebrew(he, profile.native).catch(() => "") : "") ||
-      (await complete(llm, { messages: translateMessages(profile, he), temperature: 0.1, maxTokens: 100 })).split("\n")[0];
+  /** « Traduire » sous une réplique : traduit puis range la traduction dans le message, affichée sous la bulle. */
+  async function translateMsg(id: string, he: string): Promise<boolean> {
     try {
-      setAssist({ kind, result: await toNative(t), transliteration: "", example: "" });
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setAssistBusy(false);
+      const tr =
+        (canTranslate(profile.target, profile.native) ? await translateHebrew(he, profile.native).catch(() => "") : "") ||
+        (await complete(llm, { messages: translateMessages(profile, he), temperature: 0.1, maxTokens: 100 })).split("\n")[0];
+      const machine = !canTranslate(profile.target, profile.native);
+      if (!tr.trim()) return false;
+      update((m) => m.map((x) => (x.id === id ? { ...x, extra: { transliteration: x.extra?.transliteration ?? "", translation: tr.trim(), machine, locked: x.extra?.locked } } : x)));
+      return true;
+    } catch {
+      return false;
     }
   }
 
@@ -322,7 +319,7 @@ export function Conversation({
       id: uid(), date: new Date().toISOString(), scenarioId: sc.id, title: sc.title, seconds, turns: userTurns.length,
       corrections, words: newWords.current,
     };
-    // Chaque réponse avec la réplique de Noam qui la précède : l'IA juge si elle y répond et si elle est correcte.
+    // Chaque réponse avec la réplique de Shuli qui la précède : l'IA juge si elle y répond et si elle est correcte.
     const turns = msgs.current.flatMap((m, i) =>
       m.role === "user" ? [{ question: [...msgs.current.slice(0, i)].reverse().find((x) => x.role === "assistant")?.text ?? "", answer: m.text }] : [],
     );
@@ -332,7 +329,7 @@ export function Conversation({
 
   if (!ready) {
     return (
-      <div className="mx-auto max-w-lg">
+      <div className="mx-auto max-w-lg lg:max-w-3xl">
         <Header title="Préparer le tuteur" onBack={onExit} />
         <div className="p-4">
           <LlmSetup llm={llm} onChange={setLlm} onReady={() => setReady(true)} />
@@ -343,7 +340,7 @@ export function Conversation({
 
   const busy = status === "thinking";
   return (
-    <div className="mx-auto flex h-dvh max-w-lg flex-col">
+    <div className="mx-auto flex h-dvh max-w-lg lg:max-w-3xl flex-col">
       <Header
         title={sc.title}
         onBack={onExit}
@@ -361,7 +358,7 @@ export function Conversation({
         )}
         {messages.map((m) => (
           <Bubble key={m.id} m={m} rtl={lang.rtl} lang={lang.speech}
-            onSpeak={(t) => say(t)} onAssist={runAssist} onUse={(t) => setText(t)}
+            onSpeak={(t) => say(t)} onTranslate={translateMsg} onUse={(t) => setText(t)}
             onRepeat={(t) => { setRepeat({ target: t }); setStatus("listening"); cancelSpeech(); rec.start(); }}
             nativeName={LANGUAGES[profile.native].name} />
         ))}
@@ -480,21 +477,34 @@ export function Conversation({
 
 
 function Bubble({
-  m, rtl, lang, onSpeak, onAssist, onUse, onRepeat, nativeName,
+  m, rtl, lang, onSpeak, onTranslate, onUse, onRepeat, nativeName,
 }: {
   m: Message; rtl: boolean; lang: string; nativeName: string;
-  onSpeak: (t: string) => void; onAssist: (k: Assist["kind"], t: string) => void;
+  onSpeak: (t: string) => void; onTranslate: (id: string, t: string) => Promise<boolean>;
   onUse: (t: string) => void; onRepeat: (t: string) => void;
 }) {
   const [showTr, setShowTr] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
   const user = m.role === "user";
+  const toggleTr = async () => {
+    if (m.extra?.translation) return setShowTr(!showTr);
+    setShowTr(true);
+    setFailed(false);
+    setBusy(true);
+    const ok = await onTranslate(m.id, m.text);
+    setBusy(false);
+    setFailed(!ok);
+  };
   const he = rtl ? "he" : "";
   return (
     <div className={`flex flex-col gap-2 ${user ? "items-end" : "items-start"}`}>
-      {!user && <p className="flex items-center gap-2 text-sm"><Avatar size={26} /> <b>Noam</b></p>}
+      {!user && <p className="flex items-center gap-2 text-sm"><Avatar size={26} /> <b>Shuli</b></p>}
       <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${user ? "rounded-br-md bg-accent text-accent-ink" : "rounded-bl-md border border-line bg-card"}`}>
         <p className={`${he} text-lg leading-snug`} lang={lang}>{m.text}</p>
         {!user && m.extra?.transliteration && <p className="mt-1 text-sm text-muted">{m.extra.transliteration}</p>}
+        {!user && showTr && busy && <p className="mt-1 animate-pulse border-t border-line pt-1 text-sm text-muted">Traduction…</p>}
+        {!user && showTr && failed && !busy && <p className="mt-1 border-t border-line pt-1 text-sm text-warn">Traduction impossible pour l&apos;instant. Réessaie.</p>}
         {!user && showTr && m.extra?.translation && (
           <p className="mt-1 border-t border-line pt-1 text-sm">
             {m.extra.translation}
@@ -505,8 +515,8 @@ function Bubble({
       {!user && (
         <div className="flex flex-wrap gap-1.5">
           <Pill onClick={() => onSpeak(m.text)} aria-label="Écouter"><RiVolumeUpLine aria-hidden /></Pill>
-          <Pill onClick={() => (m.extra?.translation ? setShowTr(!showTr) : onAssist("translate", m.text))}>
-            <RiTranslate2 aria-hidden /> {m.analyzing && !m.extra ? "…" : `Traduire (${nativeName})`}
+          <Pill onClick={() => void toggleTr()} disabled={busy}>
+            <RiTranslate2 aria-hidden /> {busy || (m.analyzing && !m.extra?.translation) ? "…" : `Traduire (${nativeName})`}
           </Pill>
         </div>
       )}

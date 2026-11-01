@@ -39,12 +39,12 @@ const STEPS: Record<Platform, { Icon: IconType; text: string }[]> = {
   ios: [
     { Icon: RiShareBoxLine, text: "Touche le bouton Partager (carré avec une flèche vers le haut), en bas de Safari ou dans la barre d'adresse." },
     { Icon: RiAddBoxLine, text: "Fais défiler et choisis « Sur l'écran d'accueil »." },
-    { Icon: RiCheckboxCircleLine, text: "Touche « Ajouter » en haut à droite. L'icône Parle apparaît sur ton écran d'accueil." },
+    { Icon: RiCheckboxCircleLine, text: "Touche « Ajouter » en haut à droite. L'icône LearnBySpeaking apparaît sur ton écran d'accueil." },
   ],
   android: [
     { Icon: RiMore2Fill, text: "Touche le menu ⋮ en haut à droite de Chrome." },
     { Icon: RiInstallLine, text: "Choisis « Installer l'application » (ou « Ajouter à l'écran d'accueil »)." },
-    { Icon: RiCheckboxCircleLine, text: "Confirme avec « Installer ». L'icône Parle apparaît sur ton écran d'accueil." },
+    { Icon: RiCheckboxCircleLine, text: "Confirme avec « Installer ». L'icône LearnBySpeaking apparaît sur ton écran d'accueil." },
   ],
 };
 
@@ -101,13 +101,13 @@ export function InstallPrompt() {
     <>
       {!guide && (
         <div role="dialog" aria-label="Installer l'application"
-          className="fixed inset-x-3 bottom-[max(env(safe-area-inset-bottom),12px)] z-30 mx-auto max-w-lg rounded-2xl bg-card shadow-card p-4 shadow-lg">
+          className="fixed inset-x-3 bottom-[max(env(safe-area-inset-bottom),12px)] z-30 mx-auto max-w-lg lg:max-w-3xl rounded-2xl bg-card shadow-card p-4 shadow-lg">
           <div className="flex items-start gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-accent-ink">
               <RiSmartphoneLine aria-hidden className="size-5" />
             </span>
             <div className="flex-1">
-              <p className="font-semibold">Ajoute Parle à ton écran d&apos;accueil</p>
+              <p className="font-semibold">Ajoute LearnBySpeaking à ton écran d&apos;accueil</p>
               <p className="text-sm text-muted">Elle s&apos;ouvre en plein écran, comme une vraie app, même hors ligne.</p>
             </div>
             <button onClick={dismiss} aria-label="Fermer" className="-m-2 grid size-11 place-items-center text-muted">
@@ -124,7 +124,7 @@ export function InstallPrompt() {
       {guide && (
         <div className="fixed inset-0 z-40 flex items-end bg-black/40" onClick={() => setGuide(false)}>
           <div role="dialog" aria-modal="true" aria-label="Tutoriel d'installation" onClick={(e) => e.stopPropagation()}
-            className="mx-auto w-full max-w-lg rounded-t-3xl bg-card p-5 pb-[max(env(safe-area-inset-bottom),20px)]">
+            className="mx-auto w-full max-w-lg lg:max-w-3xl rounded-t-3xl bg-card p-5 pb-[max(env(safe-area-inset-bottom),20px)]">
             <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-line" />
             <h2 className="text-lg font-bold">
               Installer sur {platform === "ios" ? "iPhone / iPad" : "Android"}

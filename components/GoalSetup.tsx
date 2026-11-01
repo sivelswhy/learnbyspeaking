@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { FOCUS, GOALS, type Focus, type Goal } from "@/lib/languages";
 import type { PlacementResult, Profile } from "@/lib/types";
+import { Avatar } from "./Avatar";
 import { Btn, Chip } from "./ui";
 
 /** Axes du test de niveau qui révèlent un point à travailler (score < 60). */
@@ -36,13 +37,16 @@ export function GoalSetup({ profile, placement, onDone }: { profile: Profile; pl
   const toggle = (f: Focus) => setFocus((cur) => (cur.includes(f) ? cur.filter((x) => x !== f) : [...cur, f]));
 
   return (
-    <main className="mx-auto max-w-lg space-y-6 px-4 pb-32 pt-8">
+    <main className="mx-auto max-w-lg lg:max-w-3xl space-y-6 px-4 pb-32 pt-8">
       <div>
         {profile.placementDone && (
           <p className="inline-flex items-center gap-2 rounded-full bg-soft px-3 py-1 text-sm font-semibold text-accent">Ton niveau : {profile.level}</p>
         )}
-        <h1 className="mt-3 text-2xl font-bold">Qu&apos;est-ce qui te motive ?</h1>
-        <p className="mt-1 text-muted">Noam adapte les conversations et le cours à ton objectif.</p>
+        <div className="mt-3 flex items-center gap-3">
+          <Avatar size={72} mood="wink" className="pop-in shrink-0" />
+          <h1 className="text-2xl font-extrabold">Qu&apos;est-ce qui te motive ?</h1>
+        </div>
+        <p className="mt-1 text-muted">Shuli adapte les conversations et le cours à ton objectif.</p>
       </div>
 
       <Section title="Ton objectif en hébreu">
@@ -71,7 +75,7 @@ export function GoalSetup({ profile, placement, onDone }: { profile: Profile; pl
       </Section>
 
       <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-6">
-        <Btn disabled={!goal || !focus.length} className="mx-auto block min-h-14 w-full max-w-lg text-base"
+        <Btn disabled={!goal || !focus.length} className="mx-auto block min-h-14 w-full max-w-lg lg:max-w-3xl text-base"
           onClick={() => goal && onDone({ ...profile, goal, focus, name: name.trim() || undefined, dailyMinutes: minutes, onboarding: undefined })}>
           {!goal ? "Choisis ton objectif" : !focus.length ? "Choisis au moins un point" : "C'est parti"}
         </Btn>

@@ -138,7 +138,7 @@ export interface Recording {
  * du micro prennent plusieurs centaines de millisecondes, pendant lesquelles le début de la phrase était perdu
  * (vérifié avec un faux micro à 400 ms d'ouverture : « שלום » disparaissait à chaque fois).
  * Fermé en quittant l'écran, ou après 5 min sans enregistrement.
- * Pas sur iOS : micro ouvert, le son passe dans l'écouteur et la voix de Noam devient très faible.
+ * Pas sur iOS : micro ouvert, le son passe dans l'écouteur et la voix de Shuli devient très faible.
  */
 const MIC_IDLE_MS = 5 * 60_000;
 type Mic = { stream: MediaStream; ctx: AudioContext; an: AnalyserNode };

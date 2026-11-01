@@ -10,7 +10,7 @@
 
 6. ~~Refaire l'interface d'après les captures~~ : fait, vérifié par captures 390 px (clair + sombre). Palette `--soft`/`--pink`/`shadow-card`, `BackButton`, accueil, hub, test (intro à anneaux ondulés, ligne de progression à points, heure des messages, bulle « moi »), rapport de niveau (onglets Rapport / Mes réponses, conseils par question avec Conseil + Exemple, filtre « À revoir », partage), bilan de session avec radar, cours (frise alternée), jour, entraînement (carte portrait + sous-titre, carte « Répète » avec boutons ronds). Pas repris : vidéo réelle de tutrice, mode « Améliorateur d'accent ».
 
-7. ~~Voix naturelle (Piper)~~ : en ligne depuis le 30/10. Phonikud (vocalisation, ONNX int8, MIT, 308 Mo) + voix Piper « défaut » de Phonikud TTS (64 Mo, CC BY-NC), sur le CPU (onnxruntime-web) dans `lib/voice.worker.ts`. Règles portées en TypeScript dans `lib/phonikud/` : phonèmes identiques au Python sur 380/381 phrases de l'app, vocalisation 58/60, nombres 5994/5994 identiques à num2words. ~430 ms par phrase sur Mac. Réglage « Voix de Noam » (naturelle / système) dans la préparation ; la voix du système reste en secours. Voix masculine : le personnage est devenu Noam (tuteur), avatar redessiné.
+7. ~~Voix naturelle (Piper)~~ : en ligne depuis le 30/10. Phonikud (vocalisation, ONNX int8, MIT, 308 Mo) + voix Piper « défaut » de Phonikud TTS (64 Mo, CC BY-NC), sur le CPU (onnxruntime-web) dans `lib/voice.worker.ts`. Règles portées en TypeScript dans `lib/phonikud/` : phonèmes identiques au Python sur 380/381 phrases de l'app, vocalisation 58/60, nombres 5994/5994 identiques à num2words. ~430 ms par phrase sur Mac. Réglage « Voix de Shuli » (naturelle / système) dans la préparation ; la voix du système reste en secours. Voix masculine : le personnage est devenu Shuli (tuteur), avatar redessiné.
 
 8. ~~Fiabilité en production~~ (30/10) : le service worker effaçait les caches des modèles (corrigé) ; production compilée avec webpack (Turbopack cassait le worker Whisper) ; chaque worker signale `alive`. Mémoire réduite : Whisper q4f16, chargement séquentiel, traducteur déchargé après 45 s, iPhone sans Whisper par défaut. Batterie de 25 parcours de bout en bout dans Chrome : tout passe. Safari non automatisable ici, iPhone non testé.
 9. ~~Hub~~ : « Professeur d'hébreu » → « Comment dire… ? » (phrases du cours au bon genre, sinon traduction avec exemples au genre de l'apprenant) ; « Professeur de grammaire » → leçons écrites à la main (Cours › Ressources › Grammaire). DictaLM n'est pas fiable pour expliquer.
@@ -24,8 +24,8 @@
     - ~~Envoyer les 3 traducteurs sur Hugging Face~~ : fait le 31/10 (`sivelsguy/opus-mt-{fr,en,es}-he-onnx`, Apache-2.0, vérifiés en les téléchargeant depuis Hugging Face). Sources dans `~/learnbyspeaking-models/`.
 
 11. **Deuxième passe (31/10, soir)** :
-    - Conversation : question de relance ajoutée quand Noam n'en pose pas (`followUpMessages`, sans dépasser 16 mots) → sans question 20/108 → 1/108 ; suggestions mises au féminin pour une apprenante (table des 40 formes courantes + DictaLM sous garde-fou, aussi après שאני/ואני/כשאני).
-    - **Bilan de conversation noté par l'IA** (`scoreSessionAI`, `lib/judge.ts` partagé avec le test) : pertinence (sans pénaliser une question en retour ni une réplique de Noam sans question), grammaire, participation, vocabulaire ; « Phrases à revoir » avec les corrections de l'IA. Plus de « N réponses avec X mots ».
+    - Conversation : question de relance ajoutée quand Shuli n'en pose pas (`followUpMessages`, sans dépasser 16 mots) → sans question 20/108 → 1/108 ; suggestions mises au féminin pour une apprenante (table des 40 formes courantes + DictaLM sous garde-fou, aussi après שאני/ואני/כשאני).
+    - **Bilan de conversation noté par l'IA** (`scoreSessionAI`, `lib/judge.ts` partagé avec le test) : pertinence (sans pénaliser une question en retour ni une réplique de Shuli sans question), grammaire, participation, vocabulaire ; « Phrases à revoir » avec les corrections de l'IA. Plus de « N réponses avec X mots ».
     - Corrections de style (טוב → נהדר) ignorées si l'IA juge la phrase correcte (`rewordedOnly`).
     - Test de niveau : attend le modèle s'il finit de se charger (sinon il notait par règles juste après l'ouverture de l'app).
     - Traduction : guillemet orphelin retiré.
@@ -33,11 +33,13 @@
 
 12. ~~Niveau B2 du cours~~ (31/10) : unités 8 « Hypothèses et nuances » (conditionnel, nuancer, regrets et souhaits, raconter) et 9 « Travail et société » (entretien, réunion, actualité, réclamation), 8 jours. Parcours complet A1 → B2 : 36 jours, tous déroulés dans Chrome sans erreur.
 
-13. ~~Début de phrase coupé au micro~~ (31/10) : reproduit avec un faux micro qui met 400-800 ms à s'ouvrir (l'élève parle dès le toucher) : l'ancienne version perdait « שלום » 6 fois sur 6. Correction : micro ouvert dès l'arrivée sur un écran où l'on parle (conversation, test, entraînement), gardé ouvert jusqu'à la sortie de l'écran ou 5 min sans enregistrement, et un toucher pendant l'ouverture attend ce micro au lieu d'en ouvrir un second (`warmMic`, `openMic` dans `lib/whisper.ts`). Phrase complète 6 fois sur 6. Pas sur iOS (voix de Noam trop faible micro ouvert).
+13. ~~Début de phrase coupé au micro~~ (31/10) : reproduit avec un faux micro qui met 400-800 ms à s'ouvrir (l'élève parle dès le toucher) : l'ancienne version perdait « שלום » 6 fois sur 6. Correction : micro ouvert dès l'arrivée sur un écran où l'on parle (conversation, test, entraînement), gardé ouvert jusqu'à la sortie de l'écran ou 5 min sans enregistrement, et un toucher pendant l'ouverture attend ce micro au lieu d'en ouvrir un second (`warmMic`, `openMic` dans `lib/whisper.ts`). Phrase complète 6 fois sur 6. Pas sur iOS (voix de Shuli trop faible micro ouvert).
 
-14. Conversation sans aide à la réponse (31/10) : plus de réponses suggérées sous les répliques de Noam, plus de bouton « Aide » (c'est à l'apprenant de répondre). Restent « Répéter » et « Traduire ».
+14. Conversation sans aide à la réponse (31/10) : plus de réponses suggérées sous les répliques de Shuli, plus de bouton « Aide » (c'est à l'apprenant de répondre). Restent « Répéter » et « Traduire ».
 
 15. Premier lancement refait (01/11) : 1) téléchargement obligatoire de tous les modèles (cerveau, Whisper, voix, traducteurs préchargés puis déchargés), 2) test de niveau (genre demandé sur l'intro), 3) `GoalSetup` : objectif, points à améliorer (`FOCUS`), prénom, temps par jour. Étape stockée dans `profile.onboarding`. Option « Garder l'écran allumé » (`lib/wakeLock.ts`, Screen Wake Lock) pendant tout téléchargement. Pas encore vérifié de bout en bout (téléchargement lancé dans Chrome, pas fini) ni sur téléphone.
+
+16. App macOS native (01/11) : `mac/` (AppKit + WebKit, sans Electron, compilée avec `swiftc` : pas de Xcode). `mac/build.sh` construit `mac/build/LearnBySpeaking.app` (62 Mo, signée ad hoc) : le site exporté (`out/`) est servi sur `127.0.0.1:47831` (origine fixe = stockage et modèles conservés), WebGPU/micro/Cache API vérifiés dans la WKWebView (`PARLE_SELFTEST=<fichier>`). Icône de la barre d'état avec menu ; menu **Debug** (fausse progression, niveau, étapes du premier lancement, effacements, copie du stockage) dans `mac/Debug.local.swift`, ignoré par git (sinon `DebugStub.swift`). 30 propositions d'icônes : `mac/icons/` (planche.png) ; l'icône actuelle est celle de la PWA.
 
 Plus tard : test sur un vrai téléphone (iPhone), confirmation du micro avec une vraie voix.
 
@@ -57,7 +59,7 @@ Règles qui marchent avec DictaLM : consignes en hébreu + exemples d'échanges 
 
 ## Ce que contient l'app
 
-- Onglets Parler / Cours / Bilan / Moi, avatar animé de Noam (tuteur).
+- Onglets Parler / Cours / Bilan / Moi, avatar animé de Shuli (tuteur).
 - Test de niveau oral (6 questions, A1 → B2), rapport radar.
 - Parcours A1–A2 (5 unités, 20 jours) : entraînement guidé + jeu de rôle (`lib/content/course-he.ts`).
 - Ressources écrites à la main : alphabet, vocabulaire, phrases, grammaire (`lib/content/resources-he.ts`).

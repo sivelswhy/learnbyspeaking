@@ -101,7 +101,7 @@ export function ToolChat({ profile, llm, setLlm, mode, onBack }: { profile: Prof
 
   if (!ready) {
     return (
-      <div className="mx-auto max-w-lg">
+      <div className="mx-auto max-w-lg lg:max-w-3xl">
         <Header title="Préparer le tuteur" onBack={onBack} />
         <div className="p-4"><LlmSetup llm={llm} onChange={setLlm} onReady={() => setReady(true)} /></div>
       </div>
@@ -109,7 +109,7 @@ export function ToolChat({ profile, llm, setLlm, mode, onBack }: { profile: Prof
   }
 
   return (
-    <div className="mx-auto flex h-dvh max-w-lg flex-col">
+    <div className="mx-auto flex h-dvh max-w-lg lg:max-w-3xl flex-col">
       <Header title={m.title} onBack={onBack} />
       <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
         <p className="rounded-xl bg-accent/10 p-3 text-xs text-muted">
@@ -121,8 +121,8 @@ export function ToolChat({ profile, llm, setLlm, mode, onBack }: { profile: Prof
         </div>
         {msgs.map((x, i) => <Bubble key={i} m={x} speech={lang.speech} />)}
         {stream && <Bubble m={{ role: "assistant", content: stream }} speech={lang.speech} />}
-        {busy && !stream && <p className="text-sm text-muted">Noam réfléchit…</p>}
-        {error && <p role="alert" className="rounded-xl bg-warn/10 p-3 text-sm text-warn">{error}</p>}
+        {busy && !stream && <p className="flex items-center gap-2 text-sm text-muted"><Avatar size={32} mood="think" /> Shuli réfléchit…</p>}
+        {error && <p role="alert" className="flex items-center gap-3 rounded-xl bg-warn/10 p-3 text-sm text-warn"><Avatar size={40} mood="sad" className="shrink-0" />{error}</p>}
         <div ref={bottom} />
       </div>
       <form onSubmit={(e) => { e.preventDefault(); void send(); }} className="flex gap-2 border-t border-line bg-bg px-4 pb-[max(env(safe-area-inset-bottom),12px)] pt-3">

@@ -1,6 +1,7 @@
 "use client";
 import { SCENARIOS } from "@/lib/languages";
 import type { SessionRecord } from "@/lib/types";
+import { Avatar } from "./Avatar";
 import { ScenarioIcon } from "./icons";
 import { Radar } from "./Radar";
 import { Btn, Card } from "./ui";
@@ -9,9 +10,10 @@ export function Report({ s, rtl, onClose }: { s: SessionRecord; rtl: boolean; on
   const r = s.report;
   const sc = SCENARIOS.find((x) => x.id === s.scenarioId);
   return (
-    <main className="mx-auto max-w-lg space-y-4 px-4 pb-28 pt-4">
+    <main className="mx-auto max-w-lg lg:max-w-3xl space-y-4 px-4 pb-28 pt-4">
       <div className="text-center">
-        <span className="mx-auto grid size-12 place-items-center rounded-full bg-soft text-accent"><ScenarioIcon id={s.scenarioId} className="size-6" /></span>
+        <Avatar size={112} mood={r && r.score >= 60 ? "cheer" : "happy"} className="pop-in mx-auto" />
+        <span className="sr-only"><ScenarioIcon id={s.scenarioId} className="size-6" /></span>
         <h1 className="mt-2 text-lg font-bold">Bilan · {s.title ?? sc?.title}</h1>
         <p className="text-sm text-muted">{Math.max(1, Math.round(s.seconds / 60))} min · {s.turns} réponses</p>
       </div>
@@ -57,7 +59,7 @@ export function Report({ s, rtl, onClose }: { s: SessionRecord; rtl: boolean; on
         </Card>
       )}
       <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-6">
-        <Btn onClick={onClose} className="mx-auto block min-h-14 w-full max-w-lg text-base">Retour à l&apos;accueil</Btn>
+        <Btn onClick={onClose} className="mx-auto block min-h-14 w-full max-w-lg lg:max-w-3xl text-base">Retour à l&apos;accueil</Btn>
       </div>
     </main>
   );

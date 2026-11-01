@@ -1,48 +1,100 @@
 "use client";
 
 /**
- * Noam, le tuteur : illustration maison (pas de photo d'une vraie personne).
- * La bouche s'anime quand il parle, les yeux clignent.
+ * Shuli (שולי), le renard tuteur : illustration maison (ni photo, ni personnage existant).
+ * La bouche s'anime quand il parle, les yeux clignent (classes dans globals.css).
  */
-export function Avatar({ speaking = false, size = 96, className = "" }: { speaking?: boolean; size?: number; className?: string }) {
+export type Mood = "happy" | "think" | "wow" | "sad" | "cheer" | "wink";
+
+const BROWS: Record<Mood, [string, string]> = {
+  happy: ["M104 166 Q136 150 166 164", "M234 164 Q264 150 296 166"],
+  think: ["M104 172 Q136 170 166 176", "M234 150 Q264 136 296 152"],
+  wow: ["M104 150 Q136 130 166 148", "M234 148 Q264 130 296 150"],
+  sad: ["M104 154 Q136 160 166 176", "M234 176 Q264 160 296 154"],
+  cheer: ["M104 160 Q136 142 166 158", "M234 158 Q264 142 296 160"],
+  wink: ["M104 166 Q136 150 166 164", "M234 150 Q264 134 296 152"],
+};
+
+export function Avatar({ speaking = false, size = 96, className = "", mood = "happy" }: { speaking?: boolean; size?: number; className?: string; mood?: Mood }) {
   return (
-    <svg viewBox="0 0 120 120" width={size} height={size} className={className} role="img" aria-label={speaking ? "Noam parle" : "Noam"}>
+    <svg viewBox="0 0 400 400" width={size} height={size} className={className} role="img" aria-label={speaking ? "Shuli parle" : "Shuli"}>
       <defs>
-        <clipPath id="noa-clip">
-          <circle cx="60" cy="60" r="60" />
-        </clipPath>
+        <clipPath id="shuli-clip"><circle cx="200" cy="200" r="200" /></clipPath>
+        <linearGradient id="shuli-fur" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ff9a45" />
+          <stop offset="1" stopColor="#f06f2b" />
+        </linearGradient>
       </defs>
-      <g clipPath="url(#noa-clip)">
-        <rect width="120" height="120" fill="#e6e2ff" />
-        {/* cou + épaules, chemise à col ouvert */}
-        <rect x="50" y="76" width="20" height="18" rx="6" fill="#d9a07a" />
-        <path d="M14 120 C16 97 36 88 60 88 C84 88 104 97 106 120 Z" fill="#4f46e5" />
-        <path d="M48 89 L60 104 L72 89 L66 87 L60 95 L54 87 Z" fill="#fff" />
-        {/* oreilles */}
-        <ellipse cx="36.5" cy="58" rx="4" ry="6" fill="#e3ad87" />
-        <ellipse cx="83.5" cy="58" rx="4" ry="6" fill="#e3ad87" />
-        {/* visage, mâchoire un peu plus carrée */}
-        <path d="M37 52 C37 36 47 28 60 28 C73 28 83 36 83 52 L83 62 C83 75 73 84 60 84 C47 84 37 75 37 62 Z" fill="#ecb994" />
-        {/* barbe de quelques jours */}
-        <path d="M38 62 C40 76 49 84 60 84 C71 84 80 76 82 62 C78 70 72 73 66 72 C62 71 58 71 54 72 C48 73 42 70 38 62 Z" fill="#3a2a20" opacity="0.28" />
-        {/* cheveux courts */}
-        <path d="M35 52 C33 32 46 21 61 21 C77 21 88 31 85 52 C83 44 80 40 76 38 C70 41 58 42 48 38 C42 40 38 45 35 52 Z" fill="#2e1f17" />
-        {/* yeux */}
-        <g className="noa-eyes">
-          <ellipse cx="51" cy="56" rx="2.6" ry="3" fill="#2b1d16" />
-          <ellipse cx="69" cy="56" rx="2.6" ry="3" fill="#2b1d16" />
+      <g clipPath="url(#shuli-clip)">
+        <rect width="400" height="400" fill="#ffe3cf" />
+        <g transform="translate(200 214) scale(0.94) translate(-200 -214)">
+          {/* oreilles */}
+          <path d="M60 190 L66 52 L168 118 Z" fill="url(#shuli-fur)" />
+          <path d="M340 190 L334 52 L232 118 Z" fill="url(#shuli-fur)" />
+          <path d="M86 160 L88 92 L142 124Z" fill="#3a2a2a" />
+          <path d="M314 160 L312 92 L258 124Z" fill="#3a2a2a" />
+          {/* tête et joues blanches */}
+          <path d="M48 200 Q50 110 200 104 Q350 110 352 200 Q354 300 200 352 Q46 300 48 200Z" fill="url(#shuli-fur)" />
+          <path d="M48 214 Q130 232 200 300 Q270 232 352 214 Q340 310 200 352 Q60 310 48 214Z" fill="#fff6ec" />
+          <circle cx="96" cy="262" r="18" fill="#ff8a7a" opacity=".5" />
+          <circle cx="304" cy="262" r="18" fill="#ff8a7a" opacity=".5" />
+          {/* yeux */}
+          {mood === "wink" ? (
+            <g>
+              <ellipse cx="138" cy="210" rx="30" ry="36" fill="#fff" />
+              <ellipse cx="141" cy="215" rx="16" ry="18" fill="#2a1f1a" />
+              <circle cx="147" cy="208" r="5.8" fill="#fff" />
+              <path d="M232 218 Q262 190 292 218" stroke="#2a1f1a" strokeWidth="9" fill="none" strokeLinecap="round" />
+            </g>
+          ) : mood === "cheer" ? (
+            <g stroke="#2a1f1a" strokeWidth="9" fill="none" strokeLinecap="round">
+              <path d="M110 220 Q138 190 166 220" />
+              <path d="M234 220 Q262 190 290 220" />
+            </g>
+          ) : (
+          <g className="noa-eyes">
+            <ellipse cx="138" cy="210" rx="30" ry="36" fill="#fff" />
+            <ellipse cx="141" cy="215" rx="16" ry="18" fill="#2a1f1a" />
+            <circle cx="147" cy="208" r="5.8" fill="#fff" />
+            <circle cx="136" cy="222" r="2.6" fill="#fff" opacity=".8" />
+            <ellipse cx="262" cy="210" rx="30" ry="36" fill="#fff" />
+            <ellipse cx="259" cy="215" rx="16" ry="18" fill="#2a1f1a" />
+            <circle cx="265" cy="208" r="5.8" fill="#fff" />
+            <circle cx="254" cy="222" r="2.6" fill="#fff" opacity=".8" />
+          </g>
+          )}
+          {/* sourcils */}
+          <path d={BROWS[mood][0]} stroke="#8a3d12" strokeWidth="8" fill="none" strokeLinecap="round" />
+          <path d={BROWS[mood][1]} stroke="#8a3d12" strokeWidth="8" fill="none" strokeLinecap="round" />
+          {/* museau */}
+          <ellipse cx="200" cy="270" rx="26" ry="19" fill="#2a1f1f" />
+          <ellipse cx="193" cy="264" rx="8" ry="4.5" fill="#fff" opacity=".6" />
+          {/* bouche */}
+          {speaking ? (
+            <g className="noa-mouth">
+              <path d="M170 296 Q200 286 230 296 Q226 330 200 334 Q174 330 170 296Z" fill="#7a2a33" />
+              <path d="M184 318 Q200 310 216 318 Q210 332 200 333 Q190 332 184 318Z" fill="#ff7a86" />
+            </g>
+          ) : (
+            <>
+              {mood === "wow" ? (
+                <ellipse cx="200" cy="318" rx="15" ry="19" fill="#7a2a33" />
+              ) : mood === "cheer" ? (
+                <>
+                  <path d="M166 298 Q200 296 234 298 Q228 340 200 342 Q172 340 166 298Z" fill="#7a2a33" />
+                  <path d="M182 326 Q200 316 218 326 Q212 338 200 339 Q188 338 182 326Z" fill="#ff7a86" />
+                </>
+              ) : mood === "think" ? (
+                <path d="M182 306 Q204 302 224 296" stroke="#2a1f1f" strokeWidth="7" fill="none" strokeLinecap="round" />
+              ) : mood === "sad" ? (
+                <path d="M176 312 Q200 292 224 312" stroke="#2a1f1f" strokeWidth="7" fill="none" strokeLinecap="round" />
+              ) : (
+                <path d="M174 294 Q200 316 226 294" stroke="#2a1f1f" strokeWidth="7" fill="none" strokeLinecap="round" />
+              )}
+              <path d="M200 289 V298" stroke="#2a1f1f" strokeWidth="7" />
+            </>
+          )}
         </g>
-        {/* sourcils épais */}
-        <path d="M45 49.5 Q50.5 46.5 55.5 49" stroke="#2e1f17" strokeWidth="2.6" fill="none" strokeLinecap="round" />
-        <path d="M64.5 49 Q69.5 46.5 75 49.5" stroke="#2e1f17" strokeWidth="2.6" fill="none" strokeLinecap="round" />
-        {/* nez */}
-        <path d="M60 58 Q58 64 60.5 65.5" stroke="#c98d68" strokeWidth="1.6" fill="none" strokeLinecap="round" />
-        {/* bouche */}
-        {speaking ? (
-          <ellipse className="noa-mouth" cx="60" cy="72" rx="5" ry="3" fill="#7a2a33" />
-        ) : (
-          <path d="M53 70.5 Q60 75.5 67 70.5" stroke="#7a2a33" strokeWidth="2.2" fill="none" strokeLinecap="round" />
-        )}
       </g>
     </svg>
   );

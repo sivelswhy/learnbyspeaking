@@ -72,7 +72,7 @@ export interface Report {
   fluency: number;
   /** Grammaire notée par l'IA (sur 100). */
   grammar?: number;
-  /** Réponses en lien avec la question de Noam, jugées par l'IA (sur 100). Absent : bilan par règles. */
+  /** Réponses en lien avec la question de Shuli, jugées par l'IA (sur 100). Absent : bilan par règles. */
   relevance?: number;
   mainErrors?: string[];
   tips: string[];
@@ -100,11 +100,18 @@ export interface PlacementResult {
     /** null : grammaire non notée (IA indisponible). */
     grammar?: number | null;
     development?: number;
+    /** null : voix non mesurée (réponses écrites, trop courtes, ou reconnaissance du navigateur). */
+    fluency?: number | null;
     /** Anciens résultats (avant la notation par l'IA). */
     answered?: number;
     length?: number;
   };
   /** Noté avec l'IA (absent : ancien résultat, règles seules). */
   ai?: boolean;
-  answers: { question: string; answer: string; score: number }[];
+  answers: { question: string; answer: string; score: number; fluency?: number | null; wpm?: number | null }[];
+  /** Compétence estimée (échelle logit) et confiance de l'estimation, 0-100 (test adaptatif). */
+  theta?: number;
+  confidence?: number;
+  /** Moyennes sur les réponses parlées mesurées. */
+  voice?: { wpm: number | null; pauseRatio: number; longPauses: number; latency: number; spoken: number };
 }

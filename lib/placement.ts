@@ -1,4 +1,6 @@
+import { LEVEL_B, type Item } from "./adaptive";
 import type { Gender, LangCode, Level } from "./languages";
+import { fluencyScore, type SpeechMetrics } from "./speechMetrics";
 
 /**
  * Test de niveau : questions écrites à la main, de A1 à B2.
@@ -79,6 +81,81 @@ export const PLACEMENT: Partial<Record<LangCode, PlacementQuestion[]>> = {
       sample: { he: { m: "הייתי קונה דירה ליד הים ונוסע לטייל בעולם עם המשפחה שלי.", f: "הייתי קונה דירה ליד הים ונוסעת לטייל בעולם עם המשפחה שלי." }, tr: { m: "Hayiti kone dira leyad ha-yam ve-nose'a letayel ba-olam im ha-mishpakha sheli.", f: "Hayiti kona dira leyad ha-yam ve-nosa'at letayel ba-olam im ha-mishpakha sheli." }, fr: "J'achèterais un appartement près de la mer et je voyagerais dans le monde avec ma famille." },
       tip: "Le conditionnel se forme avec הייתי + le verbe au présent : הייתי קונה (j'achèterais).",
     },
+    {
+      level: "A1",
+      text: s("מה שלומך?"),
+      transliteration: { m: "Ma shlomkha?", f: "Ma shlomekh?" },
+      translation: { fr: "Comment vas-tu ?", en: "How are you?", es: "¿Cómo estás?" },
+      keywords: ["טוב", "בסדר", "מצוין", "מעולה", "שלומי", "עייף", "עייפה", "רע"],
+      sample: { he: { m: "אני בסדר, תודה. ואתה?", f: "אני בסדר, תודה. ואת?" }, tr: { m: "Ani be-seder, toda. Ve-ata?", f: "Ani be-seder, toda. Ve-at?" }, fr: "Je vais bien, merci. Et toi ?" },
+      tip: "Réponds « ani be-seder » (ça va) ou « tov » (bien), puis « toda » (merci) et renvoie la question.",
+    },
+    {
+      level: "A1",
+      text: { m: "איפה אתה גר?", f: "איפה את גרה?" },
+      transliteration: { m: "Eifo ata gar?", f: "Eifo at gara?" },
+      translation: { fr: "Où habites-tu ?", en: "Where do you live?", es: "¿Dónde vives?" },
+      keywords: ["גר", "גרה", "עיר", "רחוב", "בית", "דירה", "כפר"],
+      sample: { he: { m: "אני גר בפריז, בדירה קטנה.", f: "אני גרה בפריז, בדירה קטנה." }, tr: { m: "Ani gar be-Pariz, be-dira ktana.", f: "Ani gara be-Pariz, be-dira ktana." }, fr: "J'habite à Paris, dans un petit appartement." },
+      tip: "גר / גרה + ב (à) collé au nom de la ville : בפריז.",
+    },
+    {
+      level: "A2",
+      text: s("מה אכלת היום בבוקר?"),
+      transliteration: { m: "Ma akhalta ha-yom ba-boker?", f: "Ma akhalt ha-yom ba-boker?" },
+      translation: { fr: "Qu'as-tu mangé ce matin ?", en: "What did you eat this morning?", es: "¿Qué comiste esta mañana?" },
+      keywords: ["אכלתי", "שתיתי", "קפה", "לחם", "ביצה", "ביצים", "סלט", "חלב", "גבינה", "לא"],
+      pattern: /תי$/,
+      sample: { he: s("אכלתי לחם וגבינה ושתיתי קפה."), tr: s("Akhalti lekhem ve-gvina ve-shatiti kafe."), fr: "J'ai mangé du pain et du fromage et j'ai bu du café." },
+      tip: "Passé en ־תי : אכלתי (j'ai mangé), שתיתי (j'ai bu). Relie avec ו (et).",
+    },
+    {
+      level: "A2",
+      text: { m: "מה אתה מתכנן לעשות מחר?", f: "מה את מתכננת לעשות מחר?" },
+      transliteration: { m: "Ma ata mitkhanen la'asot makhar?", f: "Ma at mitkhannenet la'asot makhar?" },
+      translation: { fr: "Que prévois-tu de faire demain ?", en: "What are you planning to do tomorrow?", es: "¿Qué piensas hacer mañana?" },
+      keywords: ["מחר", "אלך", "אעשה", "אפגוש", "אסע", "אלמד", "אעבוד", "אקנה", "לעבוד", "לטייל"],
+      pattern: /^א[א-ת]{2,}/,
+      sample: { he: s("מחר אני אלך לעבודה ואחר כך אפגוש חבר."), tr: s("Makhar ani elekh la-avoda ve-akhar kakh efgosh khaver."), fr: "Demain j'irai au travail et ensuite je retrouverai un ami." },
+      tip: "Au futur, « je » commence par א : אלך (j'irai), אפגוש (je retrouverai).",
+    },
+    {
+      level: "B1",
+      text: { m: "ספר לי על חופשה שאהבת.", f: "ספרי לי על חופשה שאהבת." },
+      transliteration: { m: "Saper li al khufsha she-ahavta.", f: "Sapri li al khufsha she-ahavt." },
+      translation: { fr: "Raconte-moi des vacances que tu as aimées.", en: "Tell me about a holiday you enjoyed.", es: "Cuéntame de unas vacaciones que te gustaron." },
+      keywords: ["חופשה", "טיול", "הייתי", "נסעתי", "מלון", "ים", "כי", "בקיץ", "שבוע"],
+      pattern: /תי$/,
+      sample: { he: s("בקיץ שעבר נסעתי עם המשפחה לספרד. הייתי שם שבוע, והיה לנו מזג אוויר מצוין."), tr: s("Ba-kayits she-avar nasati im ha-mishpakha li-Sfarad. Hayiti sham shavua, ve-haya lanu mezeg avir metsuyan."), fr: "L'été dernier je suis parti en Espagne avec ma famille. J'y suis resté une semaine et il a fait un temps superbe." },
+      tip: "Raconte au passé (־תי) et ajoute un détail avec ו (et) ou כי (parce que).",
+    },
+    {
+      level: "B1",
+      text: { m: "תאר את היום הרגיל שלך.", f: "תארי את היום הרגיל שלך." },
+      transliteration: { m: "Ta'er et ha-yom ha-ragil shelkha.", f: "Ta'ari et ha-yom ha-ragil shelakh." },
+      translation: { fr: "Décris ta journée habituelle.", en: "Describe your usual day.", es: "Describe tu día habitual." },
+      keywords: ["בבוקר", "בערב", "בצהריים", "אחר כך", "אחרי", "קם", "קמה", "עובד", "עובדת", "מתחיל"],
+      sample: { he: { m: "בבוקר אני קם בשבע ושותה קפה. אחר כך אני נוסע לעבודה, ובערב אני מבשל ורואה סדרה.", f: "בבוקר אני קמה בשבע ושותה קפה. אחר כך אני נוסעת לעבודה, ובערב אני מבשלת ורואה סדרה." }, tr: { m: "Ba-boker ani kam be-sheva ve-shote kafe. Akhar kakh ani nose'a la-avoda, u-va-erev ani mevashel ve-ro'e sidra.", f: "Ba-boker ani kama be-sheva ve-shote kafe. Akhar kakh ani nosa'at la-avoda, u-va-erev ani mevashelet ve-ro'a sidra." }, fr: "Le matin je me lève à sept heures et je bois un café. Ensuite je vais au travail, et le soir je cuisine et je regarde une série." },
+      tip: "Enchaîne avec בבוקר, אחר כך, בערב : une idée par morceau, au présent.",
+    },
+    {
+      level: "B2",
+      text: s("מה היתרונות והחסרונות של החיים בעיר גדולה?"),
+      transliteration: s("Ma ha-yitronot ve-ha-khesronot shel ha-khayim be-ir gdola?"),
+      translation: { fr: "Quels sont les avantages et les inconvénients de vivre dans une grande ville ?", en: "What are the pros and cons of living in a big city?", es: "¿Cuáles son las ventajas y desventajas de vivir en una gran ciudad?" },
+      keywords: ["יתרון", "חסרון", "אבל", "עיר", "רעש", "תחבורה", "עבודה", "יקר", "שקט", "תרבות"],
+      sample: { he: { m: "מצד אחד, בעיר גדולה יש הרבה עבודה ותרבות. מצד שני, זה יקר ורועש, ולכן אני מעדיף עיר קטנה.", f: "מצד אחד, בעיר גדולה יש הרבה עבודה ותרבות. מצד שני, זה יקר ורועש, ולכן אני מעדיפה עיר קטנה." }, tr: { m: "Mi-tsad ekhad, ba-ir gdola yesh harbe avoda ve-tarbut. Mi-tsad sheni, ze yakar ve-ro'esh, ve-lakhen ani ma'adif ir ktana.", f: "Mi-tsad ekhad, ba-ir gdola yesh harbe avoda ve-tarbut. Mi-tsad sheni, ze yakar ve-ro'esh, ve-lakhen ani ma'adifa ir ktana." }, fr: "D'un côté il y a beaucoup de travail et de culture. De l'autre c'est cher et bruyant, donc je préfère une petite ville." },
+      tip: "Oppose deux idées avec מצד אחד… מצד שני… puis conclus avec ולכן (donc).",
+    },
+    {
+      level: "B2",
+      text: { m: "אם היית יכול לשנות דבר אחד בעולם, מה היית משנה?", f: "אם היית יכולה לשנות דבר אחד בעולם, מה היית משנה?" },
+      transliteration: { m: "Im hayita yakhol leshanot davar ekhad ba-olam, ma hayita meshane?", f: "Im hayit yekhola leshanot davar ekhad ba-olam, ma hayit meshane?" },
+      translation: { fr: "Si tu pouvais changer une chose dans le monde, que changerais-tu ?", en: "If you could change one thing in the world, what would it be?", es: "Si pudieras cambiar una cosa en el mundo, ¿qué cambiarías?" },
+      keywords: ["הייתי", "משנה", "רוצה", "כי", "עולם", "חינוך", "אנשים"],
+      sample: { he: s("הייתי משנה את החינוך, כי אני חושב שכל ילד צריך לקבל הזדמנות שווה."), tr: s("Hayiti meshane et ha-khinukh, ki ani khoshev she-kol yeled tsarikh lekabel hizdamnut shava."), fr: "Je changerais l'éducation, car je pense que chaque enfant devrait avoir une chance égale." },
+      tip: "Conditionnel : הייתי + verbe au présent (הייתי משנה), puis explique avec כי.",
+    },
   ],
 };
 
@@ -121,8 +198,14 @@ export function keptRatio(answer: string, correction: string): number {
   return d[x.length][y.length] / x.length;
 }
 
+/** Paramètres du modèle adaptatif d'une question (difficulté d'après son niveau). */
+export const itemOf = (q: PlacementQuestion): Item => ({ b: LEVEL_B[q.level], a: 1.2 });
+
 export interface AnswerScore {
   score: number;
+  /** Fluidité de la voix (0-100) ; null si la réponse est écrite, trop courte ou sans micro local. */
+  fluency: number | null;
+  fluencyHint: string | null;
   /** true : noté avec l'IA ; false : règles seules (modèle indisponible). */
   ai: boolean;
   relevance: number;
@@ -146,24 +229,29 @@ const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
  * avec faute sous 75, toutes les réponses hors sujet à 25 ou moins.
  * Sans l'IA : pertinence par mots-clés uniquement, et la grammaire n'est pas notée.
  */
-export function scoreAnswer(q: PlacementQuestion, answer: string, ai?: AiJudgement | null): AnswerScore {
+export function scoreAnswer(q: PlacementQuestion, answer: string, ai?: AiJudgement | null, speech?: SpeechMetrics | null): AnswerScore {
   const words = hebrewWords(answer);
-  if (!words.length) return { score: 0, ai: !!ai, relevance: 0, grammar: ai ? 0 : null, development: 0, vocabulary: 0, words: 0 };
+  if (!words.length) return { score: 0, fluency: null, fluencyHint: null, ai: !!ai, relevance: 0, grammar: ai ? 0 : null, development: 0, vocabulary: 0, words: 0 };
   const target = TARGET_WORDS[q.level];
   const development = clamp((words.length / target) * 100);
   const vocabulary = clamp((new Set(words).size / (target * 0.8)) * 100);
   const hit = hasKeyword(q, answer);
+  const flu = fluencyScore(speech, words.length, q.level);
+  const fluency = flu?.score ?? null;
+  const fluencyHint = flu?.hint ?? null;
   if (!ai) {
     const relevance = hit ? 100 : 0;
     const raw = development * 0.35 + vocabulary * 0.25;
     const score = hit ? Math.round(raw + 40) : Math.min(30, Math.round(raw / 2));
-    return { score, ai: false, relevance, grammar: null, development, vocabulary, words: words.length };
+    return { score, fluency, fluencyHint, ai: false, relevance, grammar: null, development, vocabulary, words: words.length };
   }
   const { relevance, grammar, correction } = readJudgement(answer, ai);
   let score = Math.round(relevance * 0.35 + grammar * 0.45 + development * 0.1 + vocabulary * 0.1);
+  // Voix mesurée : 10 % de la note vient de la fluidité (pauses, débit, hésitations), le reste est réduit d'autant.
+  if (fluency !== null) score = Math.round(score * 0.9 + fluency * 0.1);
   // Une réponse à côté de la question ne montre pas qu'on l'a comprise.
   if (relevance < 30) score = Math.min(score, 25);
-  return { score, ai: true, relevance, grammar, development, vocabulary, words: words.length, correction };
+  return { score, fluency, fluencyHint, ai: true, relevance, grammar, development, vocabulary, words: words.length, correction };
 }
 
 /** Deux mots de même famille : l'un contient l'autre, ou même début (sans les préfixes ו ה ב ל מ ש כ). */
@@ -199,6 +287,7 @@ export function readJudgement(answer: string, ai: AiJudgement): { relevance: num
   return { relevance, grammar, correction };
 }
 
+/** Ancienne estimation par moyennes de niveau (gardée pour les tests de comparaison). */
 /** Le plus haut niveau dont les questions sont réussies (≥ 55/100), à condition que les niveaux en dessous le soient aussi. */
 export function estimateLevel(qs: PlacementQuestion[], scores: number[]): Level {
   let level: Level = "A1";
@@ -212,7 +301,7 @@ export function estimateLevel(qs: PlacementQuestion[], scores: number[]): Level 
 }
 
 export const SCORING_EXPLANATION =
-  "Chaque réponse est notée par l'IA (DictaLM, sur ton appareil) et par des règles : 35 % pertinence (l'IA juge si tu réponds à la question, sans tenir compte des fautes), 45 % grammaire (l'IA juge si la phrase est correcte et propose une correction), 10 % développement (réponse assez fournie pour le niveau), 10 % variété du vocabulaire. Une réponse à côté de la question est plafonnée à 25. Ton niveau est le plus haut dont tu réussis les questions (55/100 en moyenne, aucune sous 30). L'IA peut se tromper, surtout sur la grammaire ; la prononciation n'est pas notée.";
+  "Chaque réponse est notée par l'IA (DictaLM, sur ton appareil) et par des règles : 35 % pertinence (l'IA juge si tu réponds à la question, sans tenir compte des fautes), 45 % grammaire (l'IA juge si la phrase est correcte et propose une correction), 10 % développement (réponse assez fournie pour le niveau), 10 % variété du vocabulaire ; quand ta voix est mesurée, 10 % viennent de ta fluidité (pauses, hésitations, débit, temps de réaction). Une réponse à côté de la question est plafonnée à 25. Les questions sont choisies une à une selon tes réponses (test adaptatif) : ton niveau est l'estimation statistique de ta compétence, avec sa fiabilité. L'IA peut se tromper, surtout sur la grammaire ; la prononciation n'est pas notée.";
 
 export const SCORING_EXPLANATION_NO_AI =
   "Notation par règles seulement, sans IA : 35 % développement, 25 % variété du vocabulaire, 40 % pertinence (présence des mots ou formes attendus). Une réponse sans les mots attendus est plafonnée à 30. La grammaire et la prononciation ne sont pas notées.";

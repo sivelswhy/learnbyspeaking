@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { SCENARIOS } from "@/lib/languages";
 import type { Profile, SessionRecord } from "@/lib/types";
+import { Avatar } from "./Avatar";
 import { Report } from "./Report";
 import { ScenarioIcon } from "./icons";
 import { Card, Header } from "./ui";
@@ -38,7 +39,7 @@ export function Progress({ profile, sessions, rtl, onBack }: { profile: Profile;
   const maxMin = Math.max(profile.dailyMinutes, ...week.map((w) => w.min));
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div className="mx-auto max-w-lg lg:max-w-3xl">
       <Header title="Progression" onBack={onBack} />
       <div className="space-y-4 p-4">
         <div className="grid grid-cols-3 gap-2 text-center">
@@ -75,7 +76,7 @@ export function Progress({ profile, sessions, rtl, onBack }: { profile: Profile;
           </Card>
         )}
         <h2 className="font-semibold">Historique</h2>
-        {sessions.length === 0 && <p className="text-sm text-muted">Aucune session pour l&apos;instant.</p>}
+        {sessions.length === 0 && <p className="flex items-center gap-3 text-sm text-muted"><Avatar size={56} mood="sad" className="shrink-0" /> Aucune session pour l&apos;instant. Viens parler avec moi !</p>}
         {[...sessions].reverse().map((s) => {
           const sc = SCENARIOS.find((x) => x.id === s.scenarioId);
           return (

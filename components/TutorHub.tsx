@@ -7,12 +7,12 @@ import { BackButton } from "./ui";
 
 export function TutorHub({ profile, onBack, open }: { profile: Profile; onBack: () => void; open: (m: ModeId) => void }) {
   return (
-    <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
+    <div className="mx-auto flex min-h-dvh max-w-lg lg:max-w-3xl flex-col">
       <div className="px-4 pt-3"><BackButton onClick={onBack} /></div>
       <main className="flex-1 px-4 pb-28">
         <div className="flex flex-col items-center text-center">
-          <Avatar size={128} />
-          <h1 className="mt-4 text-3xl font-bold">Noam</h1>
+          <Avatar size={128} mood="wink" />
+          <h1 className="mt-4 text-3xl font-bold">Shuli</h1>
           <p className="mt-2">Salut{profile.name ? ` ${profile.name}` : ""} !</p>
           <p className="mt-4 text-xl font-bold">Qu&apos;est-ce que je peux faire pour toi&nbsp;?</p>
         </div>
@@ -26,7 +26,7 @@ export function TutorHub({ profile, onBack, open }: { profile: Profile; onBack: 
         </div>
       </main>
       <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-6">
-        <button onClick={() => open("talk")} className="mx-auto flex min-h-14 w-full max-w-lg items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#6d63ff] to-[#5b3fd1] font-semibold text-white active:scale-[0.99]">
+        <button onClick={() => open("talk")} className="mx-auto flex min-h-14 w-full max-w-lg lg:max-w-3xl items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#2f9468] to-[#1f6f50] font-semibold text-white active:scale-[0.99]">
           <RiMicFill aria-hidden className="size-5" /> Parler directement
         </button>
       </div>

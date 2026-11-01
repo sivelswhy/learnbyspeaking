@@ -5,6 +5,7 @@ import { ALL_DAYS, courseLevelFor } from "@/lib/content/course-he";
 import { SCENARIOS } from "@/lib/languages";
 import type { CourseProgress, Profile, SessionRecord } from "@/lib/types";
 import { Avatar } from "./Avatar";
+import type { AiStatus } from "./LlmSetup";
 import { ScenarioIcon } from "./icons";
 import { Header } from "./ui";
 
@@ -31,10 +32,17 @@ export function nextDay(progress: CourseProgress, level: string) {
   return list.find((x) => !(progress[x.day.id]?.speaking && progress[x.day.id]?.scenario)) ?? list[list.length - 1];
 }
 
-export function Parler({ profile, sessions, progress, go }: {
+export function Parler({ profile, sessions, progress, go: goRaw, ai = "ready" }: {
   profile: Profile; sessions: SessionRecord[]; progress: CourseProgress;
-  go: (to: "hub" | "talk" | "scenarios" | "placement" | "translate" | "define" | "course" | "next") => void;
+  /** missing / downloading : l'IA n'est pas sur l'appareil, les fonctions sont grisées et mènent au téléchargement. loading : chargement depuis l'appareil, on patiente. */
+  ai?: AiStatus;
+  go: (to: "setup" | "hub" | "talk" | "scenarios" | "placement" | "translate" | "define" | "course" | "next") => void;
 }) {
+  const go = (to: Parameters<typeof goRaw>[0]) => {
+    if (ai === "ready" || to === "course") return goRaw(to);
+    if (ai !== "loading") goRaw("setup"); // en chargement : rien à faire, ça arrive
+  };
+  const off = ai === "ready" ? "" : ai === "loading" ? "opacity-60 cursor-progress" : "grayscale opacity-50";
   const nd = nextDay(progress, profile.level);
   const doneAll = ALL_DAYS.filter((x) => progress[x.day.id]?.speaking && progress[x.day.id]?.scenario).length;
   const pct = Math.round((doneAll / ALL_DAYS.length) * 100);
@@ -45,14 +53,14 @@ export function Parler({ profile, sessions, progress, go }: {
     [RiLineChartLine, profile.level, "Ton niveau"],
   ];
   const cards: { to: "hub" | "scenarios" | "placement"; title: string; sub: string; Icon?: IconType; tint?: string }[] = [
-    { to: "hub", title: "Parler avec Noam", sub: "Discussion libre, professeur, grammaire…" },
-    { to: "scenarios", title: "Situations réelles", sub: "Restaurant, taxi, entretien…", Icon: RiQuestionAnswerLine, tint: "bg-gradient-to-br from-[#f472b6] to-pink" },
-    { to: "placement", title: "Test de niveau", sub: profile.placementDone ? "Refaire le test · 3 min" : "Découvre ton niveau en 3 min", Icon: RiSpeedUpLine, tint: "bg-gradient-to-br from-[#6d63ff] to-accent" },
+    { to: "hub", title: "Parler avec Shuli", sub: "Discussion libre, professeur, grammaire…" },
+    { to: "scenarios", title: "Situations réelles", sub: "Restaurant, taxi, entretien…", Icon: RiQuestionAnswerLine, tint: "bg-gradient-to-br from-[#f29b2f] to-pink" },
+    { to: "placement", title: "Test de niveau", sub: profile.placementDone ? "Refaire le test · 3 min" : "Découvre ton niveau en 3 min", Icon: RiSpeedUpLine, tint: "bg-gradient-to-br from-[#2f9468] to-accent" },
   ];
   return (
     <div className="space-y-6 pb-28">
       <div className="flex items-center gap-2">
-        <button onClick={() => go("talk")} aria-label="Conversation rapide" className="grid size-11 place-items-center rounded-full bg-card shadow-card active:scale-95">
+        <button onClick={() => go("talk")} aria-label="Conversation rapide" className={`grid size-11 place-items-center rounded-full bg-card shadow-card active:scale-95 ${off}`}>
           <RiFlashlightFill aria-hidden className="size-5" />
         </button>
         <span className="flex-1" />
@@ -62,10 +70,10 @@ export function Parler({ profile, sessions, progress, go }: {
           </span>
         ))}
       </div>
-      <p className="text-lg">Salut{profile.name ? ` ${profile.name}` : ""} ! Je suis Noam !</p>
+      <p className="text-lg">Salut{profile.name ? ` ${profile.name}` : ""} ! Je suis Shuli !</p>
 
-      <div className="relative rounded-3xl bg-accent p-5 pt-6 text-accent-ink">
-        <div className="pointer-events-none absolute -top-7 end-2"><Avatar size={104} /></div>
+      <div className={`relative rounded-3xl bg-accent p-5 pt-6 text-accent-ink ${off}`}>
+        <div className="pointer-events-none absolute -top-7 end-2"><Avatar size={104} mood="wink" /></div>
         <h2 className="max-w-[68%] text-xl font-bold leading-snug">Parle hébreu en {ALL_DAYS.length} jours</h2>
         <div className="relative mt-4 h-1 max-w-[74%] rounded-full bg-white/30">
           <div className="h-full rounded-full bg-white" style={{ width: `${pct}%` }} />
@@ -83,7 +91,7 @@ export function Parler({ profile, sessions, progress, go }: {
       <section className="space-y-3">
         <h2 className="text-xl font-bold">S&apos;entraîner à parler</h2>
         {cards.map((c) => (
-          <button key={c.to} onClick={() => go(c.to)} className="flex w-full items-center gap-4 rounded-2xl bg-card p-4 text-left shadow-card active:scale-[0.99]">
+          <button key={c.to} onClick={() => go(c.to)} className={`flex w-full items-center gap-4 rounded-2xl bg-card p-4 text-left shadow-card active:scale-[0.99] ${off}`}>
             {c.Icon ? <span className={`grid size-14 shrink-0 place-items-center rounded-full text-white ${c.tint}`}><c.Icon aria-hidden className="size-7" /></span> : <Avatar size={56} />}
             <span className="flex-1">
               <span className="block font-bold">{c.title}</span>
@@ -97,7 +105,7 @@ export function Parler({ profile, sessions, progress, go }: {
         <h2 className="mb-3 text-xl font-bold">Assistant gratuit</h2>
         <div className="grid grid-cols-2 gap-3">
           {([["translate", "Traduction", "Avec prononciation", RiTranslate2], ["define", "Dictionnaire", "Sens, genre, exemples", RiSearchLine]] as const).map(([to, t, sub, I]) => (
-            <button key={to} onClick={() => go(to)} className="flex min-h-28 flex-col justify-between rounded-2xl bg-card p-4 text-left shadow-card active:scale-[0.99]">
+            <button key={to} onClick={() => go(to)} className={`flex min-h-28 flex-col justify-between rounded-2xl bg-card p-4 text-left shadow-card active:scale-[0.99] ${off}`}>
               <span><span className="block font-bold">{t}</span><span className="mt-0.5 block text-xs text-muted">{sub}</span></span>
               <span className="grid size-10 place-items-center self-end rounded-xl bg-soft text-accent"><I aria-hidden className="size-6" /></span>
             </button>
@@ -105,10 +113,10 @@ export function Parler({ profile, sessions, progress, go }: {
         </div>
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-[max(env(safe-area-inset-bottom),12px)] pt-6">
-        <button onClick={() => go("hub")} className="mx-auto flex min-h-14 w-full max-w-lg items-center gap-3 rounded-full border-[1.5px] border-accent bg-card ps-2 pe-2 text-left shadow-card">
+      <div className={`fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-[max(env(safe-area-inset-bottom),12px)] pt-6 ${off}`}>
+        <button onClick={() => go("hub")} className="mx-auto flex min-h-14 w-full max-w-lg lg:max-w-3xl items-center gap-3 rounded-full border-[1.5px] border-accent bg-card ps-2 pe-2 text-left shadow-card">
           <Avatar size={40} />
-          <span className="flex-1 truncate text-muted">Je suis Noam, ton tuteur</span>
+          <span className="flex-1 truncate text-muted">Je suis Shuli, ton tuteur</span>
           <span className="grid size-10 place-items-center rounded-full bg-accent text-accent-ink"><RiMicFill aria-hidden className="size-5" /></span>
         </button>
       </div>
@@ -118,7 +126,7 @@ export function Parler({ profile, sessions, progress, go }: {
 
 export function ScenarioList({ onBack, start }: { onBack: () => void; start: (id: string) => void }) {
   return (
-    <div className="mx-auto max-w-lg">
+    <div className="mx-auto max-w-lg lg:max-w-3xl">
       <Header title="Situations réelles" onBack={onBack} />
       <div className="grid grid-cols-2 gap-2 p-4">
         {SCENARIOS.filter((s) => s.id !== "free").map((s) => (

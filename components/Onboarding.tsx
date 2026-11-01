@@ -19,7 +19,7 @@ export function Onboarding({ initial, onDone }: { initial?: Profile | null; onDo
     initial ?? { native: "fr", target: TARGET_LANGS[0], level: "A1", goal: "travel", dailyMinutes: 10 },
   );
   return (
-    <main className="mx-auto max-w-lg space-y-6 px-4 py-8">
+    <main className="mx-auto max-w-lg lg:max-w-3xl space-y-6 px-4 py-8">
       <div>
         <span className="grid size-14 place-items-center rounded-2xl bg-accent text-accent-ink"><RiSpeakLine aria-hidden className="size-8" /></span>
         <h1 className="mt-2 text-3xl font-bold">Apprends en parlant</h1>

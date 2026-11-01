@@ -15,7 +15,7 @@ export interface Mode {
 }
 
 export const MODES: Mode[] = [
-  { id: "talk", kind: "talk", title: "Discussion libre", sub: "Noam lance un sujet" },
+  { id: "talk", kind: "talk", title: "Discussion libre", sub: "Shuli lance un sujet" },
   { id: "daily", kind: "talk", title: "Sujets du quotidien", sub: "Choisis un thème · 5 min" },
   { id: "teacher", kind: "tool", title: "Comment dire… ?", sub: "Une phrase en français, en hébreu", hello: "Écris une phrase en français : je te dis comment la dire en hébreu. Les phrases du cours ont leur prononciation, vérifiée.", placeholder: "Ex. : j'ai faim" },
   // Leçons écrites à la main (Cours › Ressources) : un petit modèle explique la grammaire de façon trop peu fiable.

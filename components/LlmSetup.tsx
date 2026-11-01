@@ -11,6 +11,7 @@ import { mtStore, preloadTranslators, translatorsCached, translatorsMB } from "@
 import { setKeepAwake, useKeepAwakePref, wakeLockSupported } from "@/lib/wakeLock";
 import { VOICE_MB, loadVoice, voiceCached, voiceStore } from "@/lib/voice";
 import { WHISPER_MB, loadWhisper, whisperCached, whisperStore } from "@/lib/whisper";
+import { Avatar } from "./Avatar";
 import { Btn, Card } from "./ui";
 
 export function useLoadState(): LoadState {
@@ -49,6 +50,41 @@ export function KeepAwakeToggle() {
   );
 }
 
+/**
+ * État de l'IA, en distinguant :
+ *  - ready : modèles chargés en mémoire, tout marche ;
+ *  - loading : modèles déjà sur l'appareil, en cours de chargement au lancement (quelques secondes, rien à télécharger) ;
+ *  - downloading : téléchargement en cours ;
+ *  - missing : au moins un modèle n'est pas sur l'appareil.
+ */
+export type AiStatus = "ready" | "loading" | "downloading" | "missing";
+
+export function useAiStatus(llm: LlmSettings): AiStatus {
+  const ls = useLoadState();
+  const ws = useWhisperState();
+  const vs = useVoiceState();
+  const ready = allReady(llm, ws, vs);
+  // null : vérification du cache en cours. true : tous les modèles utiles sont sur l'appareil.
+  const [onDevice, setOnDevice] = useState<boolean | null>(null);
+  const phases = `${ls.phase}${ws.phase}${vs.phase}`;
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const llmOk = llm.provider === "ollama" || (await isCached(llm.webllmModel));
+      const wOk = llm.stt !== "whisper" || !hasWebGPU() || (await whisperCached());
+      const vOk = llm.voice !== "natural" || (await voiceCached());
+      if (alive) setOnDevice(llmOk && wOk && vOk);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [llm.provider, llm.webllmModel, llm.stt, llm.voice, phases]);
+  if (ready) return "ready";
+  if ([ls, ws, vs].some((x) => x.phase === "download")) return "downloading";
+  if ([ls, ws, vs].some((x) => x.phase === "error")) return "missing"; // l'écran de préparation affiche l'erreur
+  return onDevice === false ? "missing" : "loading";
+}
+
 /** Tout ce que l'app doit télécharger selon les réglages est prêt. Sans `v`, la voix est ignorée : elle a un secours. */
 export function allReady(llm: LlmSettings, w: LoadState, v?: LoadState) {
   return isReady(llm) && (llm.stt !== "whisper" || !hasWebGPU() || w.phase === "ready") && (!v || llm.voice !== "natural" || v.phase === "ready");
@@ -62,7 +98,7 @@ const fmtTime = (s: number) => {
 
 /** Barre de progression partagée (réglages, conversation, accueil). */
 export function LoadProgress({ ls, compact = false }: { ls: LoadState; compact?: boolean }) {
-  const label = ls.model === "whisper" ? "Whisper ivrit-ai (voix)" : ls.model === "voice" ? "Voix de Noam" : ls.model === "mt" ? "Traducteurs" : (WEBLLM_MODELS.find((m) => m.id === ls.model)?.label ?? ls.model);
+  const label = ls.model === "whisper" ? "Whisper ivrit-ai (voix)" : ls.model === "voice" ? "Voix de Shuli" : ls.model === "mt" ? "Traducteurs" : (WEBLLM_MODELS.find((m) => m.id === ls.model)?.label ?? ls.model);
   if (ls.phase === "idle" || ls.phase === "ready") return null;
   if (ls.phase === "error") {
     return <p className="flex items-center gap-2 text-sm text-warn"><RiErrorWarningLine aria-hidden /> Échec du chargement : {ls.error?.slice(0, 140)}</p>;
@@ -156,9 +192,9 @@ export function LlmSetup({ llm, onChange, onReady, native = "fr", required = fal
     (llm.voice === "natural" && !vCached && vs.phase !== "ready" ? VOICE_MB : 0) +
     (!mCached && ms.phase !== "ready" ? translatorsMB(native) : 0);
   const items: [string, number, boolean][] = [
-    ["Cerveau de Noam (DictaLM)", WEBLLM_MODELS.find((m) => m.id === llm.webllmModel)?.mb ?? 0, !!cached[llm.webllmModel] || ls.phase === "ready"],
+    ["Cerveau de Shuli (DictaLM)", WEBLLM_MODELS.find((m) => m.id === llm.webllmModel)?.mb ?? 0, !!cached[llm.webllmModel] || ls.phase === "ready"],
     ...(llm.stt === "whisper" && gpu ? [["Reconnaissance de ta voix (Whisper)", WHISPER_MB, wCached || ws.phase === "ready"] as [string, number, boolean]] : []),
-    ...(llm.voice === "natural" ? [["Voix de Noam", VOICE_MB, vCached || vs.phase === "ready"] as [string, number, boolean]] : []),
+    ...(llm.voice === "natural" ? [["Voix de Shuli", VOICE_MB, vCached || vs.phase === "ready"] as [string, number, boolean]] : []),
     ...(translatorsMB(native) ? [["Traducteurs", translatorsMB(native), mCached || ms.phase === "ready"] as [string, number, boolean]] : []),
   ];
   const button = (
@@ -172,7 +208,13 @@ export function LlmSetup({ llm, onChange, onReady, native = "fr", required = fal
   if (required) {
     return (
       <Card className="space-y-4">
-        {!gpu && <p className="rounded-lg bg-warn/10 p-3 text-sm text-warn">WebGPU indisponible ici : Noam ne peut pas tourner dans ce navigateur. Utilise Chrome ou Edge récent, ou Safari à jour sur iPhone.</p>}
+        <div className="flex items-center gap-3">
+          <Avatar size={64} mood={[ms, ls, ws, vs].some((x) => x.phase === "error") ? "sad" : anyLoading ? "think" : ready ? "cheer" : "happy"} className="shrink-0" />
+          <p className="text-sm font-semibold">
+            {[ms, ls, ws, vs].some((x) => x.phase === "error") ? "Oups, un téléchargement a échoué. Réessaie." : anyLoading ? "Je m'installe… tu peux me laisser travailler." : ready ? "C'est prêt, on y va !" : "Un seul téléchargement, et tout marche ensuite sans connexion."}
+          </p>
+        </div>
+        {!gpu && <p className="rounded-lg bg-warn/10 p-3 text-sm text-warn">WebGPU indisponible ici : Shuli ne peut pas tourner dans ce navigateur. Utilise Chrome ou Edge récent, ou Safari à jour sur iPhone.</p>}
         <ul className="space-y-2">
           {items.map(([label, mb, ok]) => (
             <li key={label} className="flex items-center justify-between gap-3 text-sm">
@@ -257,8 +299,8 @@ export function LlmSetup({ llm, onChange, onReady, native = "fr", required = fal
       </div>
 
       <div className="space-y-2 border-t border-line pt-4">
-        <h3 className="text-sm font-semibold">Voix de Noam</h3>
-        <div className="space-y-2" role="radiogroup" aria-label="Voix de Noam">
+        <h3 className="text-sm font-semibold">Voix de Shuli</h3>
+        <div className="space-y-2" role="radiogroup" aria-label="Voix de Shuli">
           {([
             ["natural", "Voix naturelle · 100 % locale", `≈ ${VOICE_MB} Mo · Phonikud + Piper, entraînée sur l'hébreu`],
             ["system", "Voix du système", "Aucun téléchargement · voix plus robotique, parfois absente"],

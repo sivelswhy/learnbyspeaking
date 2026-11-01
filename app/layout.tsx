@@ -1,16 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
+import { Nunito } from "next/font/google";
 import "./globals.css";
 
-const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+const geist = Nunito({ variable: "--font-geist-sans", subsets: ["latin"], weight: ["400", "600", "700", "800", "900"] });
 
 const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 export const metadata: Metadata = {
-  title: "Parle — apprends l'hébreu en parlant",
+  title: "LearnBySpeaking — apprends l'hébreu en parlant",
   description: "Converse à voix haute avec un tuteur IA local et gratuit pour apprendre l'hébreu.",
-  applicationName: "Parle",
-  appleWebApp: { capable: true, title: "Parle", statusBarStyle: "default" },
+  applicationName: "LearnBySpeaking",
+  appleWebApp: { capable: true, title: "LearnBySpeaking", statusBarStyle: "default" },
   icons: {
     icon: [{ url: `${base}/icon-192.png`, sizes: "192x192", type: "image/png" }],
     apple: [{ url: `${base}/apple-touch-icon.png`, sizes: "180x180" }],
@@ -21,8 +21,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f4f4f6" },
-    { media: "(prefers-color-scheme: dark)", color: "#121218" },
+    { color: "#f6f7ee" },
   ],
 };
 

@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { analyzeSpeech, type SpeechMetrics } from "./speechMetrics";
 import { cancelVoice, speakVoice, voiceStore } from "./voice";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -149,7 +150,7 @@ export const LEVEL_RATE: Record<string, number> = { A1: 0.7, A2: 0.8, B1: 0.9, B
 
 /* ---------- Whisper local (même interface que useRecognizer) ---------- */
 
-export function useWhisperRecognizer(lang: string, onFinal: (text: string, confidence: number) => void) {
+export function useWhisperRecognizer(lang: string, onFinal: (text: string, confidence: number, speech?: SpeechMetrics | null) => void) {
   const finalRef = useRef(onFinal);
   const recRef = useRef<import("./whisper").Recording | null>(null);
   const [listening, setListening] = useState(false);
@@ -186,8 +187,14 @@ export function useWhisperRecognizer(lang: string, onFinal: (text: string, confi
       setListening(false);
       if (!audio) return setError("no-speech");
       setTranscribing(true);
+      // Analyse de la voix avant la transcription : Whisper reçoit le tampon audio et nous le prend.
+      const speech = analyzeSpeech(audio, null);
       const text = await transcribe(audio, lang);
-      if (text) finalRef.current(text, 1);
+      if (speech && text) {
+        const words = text.split(/\s+/).filter((w) => /[\u05d0-\u05ea]/.test(w)).length;
+        speech.wpm = words ? Math.round((words / Math.max(0.3, speech.speechTime)) * 60) : null;
+      }
+      if (text) finalRef.current(text, 1, speech);
       else setError("no-speech");
     } catch {
       setError("other");
@@ -214,7 +221,7 @@ export function useWhisperRecognizer(lang: string, onFinal: (text: string, confi
 }
 
 /** Micro unifié : Whisper local si choisi et possible, sinon reconnaissance du navigateur. */
-export function useVoiceInput(stt: "whisper" | "browser", target: string, speechLang: string, onHeard: (text: string) => void) {
+export function useVoiceInput(stt: "whisper" | "browser", target: string, speechLang: string, onHeard: (text: string, confidence: number, speech?: SpeechMetrics | null) => void) {
   const browser = useRecognizer(speechLang, onHeard);
   const whisper = useWhisperRecognizer(target, onHeard);
   const useWhisper = stt === "whisper" && whisper.supported;

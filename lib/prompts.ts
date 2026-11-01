@@ -61,7 +61,7 @@ export function replySystem(p: Profile, sc: Pick<Scenario, "role" | "goal"> & { 
     const scene = (sc.id && HE_SCENE[sc.id]) || { role: `${sc.role} (התיאור בצרפתית)`, goal: sc.goal };
     const who = f ? "תלמידה" : "תלמיד";
     const you = f ? "פנה אליה תמיד בלשון נקבה: את, רוצה, אוהבת, תגידי, תרצי." : "פנה אליו תמיד בלשון זכר: אתה, רוצה, אוהב, תגיד, תרצה.";
-    return `אתה נועם. אתה מדבר בעל פה עם ${who} שלומד${f ? "ת" : ""} עברית (רמה ${p.level}).
+    return `אתה שולי. אתה מדבר בעל פה עם ${who} שלומד${f ? "ת" : ""} עברית (רמה ${p.level}).
 התפקיד שלך: ${scene.role}. המטרה של ה${who}: ${scene.goal}.
 כללים:
 - ענה בעברית בלבד: ${HE_LEVEL[p.level]}.
@@ -99,7 +99,7 @@ const FINAL: Record<string, string> = { "ך": "כ", "ם": "מ", "ן": "נ", "ף"
 
 /**
  * DictaLM écrit parfois les deux genres à la fois (« את/ה », « אוהב/ת »).
- * On garde celui de l'apprenant, sauf quand Noam parle de lui (après « אני ») : masculin.
+ * On garde celui de l'apprenant, sauf quand Shuli parle de lui (après « אני ») : masculin.
  */
 export function pickGender(text: string, learner: "m" | "f"): string {
   return text.replace(/(\S*?)([\u05d0-\u05ea]+)\/([\u05d0-\u05ea]{1,2})(?![\u05d0-\u05ea])/g, (all, pre: string, base: string, suf: string, off: number, whole: string) => {
@@ -189,10 +189,10 @@ export function replyShots(p: Profile, sceneId?: string): Chat {
 const MASC_YOU = /(^|[\s,.!?])(אתה|תגיד|תן|שים|קח|תבחר|תספר|ספר לי|בוא|תזמין|תרצה|תהנה|תיהנה|תצטרך|תוכל|אתה רוצה)(?=[\s,.!?]|$)/;
 const FEM_YOU = /(^|[\s,.!?])(תגידי|תני|שימי|קחי|תבחרי|תספרי|ספרי לי|בואי|תזמיני|תרצי|תהני|תיהני|תצטרכי|תוכלי)(?=[\s,.!?]|$)/;
 
-/** Noam est un homme : « אני » suivi d'une forme féminine (« אני שמחה ») est une faute. */
+/** Shuli est un homme : « אני » suivi d'une forme féminine (« אני שמחה ») est une faute. */
 const NOAM_FEM = /(^|[\s,.!?])(ו|ש|כש)?אני\s+(לא\s+)?(יכולה|שמחה|אוהבת|גרה|עובדת|לומדת|מבינה|חושבת|צריכה|מחפשת|יודעת|מדברת|הולכת|מצטערת|בטוחה|ממליצה|מציעה|נותנת|מכינה|מביאה)(?=[\s,.!?]|$)/;
 
-/** Défauts d'une réplique de Noam (0 = parfaite) : sert à choisir la meilleure de plusieurs tentatives. */
+/** Défauts d'une réplique de Shuli (0 = parfaite) : sert à choisir la meilleure de plusieurs tentatives. */
 export function replyFlaws(text: string, gender: "m" | "f", said: string[] = []): string[] {
   const words = text.split(/\s+/).filter(Boolean).length;
   const norm = (t: string) => t.replace(/[^\u05d0-\u05ea]/g, "");
@@ -285,12 +285,12 @@ export function feminineMessages(he: string): Chat {
   ];
 }
 
-/* ---------- Relance : une question courte quand la réplique de Noam n'en a pas ---------- */
+/* ---------- Relance : une question courte quand la réplique de Shuli n'en a pas ---------- */
 
 /** Une question courte qui prolonge l'échange (même genre que l'apprenant). */
 export function followUpMessages(p: Profile, learner: string, reply: string): Chat {
   const f = p.gender === "f";
-  const ask = (a: string, b: string) => `${f ? "התלמידה אמרה" : "התלמיד אמר"}: ${a}\nנועם ענה: ${b}\nשאלה:`;
+  const ask = (a: string, b: string) => `${f ? "התלמידה אמרה" : "התלמיד אמר"}: ${a}\nשולי ענה: ${b}\nשאלה:`;
   const shots: [string, string, string][] = [
     ["אני גר בפריז", "פריז יפה מאוד.", f ? "מה את אוהבת לעשות שם?" : "מה אתה אוהב לעשות שם?"],
     ["אני רוצה פיצה", "בסדר, פיצה אחת.", "רוצה גם משהו לשתות?"],

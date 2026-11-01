@@ -7,6 +7,7 @@ import { LANGUAGES } from "@/lib/languages";
 import { speak } from "@/lib/speech";
 import type { CourseProgress, NewWord, Profile } from "@/lib/types";
 import { Avatar } from "./Avatar";
+import type { AiStatus } from "./LlmSetup";
 import { BackButton } from "./ui";
 
 const dayDone = (p: CourseProgress, id: string) => !!(p[id]?.speaking && p[id]?.scenario);
@@ -75,7 +76,7 @@ function UnitPath({ unit, index, progress, openDay }: { unit: Unit; index: numbe
           const complete = dayDone(progress, d.id);
           const left = k % 2 === 0;
           const card = (
-            <button onClick={() => openDay(d)} className="flex w-full items-center gap-2 rounded-2xl border border-line bg-card p-3 text-left shadow-card active:scale-[0.98]">
+            <button onClick={() => openDay(d)} className="flex w-full items-center gap-2 rounded-2xl border-2 border-line bg-card p-3 text-left shadow-[0_3px_0_0_var(--line-deep)] active:translate-y-0.5 active:shadow-none">
               <span className="min-w-0 flex-1">
                 <span className="block font-bold">Jour {k + 1}</span>
                 <span className="block text-[15px] leading-snug">{d.title}</span>
@@ -85,9 +86,9 @@ function UnitPath({ unit, index, progress, openDay }: { unit: Unit; index: numbe
             </button>
           );
           return (
-            <li key={d.id} className="relative grid grid-cols-[1fr_3.5rem_1fr] items-center py-3">
+            <li key={d.id} className="relative grid grid-cols-[1fr_4rem_1fr] items-center py-3">
               <div>{left && card}</div>
-              <span className={`z-[1] mx-auto grid size-12 place-items-center rounded-full border-4 border-bg ${complete ? "bg-good text-white" : "bg-line text-muted"}`}>
+              <span className={`z-[1] mx-auto grid size-14 place-items-center rounded-full border-b-[5px] ${complete ? "border-[#1f7347] bg-good text-white" : p ? "border-accent-deep bg-accent text-accent-ink" : "border-line-deep bg-line text-muted"}`}>
                 {complete ? <RiCheckLine aria-hidden className="size-5" /> : <RiBookOpenFill aria-hidden className="size-5" />}
               </span>
               <div>{!left && card}</div>
@@ -99,21 +100,23 @@ function UnitPath({ unit, index, progress, openDay }: { unit: Unit; index: numbe
   );
 }
 
-export function DayScreen({ day, unitTitle, index, profile, progress, onBack, start }: {
+export function DayScreen({ day, unitTitle, index, profile, progress, onBack, start, ai = "ready", onSetup }: {
   day: Day; unitTitle: string; index: number; profile: Profile; progress: CourseProgress; onBack: () => void; start: (a: "speaking" | "scenario") => void;
+  /** IA absente : activités grisées ; en chargement : on patiente. */
+  ai?: AiStatus; onSetup?: () => void;
 }) {
   const gnd = profile.gender ?? "m";
   const he = LANGUAGES[profile.target].rtl ? "he" : "";
   const p = progress[day.id] ?? {};
   const acts = [
-    { id: "speaking" as const, title: "Entraînement à la parole", sub: `${day.steps.length} étapes · ~4 min`, Icon: RiPlayFill, color: "bg-gradient-to-br from-[#6d63ff] to-accent" },
-    { id: "scenario" as const, title: "Jeu de rôle avec Noam", sub: "Conversation libre · ~5 min", Icon: RiRobot2Line, color: "bg-gradient-to-br from-[#f472b6] to-pink" },
+    { id: "speaking" as const, title: "Entraînement à la parole", sub: `${day.steps.length} étapes · ~4 min`, Icon: RiPlayFill, color: "bg-gradient-to-br from-[#2f9468] to-accent" },
+    { id: "scenario" as const, title: "Jeu de rôle avec Shuli", sub: "Conversation libre · ~5 min", Icon: RiRobot2Line, color: "bg-gradient-to-br from-[#f29b2f] to-pink" },
   ];
   return (
-    <div className="mx-auto max-w-lg">
+    <div className="mx-auto max-w-lg lg:max-w-3xl">
       <div className="px-4 pt-3"><BackButton onClick={onBack} /></div>
       <div className="px-4 pb-8 text-center">
-        <div className="flex justify-center"><Avatar size={120} /></div>
+        <div className="flex justify-center"><Avatar size={120} mood="think" /></div>
         <p className="mt-3 text-sm font-semibold text-muted">{unitTitle} · Jour {index}</p>
         <h1 className="text-2xl font-bold">{day.title}</h1>
         <p className={`${he} mt-2 text-xl`}>{day.key.he[gnd]}</p>
@@ -121,7 +124,7 @@ export function DayScreen({ day, unitTitle, index, profile, progress, onBack, st
         <p className="mt-8 text-start font-semibold text-muted">2 activités</p>
         <div className="mt-2 rounded-2xl bg-card text-start shadow-card">
           {acts.map((a) => (
-            <button key={a.id} onClick={() => start(a.id)} className="flex w-full items-center gap-3 p-4 text-left">
+            <button key={a.id} onClick={() => (ai === "ready" ? start(a.id) : ai === "loading" ? undefined : onSetup?.())} className={`flex w-full items-center gap-3 p-4 text-left ${ai === "ready" ? "" : ai === "loading" ? "opacity-60 cursor-progress" : "grayscale opacity-50"}`}>
               <span className={`grid size-12 shrink-0 place-items-center rounded-full text-white ${a.color}`}><a.Icon aria-hidden className="size-6" /></span>
               <span className="flex-1">
                 <span className="block font-medium">{a.title}</span>

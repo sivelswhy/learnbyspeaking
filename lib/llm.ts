@@ -8,7 +8,7 @@ export interface LlmSettings {
   provider: "webllm" | "ollama";
   /** Reconnaissance vocale : Whisper ivrit-ai local, ou celle du navigateur (envoie l'audio en ligne). */
   stt: "whisper" | "browser";
-  /** Voix de Noam en hébreu : voix naturelle locale (Phonikud + Piper) ou voix du système. */
+  /** Voix de Shuli en hébreu : voix naturelle locale (Phonikud + Piper) ou voix du système. */
   voice: "natural" | "system";
   webllmModel: string;
   ollamaUrl: string;

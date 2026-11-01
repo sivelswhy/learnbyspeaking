@@ -4,7 +4,8 @@ import { Conversation } from "@/components/Conversation";
 import { Cours, DayScreen, type ResourceTab } from "@/components/Cours";
 import { InstallPrompt, registerServiceWorker } from "@/components/InstallPrompt";
 import { GoalSetup } from "@/components/GoalSetup";
-import { LlmSetup, allReady, isLoading, useMtState, useVoiceState, useWhisperState } from "@/components/LlmSetup";
+import { RiLoader4Line } from "react-icons/ri";
+import { LlmSetup, LoadProgress, allReady, isLoading, useAiStatus, useMtState, useVoiceState, useWhisperState } from "@/components/LlmSetup";
 import { Parler, ScenarioList, nextDay } from "@/components/Parler";
 import { Placement } from "@/components/Placement";
 import { Progress } from "@/components/Progress";
@@ -24,6 +25,7 @@ import type { ModeId } from "@/lib/modes";
 import { useStore } from "@/lib/store";
 import { TOPICS } from "@/lib/topics";
 import type { Profile, SessionRecord } from "@/lib/types";
+import { Avatar } from "@/components/Avatar";
 import { Btn } from "@/components/ui";
 
 type Tab = "parler" | "cours" | "bilan" | "moi";
@@ -46,13 +48,13 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "moi", label: "Moi" },
 ];
 
-/** Discussion libre : Noam lance un sujet au hasard au lieu d'un simple « ça va ? ». */
+/** Discussion libre : Shuli lance un sujet au hasard au lieu d'un simple « ça va ? ». */
 function topicScenario(target: keyof typeof TOPICS, topicId?: string): Scenario {
   const list = TOPICS[target] ?? [];
   const tp = list.find((x) => x.id === topicId) ?? list[Math.floor(Math.random() * list.length)];
   const base = SCENARIOS[0];
   return tp
-    ? { ...base, id: `topic-${tp.id}`, title: `Discussion · ${tp.label}`, goal: `Parler de : ${tp.label}`, role: "Noam, un tuteur israélien chaleureux et curieux qui discute naturellement", opening: `Noam lance un sujet : ${tp.label.toLowerCase()}.`, starters: { [target]: tp.starter } }
+    ? { ...base, id: `topic-${tp.id}`, title: `Discussion · ${tp.label}`, goal: `Parler de : ${tp.label}`, role: "Shuli, un tuteur israélien chaleureux et curieux qui discute naturellement", opening: `Shuli lance un sujet : ${tp.label.toLowerCase()}.`, starters: { [target]: tp.starter } }
     : base;
 }
 
@@ -73,6 +75,7 @@ export default function Page() {
   const vs = useVoiceState();
   const ms = useMtState();
   const keepAwake = useKeepAwakePref();
+  const ai = useAiStatus(st.llm);
   // Écran allumé tant qu'un modèle se télécharge : en veille, le téléphone coupe le téléchargement.
   useKeepAwake(keepAwake && [load, ws, vs, ms].some(isLoading));
 
@@ -87,9 +90,12 @@ export default function Page() {
   // Premier lancement, dans l'ordre : modèles (obligatoire), test de niveau, objectif.
   if (!st.profile) {
     return (
-      <main className="mx-auto max-w-lg space-y-4 px-4 py-8">
-        <h1 className="text-2xl font-bold">Bienvenue ! Prépare Noam, ton tuteur</h1>
-        <p className="text-muted">Tout tourne sur ton appareil, sans compte ni serveur. Avant de commencer, télécharge une fois les modèles d&apos;IA : le cerveau de Noam, la reconnaissance de ta voix, sa voix et les traducteurs.</p>
+      <main className="mx-auto max-w-lg lg:max-w-3xl space-y-4 px-4 py-8">
+        <div className="flex items-center gap-4">
+          <Avatar size={96} mood="cheer" className="pop-in shrink-0" />
+          <h1 className="text-2xl font-extrabold">Bienvenue ! Prépare Shuli, ton tuteur</h1>
+        </div>
+        <p className="text-muted">Tout tourne sur ton appareil, sans compte ni serveur. Avant de commencer, télécharge une fois les modèles d&apos;IA : le cerveau de Shuli, la reconnaissance de ta voix, sa voix et les traducteurs.</p>
         <LlmSetup required llm={st.llm} onChange={st.setLlm} onReady={() => st.setProfile(NEW_PROFILE)} />
         {!hasWebGPU() && <Btn variant="ghost" className="w-full" onClick={() => st.setProfile(NEW_PROFILE)}>Continuer quand même</Btn>}
       </main>
@@ -114,9 +120,9 @@ export default function Page() {
   switch (screen.t) {
     case "setup":
       return (
-        <main className="mx-auto max-w-lg space-y-4 px-4 py-8">
-          <h1 className="text-2xl font-bold">Prépare Noam, ton tuteur</h1>
-          <p className="text-muted">Tout tourne sur ton appareil : télécharge une fois le cerveau de Noam et la reconnaissance de ta voix.</p>
+        <main className="mx-auto max-w-lg lg:max-w-3xl space-y-4 px-4 py-8">
+          <h1 className="text-2xl font-bold">Prépare Shuli, ton tuteur</h1>
+          <p className="text-muted">Tout tourne sur ton appareil : télécharge une fois le cerveau de Shuli et la reconnaissance de ta voix.</p>
           <LlmSetup llm={st.llm} onChange={st.setLlm} onReady={() => setScreen(profile.placementDone ? { t: "tabs" } : { t: "placement" })} />
           {!ready && <Btn variant="ghost" className="w-full" onClick={() => setScreen({ t: "placement" })}>Continuer sans attendre</Btn>}
         </main>
@@ -143,7 +149,7 @@ export default function Page() {
     case "day": {
       const ref = ALL_DAYS.find((x) => x.day.id === screen.day.id)!;
       return (
-        <DayScreen day={screen.day} unitTitle={ref.unit.title} index={ref.unit.days.indexOf(screen.day) + 1} profile={profile} progress={st.course}
+        <DayScreen day={screen.day} unitTitle={ref.unit.title} index={ref.unit.days.indexOf(screen.day) + 1} profile={profile} progress={st.course} ai={ai} onSetup={() => setScreen({ t: "setup" })}
           onBack={() => { setTab("cours"); home(); }}
           start={(a) => setScreen(a === "speaking" ? { t: "practice", day: screen.day } : { t: "chat", scenario: dayScenario(screen.day), dayId: screen.day.id })} />
       );
@@ -172,27 +178,44 @@ export default function Page() {
   }
 
   return (
-    <div className="mx-auto min-h-dvh max-w-lg px-4">
-      <InstallPrompt />
-      <nav className="sticky top-0 z-10 -mx-4 flex justify-center bg-bg/90 px-4 py-3 backdrop-blur" aria-label="Sections">
-        <div className="flex rounded-full border border-line bg-card/80 p-1 shadow-card" role="tablist">
+    <div className="mx-auto min-h-dvh max-w-lg px-4 lg:grid lg:max-w-5xl lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-8">
+      <nav className="sticky top-0 z-10 -mx-4 flex justify-center bg-bg/90 px-4 py-3 backdrop-blur lg:mx-0 lg:h-dvh lg:flex-col lg:justify-start lg:gap-6 lg:bg-transparent lg:px-0 lg:py-8 lg:backdrop-blur-none" aria-label="Sections">
+        <div className="hidden items-center gap-3 lg:flex">
+          <Avatar size={44} />
+          <span className="text-lg font-black leading-tight text-accent">LearnBy<br />Speaking</span>
+        </div>
+        <div className="flex rounded-full border border-line bg-card/80 p-1 shadow-card lg:flex-col lg:rounded-2xl lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none" role="tablist">
           {TABS.map((t) => (
             <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => { setTab(t.id); setCoursTab(undefined); }}
-              className={`min-h-10 rounded-full px-4 text-[15px] font-semibold transition ${tab === t.id ? "bg-line/70 text-accent" : "text-ink"}`}>
+              className={`min-h-10 rounded-full px-4 text-[15px] font-bold transition lg:min-h-12 lg:rounded-2xl lg:border-2 lg:px-4 lg:text-start lg:text-base ${tab === t.id ? "bg-line/70 text-accent lg:border-accent/40 lg:bg-soft" : "text-ink lg:border-transparent"}`}>
               {t.label}
             </button>
           ))}
         </div>
       </nav>
-      {!ready && ![load, ws, vs].some((x) => x.phase === "download" || x.phase === "init") && (
+      <div className="min-w-0 lg:pt-8">
+      <InstallPrompt />
+      {ai === "loading" && (
+        <div className="mb-4 space-y-2 rounded-2xl border border-accent/30 bg-soft p-3 text-sm" role="status">
+          <p className="flex items-center gap-2 font-semibold text-accent"><RiLoader4Line aria-hidden className="animate-spin" /> Shuli se réveille : chargement depuis ton appareil (rien à télécharger).</p>
+          {[load, ws, vs].filter(isLoading).map((x) => <LoadProgress key={x.model} ls={x} compact />)}
+        </div>
+      )}
+      {ai === "missing" && (
         <button onClick={() => setScreen({ t: "setup" })} className="mb-4 w-full rounded-2xl border border-warn/40 bg-warn/10 p-3 text-left text-sm text-warn">
-          Noam n&apos;est pas encore téléchargé sur cet appareil. Touche ici pour le préparer.
+          Shuli n&apos;est pas encore téléchargé sur cet appareil. Touche ici pour le préparer.
+        </button>
+      )}
+      {ai === "downloading" && (
+        <button onClick={() => setScreen({ t: "setup" })} className="mb-4 w-full rounded-2xl border border-accent/30 bg-soft p-3 text-left text-sm font-semibold text-accent">
+          Téléchargement en cours… touche ici pour suivre la progression.
         </button>
       )}
       {tab === "parler" && (
-        <Parler profile={profile} sessions={st.sessions} progress={st.course}
+        <Parler profile={profile} sessions={st.sessions} progress={st.course} ai={ai}
           go={(to) => {
-            if (to === "hub") setScreen({ t: "hub" });
+            if (to === "setup") setScreen({ t: "setup" });
+            else if (to === "hub") setScreen({ t: "hub" });
             else if (to === "talk") setScreen({ t: "chat", scenario: topicScenario(profile.target) });
             else if (to === "scenarios") setScreen({ t: "scenarios" });
             else if (to === "placement") setScreen({ t: "placement" });
@@ -209,6 +232,7 @@ export default function Page() {
           <Settings profile={profile} llm={st.llm} setLlm={st.setLlm} setProfile={st.setProfile} reset={st.reset} />
         </div>
       )}
+      </div>
     </div>
   );
 }

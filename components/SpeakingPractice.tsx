@@ -9,7 +9,7 @@ import type { Profile } from "@/lib/types";
 import { Avatar } from "./Avatar";
 import { Btn, Header, wordMatch } from "./ui";
 
-/** Entraînement guidé : Noam parle (sous-titres), puis l'apprenant répète ou répond à voix haute. */
+/** Entraînement guidé : Shuli parle (sous-titres), puis l'apprenant répète ou répond à voix haute. */
 export function SpeakingPractice({ day, profile, llm, onExit, onDone }: { day: Day; profile: Profile; llm: LlmSettings; onExit: () => void; onDone: () => void }) {
   const lang = LANGUAGES[profile.target];
   const gnd = profile.gender ?? "m";
@@ -89,7 +89,7 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: { day: D
 
   if (finished) {
     return (
-      <div className="mx-auto flex min-h-dvh max-w-lg flex-col items-center justify-center gap-4 p-6 text-center">
+      <div className="mx-auto flex min-h-dvh max-w-lg lg:max-w-3xl flex-col items-center justify-center gap-4 p-6 text-center">
         <RiCheckboxCircleFill aria-hidden className="size-16 text-good" />
         <h1 className="text-2xl font-bold">Entraînement terminé !</h1>
         <p className="text-muted">Tu as pratiqué « {day.title} ». Passe au jeu de rôle pour l&apos;utiliser en vraie conversation.</p>
@@ -103,7 +103,7 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: { day: D
   const match = heard !== null && target ? wordMatch(target, heard) : null;
 
   return (
-    <div className="mx-auto flex h-dvh max-w-lg flex-col">
+    <div className="mx-auto flex h-dvh max-w-lg lg:max-w-3xl flex-col">
       <Header title={day.title} onBack={() => { cancelSpeech(); onExit(); }} />
       <div className="flex gap-1 px-4 pt-1" aria-label={`Étape ${i + 1} sur ${day.steps.length}`}>
         {day.steps.map((_, k) => <span key={k} className={`h-1 flex-1 rounded-full ${k < i ? "bg-accent" : k === i ? "bg-accent/50" : "bg-accent/15"}`} />)}
@@ -124,7 +124,7 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: { day: D
           </>
         ) : (
           <div className="w-full rounded-3xl bg-card p-6 shadow-card">
-            <div className="flex justify-center"><Avatar speaking={talking} size={72} /></div>
+            <div className="flex justify-center"><Avatar speaking={talking} size={72} mood={match === null ? "happy" : match >= 70 ? "cheer" : "think"} /></div>
             <span className="mt-4 inline-block rounded-md bg-accent px-3 py-1.5 text-lg font-bold text-accent-ink">
               {talking ? "Écoute…" : voice.opening ? "Ouverture du micro…" : voice.listening ? (step.kind === "repeat" ? "Répète maintenant…" : "Réponds maintenant…") : voice.transcribing ? "Transcription…" : step.kind === "repeat" ? "Répète" : "Réponds"}
             </span>
