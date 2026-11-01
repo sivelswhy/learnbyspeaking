@@ -1,4 +1,4 @@
-import type { Gender, Goal, LangCode, Level } from "./languages";
+import type { Focus, Gender, Goal, LangCode, Level } from "./languages";
 
 export interface Profile {
   name?: string;
@@ -11,6 +11,10 @@ export interface Profile {
   gender?: Gender;
   /** Niveau mesuré par le test de niveau (sinon déclaré). */
   placementDone?: boolean;
+  /** Points à améliorer choisis après le test de niveau. */
+  focus?: Focus[];
+  /** Étape du premier lancement encore à faire (absent : terminé). */
+  onboarding?: "placement" | "goal";
 }
 
 export interface Correction {

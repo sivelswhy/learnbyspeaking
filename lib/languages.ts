@@ -70,8 +70,21 @@ export const GOALS = {
   work: "Travail",
   study: "Études",
   daily: "Conversation quotidienne",
+  family: "Famille et amis",
+  move: "M'installer en Israël",
 } as const;
 export type Goal = keyof typeof GOALS;
+
+/** Ce que l'apprenant veut améliorer (choix multiple, après le test de niveau). */
+export const FOCUS = {
+  speaking: "Oser parler, être fluide",
+  listening: "Comprendre à l'oral",
+  vocabulary: "Vocabulaire",
+  grammar: "Grammaire",
+  pronunciation: "Prononciation",
+  reading: "Lire l'alphabet",
+} as const;
+export type Focus = keyof typeof FOCUS;
 
 export type Gender = "m" | "f";
 

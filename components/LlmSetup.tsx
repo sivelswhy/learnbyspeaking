@@ -6,6 +6,9 @@ import {
   type LlmSettings, type LoadState,
 } from "@/lib/llm";
 import { lowMemoryDevice } from "@/lib/device";
+import type { LangCode } from "@/lib/languages";
+import { mtStore, preloadTranslators, translatorsCached, translatorsMB } from "@/lib/translate";
+import { setKeepAwake, useKeepAwakePref, wakeLockSupported } from "@/lib/wakeLock";
 import { VOICE_MB, loadVoice, voiceCached, voiceStore } from "@/lib/voice";
 import { WHISPER_MB, loadWhisper, whisperCached, whisperStore } from "@/lib/whisper";
 import { Btn, Card } from "./ui";
@@ -22,6 +25,30 @@ export function useVoiceState(): LoadState {
   return useSyncExternalStore(voiceStore.subscribe, voiceStore.get, voiceStore.get);
 }
 
+export function useMtState(): LoadState {
+  return useSyncExternalStore(mtStore.subscribe, mtStore.get, mtStore.get);
+}
+
+export const isLoading = (s: LoadState) => s.phase === "download" || s.phase === "init";
+
+/** Interrupteur « Garder l'écran allumé » : sur téléphone, l'écran éteint met le téléchargement en pause. */
+export function KeepAwakeToggle() {
+  const on = useKeepAwakePref();
+  const ok = wakeLockSupported();
+  return (
+    <label className={`flex items-center justify-between gap-3 rounded-xl border border-line p-3 ${ok ? "cursor-pointer" : "opacity-60"}`}>
+      <span>
+        <span className="block text-sm font-semibold">Garder l&apos;écran allumé</span>
+        <span className="block text-xs text-muted">
+          {ok ? "Pendant le téléchargement, pour que le téléphone ne se mette pas en veille et ne coupe pas le téléchargement." : "Non pris en charge par ce navigateur : touche l'écran de temps en temps pendant le téléchargement."}
+        </span>
+      </span>
+      <input type="checkbox" role="switch" className="peer sr-only" checked={ok && on} disabled={!ok} onChange={(e) => setKeepAwake(e.target.checked)} />
+      <span aria-hidden className="relative h-7 w-12 shrink-0 rounded-full bg-line transition peer-checked:bg-accent peer-focus-visible:ring-2 peer-focus-visible:ring-accent after:absolute after:left-0.5 after:top-0.5 after:size-6 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-5" />
+    </label>
+  );
+}
+
 /** Tout ce que l'app doit télécharger selon les réglages est prêt. Sans `v`, la voix est ignorée : elle a un secours. */
 export function allReady(llm: LlmSettings, w: LoadState, v?: LoadState) {
   return isReady(llm) && (llm.stt !== "whisper" || !hasWebGPU() || w.phase === "ready") && (!v || llm.voice !== "natural" || v.phase === "ready");
@@ -35,7 +62,7 @@ const fmtTime = (s: number) => {
 
 /** Barre de progression partagée (réglages, conversation, accueil). */
 export function LoadProgress({ ls, compact = false }: { ls: LoadState; compact?: boolean }) {
-  const label = ls.model === "whisper" ? "Whisper ivrit-ai (voix)" : ls.model === "voice" ? "Voix de Noam" : (WEBLLM_MODELS.find((m) => m.id === ls.model)?.label ?? ls.model);
+  const label = ls.model === "whisper" ? "Whisper ivrit-ai (voix)" : ls.model === "voice" ? "Voix de Noam" : ls.model === "mt" ? "Traducteurs" : (WEBLLM_MODELS.find((m) => m.id === ls.model)?.label ?? ls.model);
   if (ls.phase === "idle" || ls.phase === "ready") return null;
   if (ls.phase === "error") {
     return <p className="flex items-center gap-2 text-sm text-warn"><RiErrorWarningLine aria-hidden /> Échec du chargement : {ls.error?.slice(0, 140)}</p>;
@@ -65,10 +92,19 @@ export function LoadProgress({ ls, compact = false }: { ls: LoadState; compact?:
   );
 }
 
-export function LlmSetup({ llm, onChange, onReady }: { llm: LlmSettings; onChange: (l: LlmSettings) => void; onReady?: () => void }) {
+/**
+ * Réglages et téléchargement des modèles.
+ * `required` (premier lancement) : pas de choix, tout ce que l'app utilise est téléchargé, traducteurs compris.
+ */
+export function LlmSetup({ llm, onChange, onReady, native = "fr", required = false }: {
+  llm: LlmSettings; onChange: (l: LlmSettings) => void; onReady?: () => void; native?: LangCode; required?: boolean;
+}) {
   const ls = useLoadState();
   const ws = useWhisperState();
   const vs = useVoiceState();
+  const ms = useMtState();
+  const [mCached, setMCached] = useState(false);
+  const mLoading = isLoading(ms);
   const [busy, setBusy] = useState(false);
   const [wCached, setWCached] = useState(false);
   const [vCached, setVCached] = useState(false);
@@ -84,18 +120,21 @@ export function LlmSetup({ llm, onChange, onReady }: { llm: LlmSettings; onChang
     Promise.all(WEBLLM_MODELS.map(async (m) => [m.id, await isCached(m.id)] as const)).then((r) => setCached(Object.fromEntries(r)));
     whisperCached().then(setWCached);
     voiceCached().then(setVCached);
-  }, [ls.phase, ws.phase, vs.phase]);
+    translatorsCached(native).then(setMCached);
+  }, [ls.phase, ws.phase, vs.phase, ms.phase, native]);
 
   // Si le chargement se termine pendant qu'on est sur cet écran, on enchaîne.
   useEffect(() => {
-    if (allReady(llm, ws, vs)) onReady?.();
-  }, [ls.phase, ws, vs, llm, onReady]);
+    if (allReady(llm, ws, vs) && (!required || ms.phase === "ready")) onReady?.();
+  }, [ls.phase, ws, vs, ms.phase, llm, onReady, required]);
 
   async function go() {
     setError("");
     setBusy(true);
     try {
       // L'un après l'autre : en parallèle, les copies en mémoire s'additionnent et Safari recharge la page.
+      // Traducteurs d'abord : leur worker est fermé aussitôt, avant que les autres modèles n'occupent la mémoire.
+      await preloadTranslators(native);
       if (llm.provider === "webllm") await loadWebLLM(llm.webllmModel);
       else await complete(llm, { messages: [{ role: "user", content: "ok" }], maxTokens: 2 });
       if (llm.stt === "whisper" && gpu) await loadWhisper();
@@ -109,11 +148,49 @@ export function LlmSetup({ llm, onChange, onReady }: { llm: LlmSettings; onChang
   }
 
   const set = (p: Partial<LlmSettings>) => onChange({ ...llm, ...p });
-  const ready = allReady(llm, ws, vs);
+  const ready = allReady(llm, ws, vs) && (!required || ms.phase === "ready");
+  const anyLoading = busy || loadingThis || wLoading || vLoading || mLoading;
   const toDownloadMB =
     (llm.provider === "webllm" && !cached[llm.webllmModel] ? (WEBLLM_MODELS.find((m) => m.id === llm.webllmModel)?.mb ?? 0) : 0) +
     (llm.stt === "whisper" && gpu && !wCached && ws.phase !== "ready" ? WHISPER_MB : 0) +
-    (llm.voice === "natural" && !vCached && vs.phase !== "ready" ? VOICE_MB : 0);
+    (llm.voice === "natural" && !vCached && vs.phase !== "ready" ? VOICE_MB : 0) +
+    (!mCached && ms.phase !== "ready" ? translatorsMB(native) : 0);
+  const items: [string, number, boolean][] = [
+    ["Cerveau de Noam (DictaLM)", WEBLLM_MODELS.find((m) => m.id === llm.webllmModel)?.mb ?? 0, !!cached[llm.webllmModel] || ls.phase === "ready"],
+    ...(llm.stt === "whisper" && gpu ? [["Reconnaissance de ta voix (Whisper)", WHISPER_MB, wCached || ws.phase === "ready"] as [string, number, boolean]] : []),
+    ...(llm.voice === "natural" ? [["Voix de Noam", VOICE_MB, vCached || vs.phase === "ready"] as [string, number, boolean]] : []),
+    ...(translatorsMB(native) ? [["Traducteurs", translatorsMB(native), mCached || ms.phase === "ready"] as [string, number, boolean]] : []),
+  ];
+  const button = (
+    <Btn onClick={go} disabled={anyLoading || (llm.provider === "webllm" && !gpu)} className="flex w-full items-center justify-center gap-2">
+      {anyLoading && <RiLoader4Line className="animate-spin" aria-hidden />}
+      {loadingThis || wLoading || vLoading || mLoading ? "Chargement en cours…" : ready ? "Prêt — continuer" : llm.provider === "ollama" ? "Tester la connexion"
+        : toDownloadMB === 0 ? "Activer (déjà téléchargé)" : `Télécharger (≈ ${(toDownloadMB / 1000).toFixed(1).replace(".", ",")} Go)`}
+    </Btn>
+  );
+
+  if (required) {
+    return (
+      <Card className="space-y-4">
+        {!gpu && <p className="rounded-lg bg-warn/10 p-3 text-sm text-warn">WebGPU indisponible ici : Noam ne peut pas tourner dans ce navigateur. Utilise Chrome ou Edge récent, ou Safari à jour sur iPhone.</p>}
+        <ul className="space-y-2">
+          {items.map(([label, mb, ok]) => (
+            <li key={label} className="flex items-center justify-between gap-3 text-sm">
+              <span>{label}</span>
+              {ok ? <span className="flex shrink-0 items-center gap-1 text-xs text-good"><RiCheckboxCircleFill aria-hidden /> Sur l&apos;appareil</span>
+                : <span className="shrink-0 text-xs tabular-nums text-muted">≈ {mb} Mo</span>}
+            </li>
+          ))}
+        </ul>
+        {[ms, ls, ws, vs].filter(isLoading).map((x) => <LoadProgress key={x.model} ls={x} />)}
+        {[ms, ls, ws, vs].filter((x) => x.phase === "error").map((x) => <LoadProgress key={x.model} ls={x} />)}
+        <KeepAwakeToggle />
+        <p className="text-xs text-muted">Une seule fois, de préférence en Wi-Fi : ensuite tout se charge depuis l&apos;appareil, même hors ligne.</p>
+        {error && <p className="text-sm text-warn">{error}</p>}
+        {button}
+      </Card>
+    );
+  }
 
   return (
     <Card className="space-y-4">
@@ -201,11 +278,9 @@ export function LlmSetup({ llm, onChange, onReady }: { llm: LlmSettings; onChang
 
       {error && <p className="text-sm text-warn">{error}</p>}
 
-      <Btn onClick={go} disabled={busy || loadingThis || wLoading || vLoading || (llm.provider === "webllm" && !gpu)} className="flex w-full items-center justify-center gap-2">
-        {(busy || loadingThis || wLoading || vLoading) && <RiLoader4Line className="animate-spin" aria-hidden />}
-        {loadingThis || wLoading || vLoading ? "Chargement en cours…" : ready ? "Prêt — continuer" : llm.provider === "ollama" ? "Tester la connexion"
-          : toDownloadMB === 0 ? "Activer (déjà téléchargé)" : `Télécharger (≈ ${(toDownloadMB / 1000).toFixed(1).replace(".", ",")} Go)`}
-      </Btn>
+      {mLoading && <LoadProgress ls={ms} />}
+      {anyLoading && <KeepAwakeToggle />}
+      {button}
       <button onClick={() => onChange(DEFAULT_LLM)} className="text-xs text-muted underline">Réglages par défaut</button>
     </Card>
   );

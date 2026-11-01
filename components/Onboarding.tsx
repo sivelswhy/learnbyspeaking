@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { GOALS, LANGUAGES, LEVELS, NATIVE_LANGS, TARGET_LANGS, type Goal, type Level } from "@/lib/languages";
+import { FOCUS, GOALS, LANGUAGES, LEVELS, NATIVE_LANGS, TARGET_LANGS, type Focus, type Goal, type Level } from "@/lib/languages";
 import type { Profile } from "@/lib/types";
 import { RiSpeakLine } from "react-icons/ri";
 import { Btn, Chip } from "./ui";
@@ -63,6 +63,16 @@ export function Onboarding({ initial, onDone }: { initial?: Profile | null; onDo
             {GOALS[g]}
           </Chip>
         ))}
+      </Section>
+      <Section title="À améliorer">
+        {(Object.keys(FOCUS) as Focus[]).map((f) => {
+          const on = p.focus?.includes(f) ?? false;
+          return (
+            <Chip key={f} active={on} aria-pressed={on} onClick={() => setP({ ...p, focus: on ? p.focus!.filter((x) => x !== f) : [...(p.focus ?? []), f] })}>
+              {FOCUS[f]}
+            </Chip>
+          );
+        })}
       </Section>
       <Section title="Temps par jour">
         {[5, 10, 15, 20, 30].map((m) => (

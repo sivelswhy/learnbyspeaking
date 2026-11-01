@@ -3,8 +3,8 @@ import { useEffect, useState } from "react";
 import { Conversation } from "@/components/Conversation";
 import { Cours, DayScreen, type ResourceTab } from "@/components/Cours";
 import { InstallPrompt, registerServiceWorker } from "@/components/InstallPrompt";
-import { LlmSetup, allReady, useVoiceState, useWhisperState } from "@/components/LlmSetup";
-import { Onboarding } from "@/components/Onboarding";
+import { GoalSetup } from "@/components/GoalSetup";
+import { LlmSetup, allReady, isLoading, useMtState, useVoiceState, useWhisperState } from "@/components/LlmSetup";
 import { Parler, ScenarioList, nextDay } from "@/components/Parler";
 import { Placement } from "@/components/Placement";
 import { Progress } from "@/components/Progress";
@@ -16,13 +16,14 @@ import { TutorHub } from "@/components/TutorHub";
 import { Vocab } from "@/components/Vocab";
 import { useLoadState } from "@/components/LlmSetup";
 import { ALL_DAYS, type Day } from "@/lib/content/course-he";
-import { LANGUAGES, SCENARIOS, type Scenario } from "@/lib/languages";
-import { warmIfCached } from "@/lib/llm";
+import { LANGUAGES, SCENARIOS, TARGET_LANGS, type Scenario } from "@/lib/languages";
+import { hasWebGPU, warmIfCached } from "@/lib/llm";
 import { setVoiceEnabled } from "@/lib/voice";
+import { useKeepAwake, useKeepAwakePref } from "@/lib/wakeLock";
 import type { ModeId } from "@/lib/modes";
 import { useStore } from "@/lib/store";
 import { TOPICS } from "@/lib/topics";
-import type { SessionRecord } from "@/lib/types";
+import type { Profile, SessionRecord } from "@/lib/types";
 import { Btn } from "@/components/ui";
 
 type Tab = "parler" | "cours" | "bilan" | "moi";
@@ -55,6 +56,9 @@ function topicScenario(target: keyof typeof TOPICS, topicId?: string): Scenario 
     : base;
 }
 
+/** Profil du premier lancement : objectif, genre et prénom sont demandés autour du test de niveau. */
+const NEW_PROFILE: Profile = { native: "fr", target: TARGET_LANGS[0], level: "A1", goal: "daily", dailyMinutes: 10, onboarding: "placement" };
+
 function dayScenario(d: Day): Scenario {
   return { id: d.id, title: d.title, goal: d.scenario.goal, role: d.scenario.role, opening: `Jeu de rôle : ${d.scenario.role}.`, difficulty: 1, starters: { he: d.scenario.starter } };
 }
@@ -67,6 +71,10 @@ export default function Page() {
   const load = useLoadState();
   const ws = useWhisperState();
   const vs = useVoiceState();
+  const ms = useMtState();
+  const keepAwake = useKeepAwakePref();
+  // Écran allumé tant qu'un modèle se télécharge : en veille, le téléphone coupe le téléchargement.
+  useKeepAwake(keepAwake && [load, ws, vs, ms].some(isLoading));
 
   useEffect(() => registerServiceWorker(), []);
   // Modèles déjà téléchargés : on les charge en tâche de fond dès l'ouverture.
@@ -76,8 +84,28 @@ export default function Page() {
   useEffect(() => setVoiceEnabled(st.llm.voice === "natural"), [st.llm.voice]);
 
   if (!st.ready) return null;
-  if (!st.profile) return <Onboarding onDone={(p) => { st.setProfile(p); setScreen({ t: "setup" }); }} />;
+  // Premier lancement, dans l'ordre : modèles (obligatoire), test de niveau, objectif.
+  if (!st.profile) {
+    return (
+      <main className="mx-auto max-w-lg space-y-4 px-4 py-8">
+        <h1 className="text-2xl font-bold">Bienvenue ! Prépare Noam, ton tuteur</h1>
+        <p className="text-muted">Tout tourne sur ton appareil, sans compte ni serveur. Avant de commencer, télécharge une fois les modèles d&apos;IA : le cerveau de Noam, la reconnaissance de ta voix, sa voix et les traducteurs.</p>
+        <LlmSetup required llm={st.llm} onChange={st.setLlm} onReady={() => st.setProfile(NEW_PROFILE)} />
+        {!hasWebGPU() && <Btn variant="ghost" className="w-full" onClick={() => st.setProfile(NEW_PROFILE)}>Continuer quand même</Btn>}
+      </main>
+    );
+  }
   const profile = st.profile;
+  if (profile.onboarding === "goal") {
+    return <GoalSetup profile={profile} placement={st.placement} onDone={(p) => { st.setProfile(p); setTab("cours"); setScreen({ t: "tabs" }); }} />;
+  }
+  if (profile.onboarding === "placement") {
+    return (
+      <Placement profile={profile} llm={st.llm} onGender={(g) => st.setProfile({ ...profile, gender: g })}
+        onSkip={() => st.setProfile({ ...profile, onboarding: "goal" })}
+        onDone={(r) => { st.setPlacement(r); st.setProfile({ ...profile, level: r.level, placementDone: true, onboarding: "goal" }); }} />
+    );
+  }
   const rtl = LANGUAGES[profile.target].rtl;
   const home = () => setScreen({ t: "tabs" });
   const ready = allReady(st.llm, ws, vs);
@@ -96,7 +124,7 @@ export default function Page() {
     case "placement":
       return (
         <Placement profile={profile} llm={st.llm} onSkip={home}
-          onDone={(r) => { st.setPlacement(r); st.setProfile({ ...profile, level: r.level, placementDone: true }); setTab("cours"); home(); }} />
+          onDone={(r) => { st.setPlacement(r); st.setProfile({ ...profile, level: r.level, placementDone: true, onboarding: "goal" }); home(); }} />
       );
     case "hub":
       return (

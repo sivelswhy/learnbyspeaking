@@ -15,7 +15,34 @@ function get(model: string) {
   return pipes.get(model)!;
 }
 
-self.onmessage = async (e: MessageEvent<{ id: number; chain: string[]; sentences: string[] }>) => {
+/** Téléchargement à l'avance (premier lancement) : un modèle après l'autre, avec la progression de chacun. */
+async function preload(models: string[]) {
+  for (let k = 0; k < models.length; k++) {
+    const model = models[k];
+    env.remoteHost = model.startsWith(`${HF_OWNER}/`) ? `${MODEL_HOST}/` : HF_HOST;
+    const p = (await pipeline("translation", model, {
+      dtype: "q8",
+      device: "wasm",
+      progress_callback: (ev: { status: string; loaded?: number; total?: number }) => {
+        if (ev.status === "progress_total") self.postMessage({ type: "progress", index: k, loaded: ev.loaded ?? 0, total: ev.total ?? 0 });
+      },
+    })) as TranslationPipeline;
+    // Seul le téléchargement compte ici : on libère la mémoire tout de suite.
+    await p.dispose?.();
+    self.postMessage({ type: "progress", index: k, loaded: 1, total: 1, done: true });
+  }
+}
+
+self.onmessage = async (e: MessageEvent<{ id: number; chain: string[]; sentences: string[]; type?: "preload"; models?: string[] }>) => {
+  if (e.data.type === "preload") {
+    try {
+      await preload(e.data.models ?? []);
+      self.postMessage({ type: "ready" });
+    } catch (err) {
+      self.postMessage({ type: "error", message: err instanceof Error ? err.message : String(err) });
+    }
+    return;
+  }
   const { id, chain, sentences } = e.data;
   try {
     let cur = sentences;

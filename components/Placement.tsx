@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { RiEyeLine, RiKeyboardLine, RiLightbulbLine, RiShareBoxLine, RiStopFill, RiVoiceprintLine, RiTranslate2, RiVolumeUpLine } from "react-icons/ri";
-import { LANGUAGES, type Level } from "@/lib/languages";
+import { LANGUAGES, type Gender, type Level } from "@/lib/languages";
 import type { LlmSettings } from "@/lib/llm";
 import { judge } from "@/lib/judge";
 import {
@@ -15,10 +15,14 @@ import { Btn, Header } from "./ui";
 
 type Phase = "intro" | "test" | "report";
 
-export function Placement({ profile, llm, onDone, onSkip }: { profile: Profile; llm: LlmSettings; onDone: (r: PlacementResult) => void; onSkip: () => void }) {
+export function Placement({ profile, llm, onDone, onSkip, onGender }: {
+  profile: Profile; llm: LlmSettings; onDone: (r: PlacementResult) => void; onSkip: () => void;
+  /** Premier lancement : le genre n'est pas encore connu, on le demande avant les questions (elles s'accordent). */
+  onGender?: (g: Gender) => void;
+}) {
   const [phase, setPhase] = useState<Phase>("intro");
   const [result, setResult] = useState<PlacementResult | null>(null);
-  if (phase === "intro") return <Intro onStart={() => setPhase("test")} onSkip={onSkip} />;
+  if (phase === "intro") return <Intro onStart={() => setPhase("test")} onSkip={onSkip} gender={profile.gender} onGender={LANGUAGES[profile.target].genderedYou ? onGender : undefined} />;
   if (phase === "report" && result) return <PlacementReport r={result} profile={profile} onContinue={() => onDone(result)} />;
   return <Test profile={profile} llm={llm} onExit={onSkip} onFinish={(r) => { setResult(r); setPhase("report"); }} />;
 }
@@ -34,7 +38,7 @@ function wavyPath(r: number, amp: number, k: number, phase: number) {
   return `M${pts.join("L")}Z`;
 }
 
-function Intro({ onStart, onSkip }: { onStart: () => void; onSkip: () => void }) {
+function Intro({ onStart, onSkip, gender, onGender }: { onStart: () => void; onSkip: () => void; gender?: Gender; onGender?: (g: Gender) => void }) {
   return (
     <main className="relative flex min-h-dvh flex-col items-center overflow-hidden bg-gradient-to-b from-[#9a63e6] via-[#5b3fd1] to-[#5536d6] px-6 pb-[max(env(safe-area-inset-bottom),20px)] pt-16 text-white">
       <h1 className="text-center text-3xl font-bold leading-tight">Découvre ton niveau d&apos;hébreu en 3 minutes</h1>
@@ -61,7 +65,18 @@ function Intro({ onStart, onSkip }: { onStart: () => void; onSkip: () => void })
       </div>
       <p className="text-center text-lg font-semibold text-[#7ff0e0]">6 questions à l&apos;oral, de A1 à B2</p>
       <p className="mb-6 text-center text-sm text-[#a9e9ff]/80">Notée par l&apos;IA, sur ton appareil</p>
-      <button onClick={onStart} className="min-h-14 w-full max-w-md rounded-full bg-white text-lg font-semibold text-accent active:scale-[0.99]">Démarrer</button>
+      {onGender && (
+        <div className="mb-5 w-full max-w-md text-center">
+          <p className="text-sm font-medium">En hébreu, Noam s&apos;adresse à toi au…</p>
+          <div className="mt-2 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Genre">
+            {([["m", "Masculin"], ["f", "Féminin"]] as const).map(([g, label]) => (
+              <button key={g} role="radio" aria-checked={gender === g} onClick={() => onGender(g)}
+                className={`min-h-11 rounded-full border text-sm font-semibold ${gender === g ? "border-white bg-white text-accent" : "border-white/50 text-white"}`}>{label}</button>
+            ))}
+          </div>
+        </div>
+      )}
+      <button onClick={onStart} disabled={!!onGender && !gender} className="min-h-14 w-full max-w-md rounded-full bg-white text-lg font-semibold text-accent active:scale-[0.99] disabled:opacity-50">{onGender && !gender ? "Choisis d'abord ci-dessus" : "Démarrer"}</button>
       <button onClick={onSkip} className="mt-3 min-h-11 text-sm text-white/80 underline">Plus tard</button>
     </main>
   );

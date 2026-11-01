@@ -37,6 +37,8 @@
 
 14. Conversation sans aide à la réponse (31/10) : plus de réponses suggérées sous les répliques de Noam, plus de bouton « Aide » (c'est à l'apprenant de répondre). Restent « Répéter » et « Traduire ».
 
+15. Premier lancement refait (01/11) : 1) téléchargement obligatoire de tous les modèles (cerveau, Whisper, voix, traducteurs préchargés puis déchargés), 2) test de niveau (genre demandé sur l'intro), 3) `GoalSetup` : objectif, points à améliorer (`FOCUS`), prénom, temps par jour. Étape stockée dans `profile.onboarding`. Option « Garder l'écran allumé » (`lib/wakeLock.ts`, Screen Wake Lock) pendant tout téléchargement. Pas encore vérifié de bout en bout (téléchargement lancé dans Chrome, pas fini) ni sur téléphone.
+
 Plus tard : test sur un vrai téléphone (iPhone), confirmation du micro avec une vraie voix.
 
 ## Choix des modèles (testés)
