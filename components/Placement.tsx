@@ -8,6 +8,7 @@ import { MAX_QUESTIONS, confidence, estimateFrom, levelOf, pickNext, prior, shou
 import {
   PLACEMENT, SCORING_EXPLANATION, SCORING_EXPLANATION_NO_AI, itemOf, scoreAnswer, type AnswerScore, type PlacementQuestion,
 } from "@/lib/placement";
+import { useSpaceKey } from "@/lib/keys";
 import { avgFluency, type SpeechMetrics } from "@/lib/speechMetrics";
 import { LEVEL_RATE, STT_ERRORS, cancelSpeech, speak, useVoiceInput } from "@/lib/speech";
 import type { PlacementResult, Profile } from "@/lib/types";
@@ -140,6 +141,7 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
   useEffect(() => {
     answerRef.current = answer;
   });
+  useSpaceKey(() => (voice.listening ? voice.stop() : voice.transcribing ? undefined : (cancelSpeech(), voice.start())), !done && !typing);
 
   function next() {
     // Estimation de la compétence d'après les réponses déjà notées, puis question suivante ou fin.

@@ -84,11 +84,17 @@ export interface VocabCard {
   transliteration: string;
   meaning: string;
   added: string;
-  box: number; // Leitner 0-4
+  /** Maîtrise 0-4 (affichage ; ancien système de boîtes). */
+  box: number;
   due: string; // ISO
+  /** Révision espacée (lib/srs.ts) : facilité, intervalle en jours, réussites d'affilée, oublis. Absents sur les anciennes cartes. */
+  ease?: number;
+  ivl?: number;
+  reps?: number;
+  lapses?: number;
 }
 
-export type CourseProgress = Record<string, { speaking?: string; scenario?: string }>;
+export type CourseProgress = Record<string, { speaking?: string; scenario?: string; /** Fluidité moyenne (0-100) de l'entraînement à la parole. */ fluency?: number | null }>;
 
 export interface PlacementResult {
   date: string;

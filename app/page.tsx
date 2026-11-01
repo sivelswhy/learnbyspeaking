@@ -23,6 +23,7 @@ import { setVoiceEnabled } from "@/lib/voice";
 import { useKeepAwake, useKeepAwakePref } from "@/lib/wakeLock";
 import type { ModeId } from "@/lib/modes";
 import { useStore } from "@/lib/store";
+import { applyTextScale } from "@/lib/textScale";
 import { TOPICS } from "@/lib/topics";
 import type { Profile, SessionRecord } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
@@ -34,6 +35,7 @@ type Screen =
   | { t: "setup" }
   | { t: "placement" }
   | { t: "hub" }
+  | { t: "review" }
   | { t: "scenarios" }
   | { t: "chat"; scenario: Scenario; dayId?: string }
   | { t: "tool"; mode: ModeId }
@@ -80,6 +82,25 @@ export default function Page() {
   useKeepAwake(keepAwake && [load, ws, vs, ms].some(isLoading));
 
   useEffect(() => registerServiceWorker(), []);
+  useEffect(() => applyTextScale(), []);
+  // Raccourcis clavier : ⌘/Ctrl + 1 à 4 = onglets, Échap = retour à l'accueil.
+  const screenT = screen.t;
+  const hasProfile = !!st.profile && !st.profile.onboarding;
+  useEffect(() => {
+    if (!hasProfile) return;
+    const h = (e: KeyboardEvent) => {
+      const typing = (e.target as HTMLElement | null)?.closest?.("input,textarea,select,[contenteditable]");
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && screenT === "tabs" && /^[1-4]$/.test(e.key)) {
+        e.preventDefault();
+        setTab(TABS[Number(e.key) - 1].id);
+        setCoursTab(undefined);
+      } else if (e.key === "Escape" && !typing && !["tabs", "chat", "placement"].includes(screenT)) {
+        setScreen({ t: "tabs" });
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [hasProfile, screenT]);
   // Modèles déjà téléchargés : on les charge en tâche de fond dès l'ouverture.
   useEffect(() => {
     if (st.ready && st.profile) void warmIfCached(st.llm);
@@ -142,6 +163,8 @@ export default function Page() {
           } else setScreen(m === "talk" || m === "daily" ? { t: "chat", scenario: topicScenario(profile.target) } : { t: "tool", mode: m });
         }} />
       );
+    case "review":
+      return <Vocab profile={profile} llm={st.llm} vocab={st.vocab} review={st.reviewCard} onBack={home} />;
     case "scenarios":
       return <ScenarioList onBack={home} start={(id) => setScreen({ t: "chat", scenario: SCENARIOS.find((s) => s.id === id)! })} />;
     case "tool":
@@ -157,7 +180,12 @@ export default function Page() {
     case "practice":
       return (
         <SpeakingPractice day={screen.day} profile={profile} llm={st.llm} onExit={() => setScreen({ t: "day", day: screen.day })}
-          onDone={() => { st.completeActivity(screen.day.id, "speaking"); setScreen({ t: "day", day: screen.day }); }} />
+          onDone={(r) => {
+            st.completeActivity(screen.day.id, "speaking", r.fluency);
+            // L'entraînement compte dans le temps de pratique et la série (séance sans note).
+            st.addSession({ id: `p-${Date.now()}`, date: new Date().toISOString(), scenarioId: "daily", title: `Entraînement · ${screen.day.title}`, seconds: Math.max(30, r.seconds), turns: r.turns, corrections: [], words: [] });
+            setScreen({ t: "day", day: screen.day });
+          }} />
       );
     case "chat": {
       const dayId = screen.dayId;
@@ -212,9 +240,10 @@ export default function Page() {
         </button>
       )}
       {tab === "parler" && (
-        <Parler profile={profile} sessions={st.sessions} progress={st.course} ai={ai}
+        <Parler profile={profile} sessions={st.sessions} progress={st.course} ai={ai} vocab={st.vocab}
           go={(to) => {
-            if (to === "setup") setScreen({ t: "setup" });
+            if (to === "review") setScreen({ t: "review" });
+            else if (to === "setup") setScreen({ t: "setup" });
             else if (to === "hub") setScreen({ t: "hub" });
             else if (to === "talk") setScreen({ t: "chat", scenario: topicScenario(profile.target) });
             else if (to === "scenarios") setScreen({ t: "scenarios" });
@@ -228,7 +257,7 @@ export default function Page() {
       {tab === "bilan" && <div className="-mx-4"><Progress profile={profile} sessions={st.sessions} rtl={rtl} /></div>}
       {tab === "moi" && (
         <div className="-mx-4 space-y-2">
-          <Vocab profile={profile} vocab={st.vocab} review={st.reviewCard} />
+          <Vocab profile={profile} llm={st.llm} vocab={st.vocab} review={st.reviewCard} />
           <Settings profile={profile} llm={st.llm} setLlm={st.setLlm} setProfile={st.setProfile} reset={st.reset} />
         </div>
       )}

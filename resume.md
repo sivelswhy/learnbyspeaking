@@ -93,3 +93,13 @@ Style général : fond gris très clair, cartes blanches arrondies (rayon ~16 px
 8. **Cours — niveau déplié** : carte du niveau + « Démarrage rapide », carte d'unité violet pâle (icône livre, « Unité 1 · … », barre de progression, pastille « 0/16 »), puis frise verticale centrale : cartes « Jour n / titre / À apprendre ▶ » alternées gauche/droite, rond gris avec icône livre sur la ligne centrale.
 9. **Jour** : retour en haut à gauche, photo ronde centrée, « Unit 1 · Day 1 », titre en gros, phrase clé dessous, « 2 activités » : carte blanche avec « ▶ Entraînement à la parole · 4 min » (rond violet) et « Jeu de scénario · 5 minutes » (rond rose), coche grise à droite de chaque.
 10. **Entraînement à la parole** : titre « … __ ? ⌄ » centré, barre de progression segmentée (4 segments), vidéo de la tutrice qui parle avec sous-titre mot à mot en pastille sombre, « TOUCHEZ POUR CONTINUER · Poursuivre en 2… ». Puis carte blanche centrée : étiquette violette « Parler maintenant… », phrase cible en gris en gros, traduction dessous, boutons ronds « recommencer » et « pause ».
+
+## État de l'app (novembre 2026)
+
+- **Identité** : mascotte Shuli (renard, 7 expressions via `Avatar mood`), palette forêt et miel, police Nunito, boutons en relief, thème clair uniquement. Charte et maquette dans `mac/brand/`.
+- **Test de niveau adaptatif** (`lib/adaptive.ts`) : 14 questions A1-B2, estimation bayésienne de la compétence, 4 à 8 questions, arrêt quand le niveau est fiable à 85 %. Analyse de la voix (`lib/speechMetrics.ts`) : pauses, hésitations, débit, temps de réaction, note de fluidité.
+- **Révision espacée** (`lib/srs.ts`) : 4 notes (à revoir, difficile, bien, facile), mode oral « dire le mot », carte « Révision du jour » à l'accueil.
+- **Série avec gel** et bilan de la semaine (`lib/streak.ts`).
+- **Sauvegarde** (`lib/backup.ts`) : copie miroir dans IndexedDB restaurée toute seule si localStorage est vidé, export et import JSON (panneau d'enregistrement natif dans l'app Mac). Diagnostic, taille du texte, raccourcis clavier (⌘1 à ⌘4, Échap, espace).
+- **IA absente** : fonctions grisées ; modèles sur l'appareil en cours de chargement : bandeau « Shuli se réveille ». Reprise automatique des téléchargements (3 essais, et au retour du réseau).
+- **App Mac native** (`mac/`, AppKit + WebKit) : `mac/build.sh`, mode debug local `mac/Debug.local.swift` (ignoré par git).

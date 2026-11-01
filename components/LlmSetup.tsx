@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { RiCheckboxCircleFill, RiCpuLine, RiDownloadCloud2Line, RiErrorWarningLine, RiLoader4Line } from "react-icons/ri";
 import {
   DEFAULT_LLM, WEBLLM_MODELS, complete, errorMessage, hasWebGPU, isCached, isReady, loadStore, loadWebLLM,
@@ -142,6 +142,7 @@ export function LlmSetup({ llm, onChange, onReady, native = "fr", required = fal
   const [mCached, setMCached] = useState(false);
   const mLoading = isLoading(ms);
   const [busy, setBusy] = useState(false);
+  const [retry, setRetry] = useState(0);
   const [wCached, setWCached] = useState(false);
   const [vCached, setVCached] = useState(false);
   const wLoading = ws.phase === "download" || ws.phase === "init";
@@ -175,6 +176,7 @@ export function LlmSetup({ llm, onChange, onReady, native = "fr", required = fal
       else await complete(llm, { messages: [{ role: "user", content: "ok" }], maxTokens: 2 });
       if (llm.stt === "whisper" && gpu) await loadWhisper();
       if (llm.voice === "natural") await loadVoice();
+      setRetry(0);
       onReady?.();
     } catch (e) {
       setError(errorMessage(e));
@@ -183,6 +185,32 @@ export function LlmSetup({ llm, onChange, onReady, native = "fr", required = fal
     }
   }
 
+  // Reprise : le téléchargement repart là où il s'est arrêté (chaque fichier déjà reçu reste en cache).
+  // Premier lancement : 3 nouvelles tentatives automatiques, et un essai dès que le réseau revient.
+  const goRef = useRef(go);
+  useEffect(() => {
+    goRef.current = go;
+  });
+  const failed = !!error || [ms, ls, ws, vs].some((x) => x.phase === "error");
+  useEffect(() => {
+    if (!required || !failed || busy || retry >= 3) return;
+    const t = setTimeout(() => {
+      setRetry((r) => r + 1);
+      void goRef.current();
+    }, 4000 * (retry + 1));
+    return () => clearTimeout(t);
+  }, [required, failed, busy, retry]);
+  useEffect(() => {
+    if (!required) return;
+    const on = () => {
+      if (failed && !busy) {
+        setRetry(0);
+        void goRef.current();
+      }
+    };
+    window.addEventListener("online", on);
+    return () => window.removeEventListener("online", on);
+  }, [required, failed, busy]);
   const set = (p: Partial<LlmSettings>) => onChange({ ...llm, ...p });
   const ready = allReady(llm, ws, vs) && (!required || ms.phase === "ready");
   const anyLoading = busy || loadingThis || wLoading || vLoading || mLoading;
@@ -211,7 +239,7 @@ export function LlmSetup({ llm, onChange, onReady, native = "fr", required = fal
         <div className="flex items-center gap-3">
           <Avatar size={64} mood={[ms, ls, ws, vs].some((x) => x.phase === "error") ? "sad" : anyLoading ? "think" : ready ? "cheer" : "happy"} className="shrink-0" />
           <p className="text-sm font-semibold">
-            {[ms, ls, ws, vs].some((x) => x.phase === "error") ? "Oups, un téléchargement a échoué. Réessaie." : anyLoading ? "Je m'installe… tu peux me laisser travailler." : ready ? "C'est prêt, on y va !" : "Un seul téléchargement, et tout marche ensuite sans connexion."}
+            {failed ? (retry < 3 && required ? `Oups, la connexion a coupé. Je reprends où j'en étais… (essai ${Math.min(retry + 1, 3)}/3)` : "Le téléchargement a échoué. Vérifie ta connexion puis touche « Télécharger » : il reprend où il s'est arrêté.") : anyLoading ? "Je m'installe… tu peux me laisser travailler." : ready ? "C'est prêt, on y va !" : "Un seul téléchargement, et tout marche ensuite sans connexion."}
           </p>
         </div>
         {!gpu && <p className="rounded-lg bg-warn/10 p-3 text-sm text-warn">WebGPU indisponible ici : Shuli ne peut pas tourner dans ce navigateur. Utilise Chrome ou Edge récent, ou Safari à jour sur iPhone.</p>}

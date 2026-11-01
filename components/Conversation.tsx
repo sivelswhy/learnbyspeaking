@@ -61,7 +61,6 @@ export function Conversation({
   const [handsFree, setHandsFree] = useState(false);
   const [voiceOk, setVoiceOk] = useState(true);
   const [assist, setAssist] = useState<Assist | null>(null);
-  const [assistBusy, setAssistBusy] = useState(false);
   const [repeat, setRepeat] = useState<{ target: string; heard?: string; score?: number } | null>(null);
   const [finishing, setFinishing] = useState(false);
 
@@ -344,7 +343,7 @@ export function Conversation({
       <Header
         title={sc.title}
         onBack={onExit}
-        right={<Btn variant="ghost" onClick={finish} disabled={finishing} className="!min-h-9">{finishing ? "Bilan…" : "Terminer"}</Btn>}
+        right={<Btn variant="ghost" onClick={finish} disabled={finishing} className="!min-h-11">{finishing ? "Bilan…" : "Terminer"}</Btn>}
       />
       <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
         <p className="rounded-xl bg-accent/10 p-3 text-sm text-accent">
@@ -365,10 +364,10 @@ export function Conversation({
         {streaming && (
           <div className={`max-w-[85%] rounded-2xl rounded-bl-md border border-line bg-card px-4 py-3 ${lang.rtl ? "he text-lg" : ""}`}>{streaming}</div>
         )}
-        {busy && !streaming && <p className="text-sm text-muted">Le tuteur réfléchit…</p>}
-        {(assistBusy || assist) && (
+        {busy && !streaming && <p className="flex items-center gap-2 text-sm text-muted"><Avatar size={36} mood="think" /> Shuli réfléchit…</p>}
+        {assist && (
           <div className="rounded-2xl border border-accent/40 bg-card p-3 text-sm">
-            {assistBusy ? "…" : assist && (
+            {assist && (
               <>
                 <p className="mb-1 text-xs font-semibold uppercase text-accent">
                   {{ translate: "Traduction", explain: "Explication", rephrase: "Plus naturel",  }[assist.kind]}
@@ -426,7 +425,7 @@ export function Conversation({
             )}
           </div>
         )}
-        {error && <p role="alert" className="rounded-xl bg-warn/10 p-3 text-sm text-warn">{error}</p>}
+        {error && <p role="alert" className="flex items-center gap-3 rounded-xl bg-warn/10 p-3 text-sm text-warn"><Avatar size={40} mood="sad" className="shrink-0" />{error}</p>}
         {rec.error && <p role="alert" className="rounded-xl bg-warn/10 p-3 text-sm text-warn">{STT_MSG[rec.error]}</p>}
         <div ref={bottom} />
       </div>
@@ -443,7 +442,7 @@ export function Conversation({
         {rec.interim && <p className={`mb-2 text-center text-muted ${lang.rtl ? "he" : ""}`}>{rec.interim}</p>}
         <div className="flex items-center justify-between">
           <div className="flex w-24 flex-col gap-1">
-            <Btn variant="ghost" onClick={() => lastAssistant && say(lastAssistant.text)} disabled={!lastAssistant} className="flex !min-h-9 items-center justify-center gap-1 !px-2"><RiRepeatLine aria-hidden /> Répéter</Btn>
+            <Btn variant="ghost" onClick={() => lastAssistant && say(lastAssistant.text)} disabled={!lastAssistant} className="flex !min-h-11 items-center justify-center gap-1 !px-2"><RiRepeatLine aria-hidden /> Répéter</Btn>
           </div>
           <button
             onClick={mic} disabled={busy || finishing || transcribing}
@@ -454,8 +453,8 @@ export function Conversation({
             {rec.listening ? <RiStopFill aria-hidden className="size-8" /> : <RiMicFill aria-hidden className="size-9" />}
           </button>
           <div className="flex w-24 flex-col gap-1">
-            <Btn variant="ghost" onClick={interrupt} disabled={status === "idle"} className="flex !min-h-9 items-center justify-center gap-1 !px-2"><RiHand aria-hidden /> Stop</Btn>
-            <Btn variant={handsFree ? "solid" : "ghost"} onClick={() => setHandsFree(!handsFree)} className="flex !min-h-9 items-center justify-center gap-1 !px-2">
+            <Btn variant="ghost" onClick={interrupt} disabled={status === "idle"} className="flex !min-h-11 items-center justify-center gap-1 !px-2"><RiHand aria-hidden /> Stop</Btn>
+            <Btn variant={handsFree ? "solid" : "ghost"} onClick={() => setHandsFree(!handsFree)} className="flex !min-h-11 items-center justify-center gap-1 !px-2">
               <RiHeadphoneLine aria-hidden /> Mains libres
             </Btn>
           </div>
@@ -530,9 +529,9 @@ function Bubble({
             <p className="text-muted">Plus naturel : <span className={he}>{m.correction.natural}</span></p>
           )}
           <div className="flex gap-2 pt-1">
-            <Btn variant="soft" onClick={() => onSpeak(m.correction!.corrected)} className="flex !min-h-9 items-center gap-1"><RiVolumeUpLine aria-hidden /> Écouter</Btn>
-            <Btn variant="soft" onClick={() => onRepeat(m.correction!.corrected)} className="flex !min-h-9 items-center gap-1"><RiMicLine aria-hidden /> Répéter</Btn>
-            <Btn variant="soft" onClick={() => onUse(m.correction!.corrected)} className="!min-h-9">Renvoyer</Btn>
+            <Btn variant="soft" onClick={() => onSpeak(m.correction!.corrected)} className="flex !min-h-11 items-center gap-1"><RiVolumeUpLine aria-hidden /> Écouter</Btn>
+            <Btn variant="soft" onClick={() => onRepeat(m.correction!.corrected)} className="flex !min-h-11 items-center gap-1"><RiMicLine aria-hidden /> Répéter</Btn>
+            <Btn variant="soft" onClick={() => onUse(m.correction!.corrected)} className="!min-h-11">Renvoyer</Btn>
           </div>
         </div>
       )}

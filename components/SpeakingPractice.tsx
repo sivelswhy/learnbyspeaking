@@ -1,16 +1,22 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RiCheckboxCircleFill, RiLightbulbLine, RiMicFill, RiPauseFill, RiRestartLine } from "react-icons/ri";
+import { RiLightbulbLine, RiMicFill, RiPauseFill, RiRestartLine } from "react-icons/ri";
 import type { Day, Step } from "@/lib/content/course-he";
 import { LANGUAGES } from "@/lib/languages";
 import type { LlmSettings } from "@/lib/llm";
 import { LEVEL_RATE, STT_ERRORS, cancelSpeech, speak, useVoiceInput } from "@/lib/speech";
+import { useSpaceKey } from "@/lib/keys";
+import { avgFluency, fluencyScore, type SpeechMetrics } from "@/lib/speechMetrics";
 import type { Profile } from "@/lib/types";
 import { Avatar } from "./Avatar";
 import { Btn, Header, wordMatch } from "./ui";
 
 /** Entraînement guidé : Shuli parle (sous-titres), puis l'apprenant répète ou répond à voix haute. */
-export function SpeakingPractice({ day, profile, llm, onExit, onDone }: { day: Day; profile: Profile; llm: LlmSettings; onExit: () => void; onDone: () => void }) {
+export function SpeakingPractice({ day, profile, llm, onExit, onDone }: {
+  day: Day; profile: Profile; llm: LlmSettings; onExit: () => void;
+  /** fluency : moyenne 0-100 des étapes mesurées (null si voix non mesurée) ; seconds : durée ; turns : étapes parlées. */
+  onDone: (r: { fluency: number | null; seconds: number; turns: number }) => void;
+}) {
   const lang = LANGUAGES[profile.target];
   const gnd = profile.gender ?? "m";
   const he = lang.rtl ? "he" : "";
@@ -19,6 +25,11 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: { day: D
   const [heard, setHeard] = useState<string | null>(null);
   const [hint, setHint] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [metrics, setMetrics] = useState<SpeechMetrics | null>(null);
+  // Fluidité de chaque étape parlée (pauses, débit, hésitations : lib/speechMetrics.ts).
+  const fluencies = useRef<(number | null)[]>([]);
+  const [t0] = useState(() => Date.now());
+  const [summary, setSummary] = useState<{ fluency: number | null; seconds: number; turns: number; measured: number } | null>(null);
   const step: Step | undefined = day.steps[i];
   const finished = i >= day.steps.length;
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -28,7 +39,12 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: { day: D
     stepRef.current = i;
   }, [i]);
 
-  const voice = useVoiceInput(llm.stt, profile.target, lang.speech, (t) => setHeard(t));
+  const voice = useVoiceInput(llm.stt, profile.target, lang.speech, (t, _c, m) => {
+    setHeard(t);
+    setMetrics(m ?? null);
+    const words = t.split(/\s+/).filter((w) => /[\u05d0-\u05ea]/.test(w)).length;
+    fluencies.current.push(fluencyScore(m, words, profile.level)?.score ?? null);
+  });
   // Micro ouvert dès l'arrivée sur l'écran : le premier enregistrement ne perd pas le début de la phrase.
   const prewarm = voice.prewarm;
   useEffect(() => prewarm(), []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -55,9 +71,14 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: { day: D
     cancelSpeech();
     voice.stop();
     setHeard(null);
+    setMetrics(null);
     setHint(false);
+    if (stepRef.current + 1 >= day.steps.length) {
+      const measured = fluencies.current.filter((f) => f !== null).length;
+      setSummary({ fluency: avgFluency(fluencies.current), seconds: Math.round((Date.now() - t0) / 1000), turns: day.steps.filter((s) => s.kind !== "intro").length, measured });
+    }
     setI((x) => x + 1);
-  }, [voice]);
+  }, [voice, day.steps, t0]);
 
   // Lecture de chaque étape à son arrivée.
   useEffect(() => {
@@ -86,14 +107,18 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: { day: D
   }, [i]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => () => cancelSpeech(), []);
+  useSpaceKey(() => (step?.kind === "intro" ? next() : voice.listening ? voice.stop() : voice.transcribing ? undefined : (cancelSpeech(), setHeard(null), voice.start())), !finished);
 
   if (finished) {
     return (
       <div className="mx-auto flex min-h-dvh max-w-lg lg:max-w-3xl flex-col items-center justify-center gap-4 p-6 text-center">
-        <RiCheckboxCircleFill aria-hidden className="size-16 text-good" />
+        <Avatar size={120} mood="cheer" className="pop-in" />
         <h1 className="text-2xl font-bold">Entraînement terminé !</h1>
         <p className="text-muted">Tu as pratiqué « {day.title} ». Passe au jeu de rôle pour l&apos;utiliser en vraie conversation.</p>
-        <Btn onClick={onDone} className="w-full max-w-sm">Continuer</Btn>
+        {summary && summary.fluency !== null && (
+          <p className="rounded-2xl bg-soft px-4 py-2 text-sm font-semibold text-accent">Fluidité moyenne : {summary.fluency}/100 · {summary.measured} réponse(s) mesurée(s)</p>
+        )}
+        <Btn onClick={() => onDone(summary ?? { fluency: null, seconds: 30, turns: 0 })} className="w-full max-w-sm">Continuer</Btn>
       </div>
     );
   }
@@ -150,7 +175,13 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: { day: D
                     {match}% des mots {step.kind === "repeat" ? "de la phrase" : "de l'exemple"} retrouvés{match >= 70 ? " — bravo !" : ""}
                   </p>
                 )}
-                <p className="text-xs text-muted">Mesure du texte reconnu, pas de ton accent.</p>
+                {metrics && (
+                  <p className="mt-1 text-xs text-muted">
+                    Fluidité {fluencyScore(metrics, heard.split(/\s+/).filter((w) => /[\u05d0-\u05ea]/.test(w)).length, profile.level)?.score ?? "—"}
+                    {metrics.wpm !== null ? ` · ${metrics.wpm} mots/min` : ""} · {metrics.pauses} pause{metrics.pauses > 1 ? "s" : ""} · réaction {metrics.latency.toFixed(1)} s
+                  </p>
+                )}
+                <p className="text-xs text-muted">Le texte reconnu est mesuré, pas ton accent.</p>
               </div>
             )}
             <div className="mt-5 flex items-center justify-center gap-4">

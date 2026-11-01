@@ -3,28 +3,13 @@ import { RiArrowRightSLine, RiCalendarCheckLine, RiCheckLine, RiFlashlightFill, 
 import type { IconType } from "react-icons";
 import { ALL_DAYS, courseLevelFor } from "@/lib/content/course-he";
 import { SCENARIOS } from "@/lib/languages";
-import type { CourseProgress, Profile, SessionRecord } from "@/lib/types";
+import { streakInfo, todaySeconds } from "@/lib/streak";
+import type { CourseProgress, Profile, SessionRecord, VocabCard } from "@/lib/types";
+import { dueCards } from "@/lib/srs";
 import { Avatar } from "./Avatar";
 import type { AiStatus } from "./LlmSetup";
 import { ScenarioIcon } from "./icons";
 import { Header } from "./ui";
-
-export function todaySeconds(sessions: SessionRecord[]) {
-  const d = new Date().toDateString();
-  return sessions.filter((s) => new Date(s.date).toDateString() === d).reduce((a, s) => a + s.seconds, 0);
-}
-
-export function streak(sessions: SessionRecord[]) {
-  const days = new Set(sessions.map((s) => new Date(s.date).toDateString()));
-  let n = 0;
-  const d = new Date();
-  if (!days.has(d.toDateString())) d.setDate(d.getDate() - 1);
-  while (days.has(d.toDateString())) {
-    n++;
-    d.setDate(d.getDate() - 1);
-  }
-  return n;
-}
 
 export function nextDay(progress: CourseProgress, level: string) {
   const lvl = courseLevelFor(level);
@@ -32,23 +17,24 @@ export function nextDay(progress: CourseProgress, level: string) {
   return list.find((x) => !(progress[x.day.id]?.speaking && progress[x.day.id]?.scenario)) ?? list[list.length - 1];
 }
 
-export function Parler({ profile, sessions, progress, go: goRaw, ai = "ready" }: {
-  profile: Profile; sessions: SessionRecord[]; progress: CourseProgress;
+export function Parler({ profile, sessions, progress, go: goRaw, ai = "ready", vocab = [] }: {
+  profile: Profile; sessions: SessionRecord[]; progress: CourseProgress; vocab?: VocabCard[];
   /** missing / downloading : l'IA n'est pas sur l'appareil, les fonctions sont grisées et mènent au téléchargement. loading : chargement depuis l'appareil, on patiente. */
   ai?: AiStatus;
-  go: (to: "setup" | "hub" | "talk" | "scenarios" | "placement" | "translate" | "define" | "course" | "next") => void;
+  go: (to: "review" | "setup" | "hub" | "talk" | "scenarios" | "placement" | "translate" | "define" | "course" | "next") => void;
 }) {
   const go = (to: Parameters<typeof goRaw>[0]) => {
-    if (ai === "ready" || to === "course") return goRaw(to);
+    if (ai === "ready" || to === "course" || to === "review") return goRaw(to);
     if (ai !== "loading") goRaw("setup"); // en chargement : rien à faire, ça arrive
   };
   const off = ai === "ready" ? "" : ai === "loading" ? "opacity-60 cursor-progress" : "grayscale opacity-50";
   const nd = nextDay(progress, profile.level);
+  const dueCount = dueCards(vocab).length;
   const doneAll = ALL_DAYS.filter((x) => progress[x.day.id]?.speaking && progress[x.day.id]?.scenario).length;
   const pct = Math.round((doneAll / ALL_DAYS.length) * 100);
   const minutes = Math.floor(todaySeconds(sessions) / 60);
   const chips: [IconType, string, string][] = [
-    [RiCalendarCheckLine, `${streak(sessions)}`, "Jours d'affilée"],
+    [RiCalendarCheckLine, `${streakInfo(sessions).days}`, streakInfo(sessions).atRisk ? "Jours d'affilée : pratique aujourd'hui pour garder ta série" : "Jours d'affilée"],
     [RiTimeLine, `${minutes}/${profile.dailyMinutes}`, "Minutes aujourd'hui"],
     [RiLineChartLine, profile.level, "Ton niveau"],
   ];
@@ -72,7 +58,15 @@ export function Parler({ profile, sessions, progress, go: goRaw, ai = "ready" }:
       </div>
       <p className="text-lg">Salut{profile.name ? ` ${profile.name}` : ""} ! Je suis Shuli !</p>
 
-      <div className={`relative rounded-3xl bg-accent p-5 pt-6 text-accent-ink ${off}`}>
+      {dueCount > 0 && (
+        <button onClick={() => go("review")} className="flex w-full items-center gap-4 rounded-2xl border-2 border-[#f29b2f]/50 bg-[#fff3e0] p-3 text-left text-[#5a3a05] shadow-[0_3px_0_0_#f29b2f66] active:translate-y-0.5 active:shadow-none">
+          <Avatar size={48} mood="wink" className="shrink-0" />
+          <span className="flex-1"><span className="block font-extrabold">Révision du jour · {dueCount} mot{dueCount > 1 ? "s" : ""}</span><span className="block text-sm">≈ {Math.max(1, Math.round(dueCount * 0.4))} min avant la leçon, pour ne rien oublier.</span></span>
+          <RiArrowRightSLine aria-hidden className="size-6 shrink-0" />
+        </button>
+      )}
+
+      <div className={`relative rounded-3xl bg-accent p-5 pt-6 text-accent-ink ${off} ${dueCount > 0 ? "mt-8" : ""}`}>
         <div className="pointer-events-none absolute -top-7 end-2"><Avatar size={104} mood="wink" /></div>
         <h2 className="max-w-[68%] text-xl font-bold leading-snug">Parle hébreu en {ALL_DAYS.length} jours</h2>
         <div className="relative mt-4 h-1 max-w-[74%] rounded-full bg-white/30">

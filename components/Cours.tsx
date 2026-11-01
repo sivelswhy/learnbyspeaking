@@ -59,6 +59,7 @@ export function Cours({ profile, progress, openDay, addWords, startTab }: {
 
 function UnitPath({ unit, index, progress, openDay }: { unit: Unit; index: number; progress: CourseProgress; openDay: (d: Day) => void }) {
   const done = unit.days.filter((d) => dayDone(progress, d.id)).length;
+  const firstOpen = unit.days.findIndex((d) => !dayDone(progress, d.id));
   return (
     <div className="px-3">
       <div className="flex items-center gap-4 rounded-2xl border border-accent/15 bg-soft p-4">
@@ -89,7 +90,7 @@ function UnitPath({ unit, index, progress, openDay }: { unit: Unit; index: numbe
             <li key={d.id} className="relative grid grid-cols-[1fr_4rem_1fr] items-center py-3">
               <div>{left && card}</div>
               <span className={`z-[1] mx-auto grid size-14 place-items-center rounded-full border-b-[5px] ${complete ? "border-[#1f7347] bg-good text-white" : p ? "border-accent-deep bg-accent text-accent-ink" : "border-line-deep bg-line text-muted"}`}>
-                {complete ? <RiCheckLine aria-hidden className="size-5" /> : <RiBookOpenFill aria-hidden className="size-5" />}
+                {complete ? <RiCheckLine aria-hidden className="size-5" /> : k === firstOpen ? <Avatar size={44} mood="wink" /> : <RiBookOpenFill aria-hidden className="size-5" />}
               </span>
               <div>{!left && card}</div>
             </li>

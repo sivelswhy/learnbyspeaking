@@ -85,7 +85,7 @@ final class StaticServer {
 
 // MARK: - Application
 
-final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNavigationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNavigationDelegate, WKScriptMessageHandler {
     var window: NSWindow!
     var web: WKWebView!
     var server: StaticServer!
@@ -105,6 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
         let cfg = WKWebViewConfiguration()
         cfg.websiteDataStore = .default()
         cfg.mediaTypesRequiringUserActionForPlayback = []
+        cfg.userContentController.add(self, name: "lbsSave") // export de sauvegarde : panneau « Enregistrer »
         web = WKWebView(frame: .zero, configuration: cfg)
         web.uiDelegate = self
         web.navigationDelegate = self
@@ -207,6 +208,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
     }
 
     // MARK: WebKit
+
+    /// La page envoie {name, text} : on ouvre le panneau « Enregistrer » et on écrit le fichier.
+    func userContentController(_ c: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "lbsSave", let body = message.body as? [String: Any],
+              let name = body["name"] as? String, let text = body["text"] as? String else { return }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = name
+        panel.allowedContentTypes = [.json]
+        panel.beginSheetModal(for: window) { r in
+            if r == .OK, let url = panel.url { try? text.write(to: url, atomically: true, encoding: .utf8) }
+        }
+    }
+
+    /// Sélecteur de fichier des <input type="file"> (import de sauvegarde).
+    func webView(_ w: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters, initiatedByFrame frame: WKFrameInfo,
+                 completionHandler: @escaping ([URL]?) -> Void) {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = parameters.allowsMultipleSelection
+        panel.beginSheetModal(for: window) { r in completionHandler(r == .OK ? panel.urls : nil) }
+    }
 
     // LEARNBYSPEAKING_SELFTEST=<fichier> : après le chargement, écrit l'état de la page (WebGPU, contexte sécurisé…) puis quitte.
     func webView(_ w: WKWebView, didFinish navigation: WKNavigation!) {
