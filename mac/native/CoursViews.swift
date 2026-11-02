@@ -9,7 +9,7 @@ struct CoursView: View {
     @State private var open: String?
 
     var body: some View {
-        let p = store.profile!
+        let p = (store.profile ?? NEW_PROFILE)
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 4) {
                 ForEach([("path", "Parcours"), ("res", "Ressources")], id: \.0) { k, label in
@@ -123,7 +123,7 @@ struct DayScreen: View {
     var body: some View {
         let ref = Content.allDays.first { $0.day.id == dayId }!
         let d = ref.day
-        let g = store.profile!.g
+        let g = (store.profile ?? NEW_PROFILE).g
         let p = store.course[d.id]
         ScrollView {
             Column {

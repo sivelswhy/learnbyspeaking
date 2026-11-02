@@ -157,14 +157,14 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
                 let cur = next ?? compute(s)
                 next = k + 1 < list.count ? compute(list[k + 1]) : nil
                 guard let samples = await cur.value, gen == generation else { continue }
-                await play(samples + [Float](repeating: 0, count: Int(piper.sampleRate * 0.1)), rate: piper.sampleRate)
+                await play(samples + [Float](repeating: 0, count: Int(piper.sampleRate * 0.1)), rate: piper.sampleRate, gen: gen)
                 if gen != generation { break }
             }
         }
         if gen == generation { await MainActor.run { speaking = false } }
     }
 
-    private func play(_ samples: [Float], rate: Double) async {
+    private func play(_ samples: [Float], rate: Double, gen: Int) async {
         guard let fmt = AVAudioFormat(standardFormatWithSampleRate: rate, channels: 1),
               let buf = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: AVAudioFrameCount(samples.count)) else { return }
         buf.frameLength = AVAudioFrameCount(samples.count)
@@ -174,7 +174,11 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
         if !engine.isRunning { try? engine.start() }
         await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
             done = c
-            player.scheduleBuffer(buf, completionCallbackType: .dataPlayedBack) { [weak self] _ in self?.finish() }
+            player.scheduleBuffer(buf, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+                // Un rappel tardif d'une phrase interrompue ne doit pas couper la suivante.
+                guard let self, self.generation == gen else { return }
+                self.finish()
+            }
             player.play()
         }
     }

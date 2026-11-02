@@ -24,7 +24,7 @@ struct ParlerView: View {
     @EnvironmentObject var nav: Nav
 
     var body: some View {
-        let p = store.profile!
+        let p = (store.profile ?? NEW_PROFILE)
         let off = app.ai == .ready ? 1.0 : 0.55
         let nd = nextDay(store.course, p.level)
         let due = dueCards(store.vocab).count

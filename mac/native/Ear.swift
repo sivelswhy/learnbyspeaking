@@ -2,7 +2,7 @@ import AVFoundation
 import Foundation
 
 // Oreille de Shuli : micro natif (AVAudioEngine, 16 kHz mono) et transcription par whisper-server.
-// Mêmes règles que lib/whisper.ts : fin de phrase après 1,3 s de silence, abandon après 8 s sans rien, 30 s au plus ;
+// Mêmes règles que lib/whisper.ts : fin de phrase après 2,4 s de silence, abandon après 8 s sans rien, 30 s au plus ;
 // amorce « ? » pour garder les points d'interrogation ; virgule ou tiret parasite retiré en tête.
 
 final class Ear: ObservableObject {
@@ -15,6 +15,10 @@ final class Ear: ObservableObject {
     private var converter: AVAudioConverter?
     private let out = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false)!
     private var spoke = false
+    private var noise: Float = 0.004   // bruit ambiant estimé
+    private var frames = 0
+    /// Silence qui termine la réponse : assez long pour laisser réfléchir ou chercher un mot.
+    var silenceStop: TimeInterval = 2.4
     private var t0 = Date()
     private var lastVoice = Date()
     private var cont: CheckedContinuation<[Float]?, Never>?
@@ -39,7 +43,7 @@ final class Ear: ObservableObject {
             lock.lock()
             cont = c
             samples = []
-            spoke = false
+            spoke = false; noise = 0.004; frames = 0
             t0 = Date(); lastVoice = t0
             lock.unlock()
             let input = engine.inputNode
@@ -75,8 +79,13 @@ final class Ear: ObservableObject {
         let now = Date()
         lock.lock()
         if let d = o.floatChannelData?[0] { samples.append(contentsOf: UnsafeBufferPointer(start: d, count: Int(o.frameLength))) }
-        if rms > 0.02 { spoke = true; lastVoice = now }
-        let end = (spoke && now.timeIntervalSince(lastVoice) > 1.3) || (!spoke && now.timeIntervalSince(t0) > 8) || now.timeIntervalSince(t0) > 30
+        // Seuil adaptatif : la voix doit dépasser nettement le bruit ambiant (appris sur les premiers instants, puis suivi dans les pauses).
+        frames += 1
+        let thr = spoke ? max(0.005, noise * 2) : max(0.006, noise * 3)   // plus bas une fois lancé : les syllabes faibles ne comptent pas comme silence
+        if frames <= 6 { noise = min(0.015, noise * 0.5 + rms * 0.5) }
+        else if rms > thr { spoke = true; lastVoice = now }
+        else { noise = min(0.05, noise * 0.9 + rms * 0.1) }
+        let end = (spoke && now.timeIntervalSince(lastVoice) > silenceStop) || (!spoke && now.timeIntervalSince(t0) > 8) || now.timeIntervalSince(t0) > 30
         let got = spoke ? samples : nil
         lock.unlock()
         DispatchQueue.main.async { self.level = Double(min(1, rms * 8)) }

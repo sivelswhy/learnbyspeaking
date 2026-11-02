@@ -223,7 +223,7 @@ struct ToolChatView: View {
         let q = text.trimmed
         guard !q.isEmpty, !busy else { return }
         msgs.append(Msg(role: "user", content: q)); text = ""; busy = true; error = nil
-        let g = store.profile!.g
+        let g = (store.profile ?? NEW_PROFILE).g
         Task {
             var out = ""
             let phrase = mode == .teacher ? q.sub("^\\s*(comment (on )?dire|comment dit-on|on dit comment)\\s*", with: "", .caseInsensitive).sub("[«»\"“”?]", with: "").trimmed : mode == .define ? wordOf(q) : q

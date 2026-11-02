@@ -7,7 +7,7 @@ import Foundation
 struct Item { var b: Double; var a: Double }
 let LEVEL_B: [String: Double] = ["A1": -2, "A2": -0.7, "B1": 0.6, "B2": 1.9, "C1": 3, "C2": 4]
 private let GRID = (0..<81).map { -4 + Double($0) * 0.1 }
-let MIN_QUESTIONS = 4, MAX_QUESTIONS = 8
+let MIN_QUESTIONS = 8, MAX_QUESTIONS = 12
 private func sigmoid(_ x: Double) -> Double { 1 / (1 + exp(-x)) }
 
 struct Estimate { var theta: Double; var sd: Double; var post: [Double] }
@@ -39,7 +39,7 @@ func levelOf(_ theta: Double) -> String {
     return "B2"
 }
 func levelProb(_ e: Estimate) -> Double { let lv = levelOf(e.theta); return zip(e.post, GRID).reduce(0) { $0 + (levelOf($1.1) == lv ? $1.0 : 0) } }
-func shouldStop(_ e: Estimate, _ asked: Int) -> Bool { asked >= MAX_QUESTIONS || (asked >= MIN_QUESTIONS && levelProb(e) >= 0.85) }
+func shouldStop(_ e: Estimate, _ asked: Int) -> Bool { asked >= MAX_QUESTIONS || (asked >= MIN_QUESTIONS && levelProb(e) >= 0.9) }
 func confidence(_ e: Estimate) -> Int { Int((levelProb(e) * 100).rounded()) }
 func itemOf(_ q: PlacementQuestion) -> Item { Item(b: LEVEL_B[q.level] ?? 0, a: 1.2) }
 

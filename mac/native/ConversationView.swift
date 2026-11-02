@@ -197,7 +197,7 @@ struct ConversationView: View {
         if app.ai != .ready {
             SetupScreen(title: "Préparer le tuteur")
         } else {
-            ConversationBody(model: ConversationModel(app: app, profile: store.profile!, sc: scenario), ear: app.ear, dayId: dayId)
+            ConversationBody(model: ConversationModel(app: app, profile: (store.profile ?? NEW_PROFILE), sc: scenario), ear: app.ear, dayId: dayId)
         }
     }
 }

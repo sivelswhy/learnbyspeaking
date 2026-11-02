@@ -11,7 +11,7 @@ import type { Level } from "./languages";
  *  - Sélection : question non posée qui maximise l'information de Fisher I = (a·P·(1−P))² au θ courant,
  *    avec un petit bruit déterministe pour ne pas toujours proposer la même séquence.
  *  - Arrêt : le niveau estimé a au moins 85 % de probabilité (masse du posterior dans sa tranche de θ) après
- *    4 questions, ou 8 questions au plus.
+ *    8 questions, ou 12 questions au plus.
  */
 export interface Item {
   /** Difficulté (logit). */
@@ -27,9 +27,9 @@ const GRID = Array.from({ length: 81 }, (_, i) => -4 + i * 0.1);
 const PRIOR_MEAN = -0.7; // on part de A2 : la plupart des apprenants s'y trouvent
 const PRIOR_SD = 1.5;
 
-export const MIN_QUESTIONS = 4;
-export const MAX_QUESTIONS = 8;
-const STOP_PROB = 0.85;
+export const MIN_QUESTIONS = 8;
+export const MAX_QUESTIONS = 12;
+const STOP_PROB = 0.9;
 
 const SIGMA = 0.2;
 const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));

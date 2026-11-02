@@ -11,7 +11,7 @@ struct PlacementView: View {
     @State private var result: PlacementResult?
 
     var body: some View {
-        let p = store.profile!
+        let p = (store.profile ?? NEW_PROFILE)
         Group {
             switch phase {
             case "intro":

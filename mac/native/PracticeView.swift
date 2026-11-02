@@ -25,8 +25,8 @@ private struct PracticeBody: View {
     @State private var summary: (fluency: Int?, seconds: Int, turns: Int, measured: Int)?
     @State private var timer: Timer?
 
-    var g: Gender { store.profile!.g }
-    var level: String { store.profile!.level }
+    var g: Gender { (store.profile ?? NEW_PROFILE).g }
+    var level: String { (store.profile ?? NEW_PROFILE).level }
     var finished: Bool { i >= day.steps.count }
 
     var body: some View {

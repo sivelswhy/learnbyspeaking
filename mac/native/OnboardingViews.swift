@@ -122,7 +122,7 @@ struct GoalSetupView: View {
     }
 
     var body: some View {
-        let p = store.profile!
+        let p = (store.profile ?? NEW_PROFILE)
         ZStack(alignment: .bottom) {
             ScrollView {
                 Column {

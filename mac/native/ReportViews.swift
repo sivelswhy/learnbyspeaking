@@ -114,7 +114,7 @@ struct ProgressView_: View {
     @EnvironmentObject var nav: Nav
     var body: some View {
         let sessions = store.sessions
-        let p = store.profile!
+        let p = (store.profile ?? NEW_PROFILE)
         let wk = weekStats(sessions)
         let st = streakInfo(sessions)
         let scored = Array(sessions.filter { $0.report != nil }.suffix(12))
