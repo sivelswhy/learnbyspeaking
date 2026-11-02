@@ -100,7 +100,7 @@ extension LLM {
     func toHebrew(_ text: String, g: Gender) async -> String {
         if Translator.shared.available(native(), toHebrew: true),
            let t = await Translator.shared.translate(text, native: native(), toHebrew: true), !t.isEmpty {
-            return g == .f ? await feminize(t) : t
+            return g == .f ? await feminize(t) : masculinizeKnown(t)
         }
         let he = ((try? await complete(fill(T.toHebrew[g.rawValue]!, ["T": text]), temperature: 0.1, maxTokens: 120)) ?? "").components(separatedBy: "\n").first?.trimmed ?? ""
         return g == .f ? await feminize(he) : he

@@ -159,6 +159,7 @@ struct Rules: Codable {
     let noamFem: String
     let atToMan: String
     let filler: String
+    let dontKnow: String
     let mustAnswer: [[String]]
     let fem: [String: String]
     let devWords: [String: Int]

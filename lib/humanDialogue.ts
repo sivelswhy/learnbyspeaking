@@ -52,7 +52,7 @@ export function turnHint(said: string, lastAi: string, f: boolean): string {
     return `\nעכשיו: ${f ? "היא לא הבינה" : "הוא לא הבין"} את מה שאמרת: "${lastAi}". תגיד את אותו הדבר שוב, קצר ובמילים פשוטות יותר. בלי נושא חדש ובלי הסבר על מילים.`;
   }
   if (isQuestion(said)) {
-    return `\nעכשיו: ${f ? "היא שאלה" : "הוא שאל"}: "${said}". קודם כול ענה בדיוק על השאלה הזאת (לפי העובדות אם יש), ורק אחר כך המשך בתפקיד.`;
+    return `\nעכשיו: ${f ? "היא שאלה" : "הוא שאל"}: "${said}". קודם כול ענה בדיוק על השאלה הזאת, מיד ובקצרה (לפי העובדות אם יש, אחרת תמציא תשובה הגיונית ומדויקת: מחיר, שעה, משך). אל תדחה את התשובה ואל תבקש קודם להשלים הזמנה או פרטים. אחרי התשובה המשך בתפקיד.`;
   }
   return "";
 }
@@ -62,7 +62,8 @@ export function turnHint(said: string, lastAi: string, f: boolean): string {
  * Une réplique sans ce mot est notée « à côté » et refaite.
  */
 export const MUST_ANSWER: [RegExp, RegExp][] = [
-  [/כמה\s+(זה\s+)?(עולה|עולים)|מה\s+המחיר/, /שקל|ש"ח|₪|מחיר|עולה|עולים|חינם|מונה|יורו|דולר|לא בטוח|לא יודע/],
+  // Un vrai prix (chiffre, monnaie, nombre en lettres) ou « gratuit » : « אני צריך לדעת… כדי לומר לך את המחיר » n'est pas une réponse.
+  [/כמה\s+(זה\s+)?(עולה|עולים)|מה\s+המחיר/, /\d|שקל|ש"ח|₪|חינם|יורו|דולר|מאה|מאתיים|אלף|עשר|עשרים|שלושים|ארבעים|חמישים|שישים|שבעים|שמונים|תשעים|חמש|שש|שבע|שמונה|תשע|שלוש|ארבע|שתי|שני|לא בטוח|לא יודע/],
   [/כמה\s+זמן/, /דק(ה|ות)|שע(ה|ות|תיים)|זמן|רגע|לא בטוח|לא יודע/],
   [/באיזו\s+שעה|מתי/, /שעה|בשעה|ב-?\d|בבוקר|בערב|בצהריים|עכשיו|עוד|אחרי|לפני|מחר|היום|לא בטוח|לא יודע/],
 ];
@@ -136,6 +137,11 @@ export async function humanReply(o: {
   if (bestFlaws.includes("genre")) {
     const ok = (best.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? []).filter((x) => !replyFlaws(x, g).includes("genre") && !(g === "m" && AT_TO_MAN.test(x))).join(" ").trim();
     if (ok) [best, bestFlaws] = [ok, bestFlaws.filter((x) => x !== "genre")];
+    else if (g === "f") {
+      // Une seule phrase, « אתה לומדת » : on corrige le pronom plutôt que de garder une faute de genre.
+      const fixed = best.replace(/(^|\s)אתה(?=[\s,.!?]|$)/g, "$1את");
+      if (!replyFlaws(fixed, g).includes("genre")) [best, bestFlaws] = [fixed, bestFlaws.filter((x) => x !== "genre")];
+    }
   }
   return { text: best, source: "llm", flaws: bestFlaws, mission };
 }

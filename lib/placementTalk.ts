@@ -1,6 +1,6 @@
 "use client";
 import { complete, isReady, type LlmSettings } from "./llm";
-import { hebrewWords } from "./placement";
+import { dontKnow, hebrewWords } from "./placement";
 import { pickGender, replyFlaws, tidyReply } from "./prompts";
 import { CLARIFY, flat, isQuestion } from "./scenes";
 
@@ -50,7 +50,7 @@ export function fallbackLine(kind: TalkKind, question: string, g: "m" | "f", sco
     case "askBack":
       return `שאלה טובה! ${you(g, "קודם אתה:", "קודם את:")} ${question}`;
     default:
-      if (!hebrewWords(said).length) return you(g, "לא נורא, נמשיך!", "לא נורא, נמשיך!");
+      if (!hebrewWords(said).length || dontKnow(said)) return "לא נורא, נמשיך!";
       return (score ?? 50) >= 55 ? "יופי, הבנתי!" : "אוקיי, תודה!";
   }
 }
@@ -82,7 +82,7 @@ export async function shuliLine(llm: LlmSettings, o: {
   // Silence et français : la phrase écrite suffit (encourager puis reposer la question telle quelle).
   // Silence, français, « je n'ai pas compris » : la phrase écrite suffit (Gemma 2B, priée de simplifier, changeait
   // le sens : « ממתי את לומדת » → « מתי את לומדת ») ; la traduction ou l'exemple s'affichent en plus.
-  if (o.kind === "filler" || o.kind === "french" || o.kind === "clarify" || !hebrewWords(o.said).length && o.kind === "answer") return fallback;
+  if (o.kind === "filler" || o.kind === "french" || o.kind === "clarify" || (!hebrewWords(o.said).length || dontKnow(o.said)) && o.kind === "answer") return fallback;
   if (!isReady(llm)) return fallback;
   try {
     for (const temperature of [0.6, 0.9]) {

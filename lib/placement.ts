@@ -294,6 +294,10 @@ export interface AnswerScore {
 
 const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 
+/** « Je ne sais pas » : une réponse honnête, mais qui ne montre rien du niveau (le modèle la juge pourtant « pertinente »). */
+export const DONT_KNOW = /^[\s.,!…-]*(אני\s+)?(לא|אין)\s+(יודע|יודעת|זוכר|זוכרת|מבין|מבינה|בטוח|בטוחה|חושב|חושבת|יכול|יכולה)(\s+\S+){0,2}[\s.,!…-]*$|^[\s.,!…-]*אין\s+לי\s+(מושג|תשובה|דעה)(\s+\S+){0,2}[\s.,!…-]*$/;
+export const dontKnow = (answer: string) => DONT_KNOW.test(hebrewWords(answer).join(" ")) && hebrewWords(answer).length <= 5;
+
 /**
  * Score d'une réponse (0-100).
  * Avec l'IA : 35 % pertinence, 45 % grammaire, 10 % développement, 10 % variété.
@@ -305,6 +309,7 @@ const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
  */
 export function scoreAnswer(q: PlacementQuestion, answer: string, ai?: AiJudgement | null, speech?: SpeechMetrics | null): AnswerScore {
   const words = hebrewWords(answer);
+  if (dontKnow(answer)) return { score: 10, fluency: null, fluencyHint: null, ai: !!ai, relevance: 0, grammar: ai ? 0 : null, development: 0, vocabulary: 0, words: words.length };
   if (!words.length) return { score: 0, fluency: null, fluencyHint: null, ai: !!ai, relevance: 0, grammar: ai ? 0 : null, development: 0, vocabulary: 0, words: 0 };
   const target = TARGET_WORDS[q.level];
   const development = clamp((words.length / target) * 100);

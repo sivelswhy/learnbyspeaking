@@ -59,8 +59,15 @@ func hasKeyword(_ q: PlacementQuestion, _ answer: String) -> Bool {
 }
 
 /// Score 0-100. Avec l'IA : 35 % pertinence, 45 % grammaire, 10 % développement, 10 % variété ; voix : 10 % fluidité.
+/// « Je ne sais pas » : honnête, mais ne montre rien du niveau (le modèle la juge pourtant pertinente).
+func dontKnow(_ answer: String) -> Bool {
+    let w = hebrewWords(answer)
+    return w.count <= 5 && w.joined(separator: " ").test(C.rules.dontKnow)
+}
+
 func scoreAnswer(_ q: PlacementQuestion, _ answer: String, _ ai: AiJudgement?, _ speech: SpeechMetrics?) -> AnswerScore {
     let words = hebrewWords(answer)
+    if dontKnow(answer) { return AnswerScore(score: 10, fluency: nil, fluencyHint: nil, ai: ai != nil, relevance: 0, grammar: ai != nil ? 0 : nil, development: 0, vocabulary: 0, words: words.count) }
     if words.isEmpty { return AnswerScore(score: 0, fluency: nil, fluencyHint: nil, ai: ai != nil, relevance: 0, grammar: ai != nil ? 0 : nil, development: 0, vocabulary: 0, words: 0) }
     let target = TARGET_WORDS[q.level] ?? 4
     let development = clamp100(Double(words.count) / target * 100)
@@ -108,7 +115,7 @@ func fallbackLine(_ kind: TalkKind, _ question: String, _ g: Gender, score: Int?
     case .offTopic: return "מעניין! אבל שאלתי: \(question)"
     case .askBack: return "שאלה טובה! \(you(g, "קודם אתה:", "קודם את:")) \(question)"
     case .answer:
-        if hebrewWords(said).isEmpty { return "לא נורא, נמשיך!" }
+        if hebrewWords(said).isEmpty || dontKnow(said) { return "לא נורא, נמשיך!" }
         return (score ?? 50) >= 55 ? "יופי, הבנתי!" : "אוקיי, תודה!"
     }
 }
@@ -132,7 +139,7 @@ extension LLM {
     func shuliLine(kind: TalkKind, question: String, said: String, g: Gender, level: String, score: Int? = nil) async -> String {
         let fallback = fallbackLine(kind, question, g, score: score, said: said)
         // Silence, français, « je n'ai pas compris » : la phrase écrite suffit (Gemma changeait le sens en simplifiant).
-        if kind == .filler || kind == .french || kind == .clarify || (hebrewWords(said).isEmpty && kind == .answer) { return fallback }
+        if kind == .filler || kind == .french || kind == .clarify || ((hebrewWords(said).isEmpty || dontKnow(said)) && kind == .answer) { return fallback }
         for temperature in [0.6, 0.9] {
             guard let out = try? await complete([Msg(role: "user", content: talkPrompt(kind, question, said, g, level))], temperature: temperature, maxTokens: 70, antiRepeat: true) else { break }
             let line = pickGender(tidyReply(out).sub("^[\"«»“”']+|[\"«»“”']+$", with: ""), g)

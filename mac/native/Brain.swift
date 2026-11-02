@@ -35,6 +35,16 @@ func feminizeKnown(_ he: String) -> String {
         return C.rules.fem[x].map { w.replacingOccurrences(of: x, with: $0) } ?? w
     }.joined(separator: " ")
 }
+/// L'inverse pour un apprenant : « אני רעבה » (le traducteur choisit parfois le féminin) → « אני רעב ».
+func masculinizeKnown(_ he: String) -> String {
+    let masc = Dictionary(C.rules.fem.filter { $0.key != $0.value }.map { ($0.value, $0.key) }, uniquingKeysWith: { a, _ in a })
+    let a = he.split(separator: " ").map(String.init)
+    return a.enumerated().map { i, w in
+        guard afterAni(a, i) else { return w }
+        let x = bareHe(w)
+        return masc[x].map { w.replacingOccurrences(of: x, with: $0) } ?? w
+    }.joined(separator: " ")
+}
 /// Garde seulement les changements « au féminin » du modèle : mots juste après « אני », même début, 0 à 2 lettres de plus.
 func applyFeminine(_ orig: String, _ cand: String) -> String {
     let a = orig.split(separator: " ").map(String.init), b = cand.trimmed.split(separator: " ").map(String.init)
@@ -172,6 +182,11 @@ extension LLM {
         if bestFlaws.contains("genre") {
             let ok = sentences(best).filter { !replyFlaws($0, g).contains("genre") && !(g == .m && $0.test(C.rules.atToMan)) }.joined(separator: " ").trimmed
             if !ok.isEmpty { best = ok; bestFlaws.removeAll { $0 == "genre" } }
+            else if g == .f {
+                // Une seule phrase, « אתה לומדת » : on corrige le pronom plutôt que de garder une faute de genre.
+                let fixed = best.sub("(^|\\s)אתה(?=[\\s,.!?]|$)", with: "$1את")
+                if !replyFlaws(fixed, g).contains("genre") { best = fixed; bestFlaws.removeAll { $0 == "genre" } }
+            }
         }
         return DialogueReply(text: best, flaws: bestFlaws, mission: mission)
     }

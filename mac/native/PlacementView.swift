@@ -327,7 +327,7 @@ private struct PlacementTest: View {
             let ai = try? await app.llm.judge(question: question, answer: a, female: g == .f)
             let score = scoreAnswer(q, a, ai ?? nil, speech)
             // Hors sujet : Shuli réagit et repose la question une fois ; la réponse suivante est notée.
-            if let ai = ai ?? nil, ai.relevance < 0.25, retries < 2 {
+            if let ai = ai ?? nil, ai.relevance < 0.25, retries < 2, !dontKnow(a) {
                 let line = await app.llm.shuliLine(kind: .offTopic, question: question, said: a, g: g, level: profile.level)
                 turns.removeLast()
                 asides[k, default: []] += [Aside(me: true, text: a), Aside(me: false, text: line)]

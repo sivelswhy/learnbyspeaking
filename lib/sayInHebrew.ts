@@ -54,6 +54,21 @@ export function feminizeKnown(he: string): string {
     .join(" ");
 }
 
+/** L'inverse pour un apprenant : « אני רעבה » (le traducteur choisit parfois le féminin) → « אני רעב ». */
+export function masculinizeKnown(he: string): string {
+  const MASC = Object.fromEntries(Object.entries(FEM).filter(([m, f]) => m !== f).map(([m, f]) => [f, m]));
+  const a = he.split(/\s+/);
+  return a
+    .map((w, i) => {
+      let k = i - 1;
+      while (k >= 0 && a[k].replace(LETTERS, "") === "לא") k--;
+      if (k < 0 || i - k > 2 || !isAni(a[k])) return w;
+      const x = w.replace(LETTERS, "");
+      return MASC[x] ? w.replace(x, MASC[x]) : w;
+    })
+    .join(" ");
+}
+
 /** Met au féminin ce que dit « je » ; sans « אני » dans la phrase, rien à faire. */
 export async function feminize(llm: LlmSettings, text: string, ask?: (m: Msg[]) => Promise<string>): Promise<string> {
   if (!text.split(/\s+/).some(isAni)) return text;
@@ -74,5 +89,5 @@ export async function sayInHebrew(llm: LlmSettings, p: Profile, text: string): P
   let he = "";
   if (canTranslateToHebrew(p.native)) he = await translateToHebrew(text, p.native).catch(() => "");
   if (!he) he = (await complete(llm, { messages: translateMessages(p, text, true), temperature: 0.1, maxTokens: 120 })).split("\n")[0];
-  return p.gender === "f" ? feminize(llm, he) : he;
+  return p.gender === "f" ? feminize(llm, he) : masculinizeKnown(he);
 }

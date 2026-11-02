@@ -6,7 +6,7 @@ import type { LlmSettings } from "@/lib/llm";
 import { judge } from "@/lib/judge";
 import { MAX_QUESTIONS, confidence, estimateFrom, levelOf, pickNext, prior, shouldStop } from "@/lib/adaptive";
 import {
-  PLACEMENT, SCORING_EXPLANATION, SCORING_EXPLANATION_NO_AI, itemOf, scoreAnswer, type AnswerScore, type PlacementQuestion,
+  PLACEMENT, SCORING_EXPLANATION, SCORING_EXPLANATION_NO_AI, dontKnow, itemOf, scoreAnswer, type AnswerScore, type PlacementQuestion,
 } from "@/lib/placement";
 import { useSpaceKey } from "@/lib/keys";
 import { classify, shuliLine } from "@/lib/placementTalk";
@@ -161,7 +161,7 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
       const score = scoreAnswer(q, a, ai, speech);
       // Réponse hors sujet (« אני גרה בפריז » à « que manges-tu ? ») : comme un humain, Shuli réagit et repose la
       // question une fois ; la réponse suivante est notée.
-      if (ai && ai.relevance < 0.25 && retries < 2) {
+      if (ai && ai.relevance < 0.25 && retries < 2 && !dontKnow(a)) {
         const line = await shuliLine(llm, { kind: "offTopic", question, said: a, gender: gnd, level: profile.level });
         setTurns((t) => t.slice(0, k));
         setAsides((m) => ({ ...m, [k]: [...(m[k] ?? []), { who: "me", text: a }, { who: "shuli", text: line }] }));
