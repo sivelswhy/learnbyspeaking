@@ -70,7 +70,7 @@ export function useAiStatus(llm: LlmSettings): AiStatus {
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const llmOk = llm.provider === "ollama" || (await isCached(llm.webllmModel));
+      const llmOk = llm.provider !== "webllm" || (await isCached(llm.webllmModel));
       const wOk = llm.stt !== "whisper" || !hasWebGPU() || (await whisperCached());
       const vOk = llm.voice !== "natural" || (await voiceCached());
       if (alive) setOnDevice(llmOk && wOk && vOk);
@@ -220,7 +220,7 @@ export function LlmSetup({ llm, onChange, onReady, native = "fr", required = fal
     (llm.voice === "natural" && !vCached && vs.phase !== "ready" ? VOICE_MB : 0) +
     (!mCached && ms.phase !== "ready" ? translatorsMB(native) : 0);
   const items: [string, number, boolean][] = [
-    ["Cerveau de Shuli (DictaLM)", WEBLLM_MODELS.find((m) => m.id === llm.webllmModel)?.mb ?? 0, !!cached[llm.webllmModel] || ls.phase === "ready"],
+    ...(llm.provider === "llamacpp" ? [] : [["Cerveau de Shuli (DictaLM)", WEBLLM_MODELS.find((m) => m.id === llm.webllmModel)?.mb ?? 0, !!cached[llm.webllmModel] || ls.phase === "ready"] as [string, number, boolean]]),
     ...(llm.stt === "whisper" && gpu ? [["Reconnaissance de ta voix (Whisper)", WHISPER_MB, wCached || ws.phase === "ready"] as [string, number, boolean]] : []),
     ...(llm.voice === "natural" ? [["Voix de Shuli", VOICE_MB, vCached || vs.phase === "ready"] as [string, number, boolean]] : []),
     ...(translatorsMB(native) ? [["Traducteurs", translatorsMB(native), mCached || ms.phase === "ready"] as [string, number, boolean]] : []),
@@ -269,6 +269,9 @@ export function LlmSetup({ llm, onChange, onReady, native = "fr", required = fal
         <p className="mt-1 text-sm text-muted">Aucune clé API, aucun serveur : le modèle tourne sur ton appareil. Tes conversations restent dans ton navigateur.</p>
       </div>
 
+      {llm.provider === "llamacpp" ? (
+        <p className="rounded-lg bg-good/10 p-3 text-sm">Le cerveau de Shuli (DictaLM, 8 bits) tourne directement dans l&apos;app Mac, sur la puce graphique.</p>
+      ) : (<>
       <div className="grid grid-cols-2 gap-2">
         {(["webllm", "ollama"] as const).map((p) => (
           <button key={p} onClick={() => set({ provider: p })}
@@ -305,6 +308,7 @@ export function LlmSetup({ llm, onChange, onReady, native = "fr", required = fal
           </p>
         </div>
       )}
+      </>)}
 
       <div className="space-y-2 border-t border-line pt-4">
         <h3 className="text-sm font-semibold">Reconnaissance de ta voix</h3>

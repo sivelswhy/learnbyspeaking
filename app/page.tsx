@@ -83,6 +83,9 @@ export default function Page() {
 
   useEffect(() => registerServiceWorker(), []);
   useEffect(() => applyTextScale(), []);
+  useEffect(() => {
+    void import("@/lib/evalHook").then((m) => m.installEvalHook());
+  }, []);
   // Raccourcis clavier : ⌘/Ctrl + 1 à 4 = onglets, Échap = retour à l'accueil.
   const screenT = screen.t;
   const hasProfile = !!st.profile && !st.profile.onboarding;

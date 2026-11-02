@@ -1,4 +1,5 @@
 import { GOALS, LANGUAGES, type Scenario } from "./languages";
+import type { SceneScript } from "./scenes";
 import type { Correction, Profile } from "./types";
 
 const LEVEL_STYLE: Record<string, string> = {
@@ -37,24 +38,27 @@ const HE_LEVEL: Record<string, string> = {
 };
 
 /** Rôle et objectif des scénarios en hébreu : DictaLM suit mal une description en français. */
-const HE_SCENE: Record<string, { role: string; goal: string }> = {
+const HE_SCENE: Record<string, { role: string; goal: string; asks?: string; learner?: string }> = {
   free: { role: "חבר נחמד שמדבר בטבעיות", goal: "לדבר על מה שבא לו" },
-  restaurant: { role: "מלצר במסעדה בתל אביב", goal: "להזמין אוכל ולבקש חשבון" },
-  market: { role: "מוכר בשוק הכרמל", goal: "לשאול מחיר ולקנות" },
-  meet: { role: "אדם נחמד שפוגשים בפעם הראשונה במסיבה", goal: "להציג את עצמו ולהכיר" },
-  hotel: { role: "פקיד קבלה במלון", goal: "לעשות צ'ק-אין ולשאול שאלות" },
-  airport: { role: "פקיד צ'ק-אין בנמל התעופה בן גוריון", goal: "צ'ק-אין, מזוודות ושער העלייה" },
-  taxi: { role: "נהג מונית", goal: "להגיד לאן נוסעים ולשאול על הדרך" },
-  daily: { role: "שכן נחמד וסקרן", goal: "לדבר על היום, על המשפחה ועל ההרגלים" },
-  study: { role: "חבר ללימודים באוניברסיטה", goal: "לדבר על הלימודים ועל הקורסים" },
-  interview: { role: "מראיין בראיון עבודה", goal: "לספר על הניסיון ועל המוטיבציה" },
+  restaurant: { role: "מלצר במסעדה בתל אביב", goal: "להזמין אוכל ולבקש חשבון", asks: "כמה אנשים, מה לשתות, מה להזמין, אם הכול היה טעים", learner: "מזמין אוכל ושתייה ומבקש את החשבון" },
+  market: { role: "מוכר בשוק הכרמל", goal: "לשאול מחיר ולקנות", asks: "מה צריך, כמה קילו", learner: "שואל מה המחיר ומבקש הנחה" },
+  meet: { role: "אדם נחמד שפוגשים בפעם הראשונה במסיבה", goal: "להציג את עצמו ולהכיר", asks: "איך קוראים לו, מאיפה הוא, מה הוא עושה", learner: "מספר על עצמו" },
+  hotel: { role: "פקיד קבלה במלון", goal: "לעשות צ'ק-אין ולשאול שאלות", asks: "על איזה שם ההזמנה, כמה לילות, אם צריך עזרה עם המזוודות", learner: "שואל על ארוחת בוקר, ויפי, מעלית ושעות" },
+  airport: { role: "פקיד צ'ק-אין בנמל התעופה בן גוריון", goal: "צ'ק-אין, מזוודות ושער העלייה", asks: "דרכון, לאן טסים, כמה מזוודות, חלון או מעבר", learner: "שואל באיזו שעה העלייה ואיפה השער" },
+  taxi: { role: "נהג מונית", goal: "להגיד לאן נוסעים ולשאול על הדרך", asks: "לאן נוסעים, אם המזגן בסדר, מזומן או אשראי", learner: "אומר לאן נוסעים, שואל כמה זמן ומה המחיר ואיפה לעצור" },
+  daily: { role: "שכן נחמד וסקרן", goal: "לדבר על היום, על המשפחה ועל ההרגלים", asks: "איך היה היום, מה עושים, מה שלום המשפחה" },
+  study: { role: "חבר ללימודים באוניברסיטה", goal: "לדבר על הלימודים ועל הקורסים", asks: "איזה קורס, איזה מרצה, מה קשה" },
+  interview: { role: "מראיין בראיון עבודה", goal: "לספר על הניסיון ועל המוטיבציה", asks: "על הניסיון, על המוטיבציה, על חוזקות וחולשות", learner: "עונה על שאלות ושואל על התפקיד בסוף" },
 };
+
+/** Le rôle du personnage en hébreu (pour le contrôle de cohérence des répliques). */
+export const sceneRole = (id?: string) => (id && HE_SCENE[id]?.role) || "";
 
 /**
  * Appel 1 : la réponse parlée (streaming).
  * Pour l'hébreu, consignes en hébreu et au genre de l'apprenant : DictaLM (entraîné sur l'hébreu) les suit bien mieux qu'en anglais.
  */
-export function replySystem(p: Profile, sc: Pick<Scenario, "role" | "goal"> & { id?: string }, weak: string[]) {
+export function replySystem(p: Profile, sc: Pick<Scenario, "role" | "goal"> & { id?: string }, weak: string[], script?: SceneScript) {
   const t = LANGUAGES[p.target];
   if (p.target === "he") {
     const f = p.gender === "f";
@@ -65,7 +69,11 @@ export function replySystem(p: Profile, sc: Pick<Scenario, "role" | "goal"> & { 
 התפקיד שלך: ${scene.role}. המטרה של ה${who}: ${scene.goal}.
 כללים:
 - ענה בעברית בלבד: ${HE_LEVEL[p.level]}.
-- תגובה קצרה מאוד (עד 10 מילים) ואז שאלה קצרה ופשוטה אחת.
+${script
+  ? `- ענה בקצרה (עד 12 מילים), כמו ${scene.role} אמיתי. אם ה${who} שאל${f ? "ה" : ""} שאלה: ענה עליה לפי העובדות, בלי להחזיר שאלה.
+- ${script.facts}`
+  : `- תגובה קצרה מאוד (עד 10 מילים) ואז שאלה קצרה ופשוטה אחת.
+- אתה לא שואל את מה שהלקוח או הנוסע שואל: אתה בתפקיד, לא ${who}.`}${scene.asks ? `\n- בתפקיד שלך אתה שואל רק על: ${scene.asks}.` : ""}${scene.learner ? `\n- ה${who} הוא זה ש${scene.learner}. אתה לא אומר את המשפטים שלו ולא שואל אותו על זה.` : ""}
 - הגב למה ש${f ? "היא אמרה" : "הוא אמר"}. אל תחזור על אותה שאלה פעמיים.
 - בלי רשימות, בלי כוכביות, בלי אימוג'י, בלי תרגום ובלי הסברים.
 - ${you}${weak.length ? `\n- תן הזדמנות לתרגל: ${weak.join("; ")}.` : ""}`;
@@ -165,7 +173,7 @@ const SCENE_SHOTS: Record<string, (f: boolean) => Shot[]> = {
   meet: (f) => [["קוראים לי טל", f ? "נעים מאוד, טל! מאיפה את?" : "נעים מאוד, טל! מאיפה אתה?"], ["אני מצרפת", f ? "צרפת, איזה יופי! מה את עושה בישראל?" : "צרפת, איזה יופי! מה אתה עושה בישראל?"]],
   hotel: (f) => [["כן, יש לי הזמנה", "מצוין. על איזה שם?"], ["על השם כהן", f ? "הנה, חדר שתים עשרה. צריכה עזרה עם המזוודות?" : "הנה, חדר שתים עשרה. צריך עזרה עם המזוודות?"], ["יש ארוחת בוקר?", "כן, משבע עד עשר. עוד שאלה?"]],
   airport: (f) => [["הנה הדרכון", f ? "תודה. לאן את טסה?" : "תודה. לאן אתה טס?"], ["לפריז", "יש לך מזוודות?"], ["מזוודה אחת", "בסדר. חלון או מעבר?"]],
-  taxi: (f) => [["לתחנה המרכזית, בבקשה", f ? "בסדר, יוצאים. את ממהרת?" : "בסדר, יוצאים. אתה ממהר?"], ["כמה זה עולה?", "בערך חמישים שקל. בסדר?"], ["כאן זה טוב, תודה", "בבקשה, חמישים שקל. במזומן או באשראי?"]],
+  taxi: (f) => [["יש הרבה פקקים היום?", "קצת, אבל זה בסדר."], ["אפשר לפתוח חלון?", f ? "בטח, תפתחי." : "בטח, תפתח."], ["אתה נוהג הרבה שנים?", "כבר עשרים שנה."]],
   daily: (f) => [["היה טוב, הלכתי לים", "איזה כיף! עם מי הלכת?"], ["עם חברים", f ? "יופי. ומה את עושה היום?" : "יופי. ומה אתה עושה היום?"], [f ? "היום אני עובדת" : "היום אני עובד", f ? "בהצלחה! איפה את עובדת?" : "בהצלחה! איפה אתה עובד?"]],
   study: (f) => [["יש לי שיעור עברית", "גם לי! המורה נחמדה?"], ["כן, היא נחמדה", f ? "יופי. את לומדת הרבה בבית?" : "יופי. אתה לומד הרבה בבית?"]],
   interview: (f) => [["קוראים לי טל, אני מצרפת", "נעים מאוד. מה המקצוע שלך?"], [f ? "אני מהנדסת" : "אני מהנדס", f ? "מעניין. למה את רוצה לעבוד אצלנו?" : "מעניין. למה אתה רוצה לעבוד אצלנו?"]],
@@ -193,7 +201,17 @@ const FEM_YOU = /(^|[\s,.!?])(תגידי|תני|שימי|קחי|תבחרי|תס�
 const NOAM_FEM = /(^|[\s,.!?])(ו|ש|כש)?אני\s+(לא\s+)?(יכולה|שמחה|אוהבת|גרה|עובדת|לומדת|מבינה|חושבת|צריכה|מחפשת|יודעת|מדברת|הולכת|מצטערת|בטוחה|ממליצה|מציעה|נותנת|מכינה|מביאה)(?=[\s,.!?]|$)/;
 
 /** Défauts d'une réplique de Shuli (0 = parfaite) : sert à choisir la meilleure de plusieurs tentatives. */
-export function replyFlaws(text: string, gender: "m" | "f", said: string[] = []): string[] {
+/** Deux phrases partagent plus de 60 % de leurs mots hébreux. */
+export function similar(a: string, b: string) {
+  const w = (t: string) => new Set(t.split(/\s+/).map((x) => x.replace(/[^\u05d0-\u05ea]/g, "")).filter((x) => x.length > 1));
+  const x = w(a);
+  const y = w(b);
+  if (x.size < 3 || y.size < 3) return false;
+  const common = [...x].filter((k) => y.has(k)).length;
+  return common / Math.min(x.size, y.size) > 0.6;
+}
+
+export function replyFlaws(text: string, gender: "m" | "f", said: string[] = [], opts: { needQuestion?: boolean; never?: RegExp[] } = {}): string[] {
   const words = text.split(/\s+/).filter(Boolean).length;
   const norm = (t: string) => t.replace(/[^\u05d0-\u05ea]/g, "");
   return [
@@ -202,8 +220,11 @@ export function replyFlaws(text: string, gender: "m" | "f", said: string[] = [])
     (gender === "f" ? MASC_YOU : FEM_YOU).test(text) && "genre",
     NOAM_FEM.test(text) && "genre",
     words > 16 && "long",
-    !text.includes("?") && "sans question",
+    (opts.needQuestion ?? true) && !text.includes("?") && "sans question",
+    (opts.never ?? []).some((re) => re.test(text)) && "rôle inversé",
     said.some((s) => norm(s) === norm(text)) && "répétition",
+    // Presque la même phrase que la dernière réplique (« המזגן בסדר » deux fois de suite).
+    said.length > 0 && similar(said[said.length - 1], text) && "répétition",
   ].filter((x): x is string => !!x);
 }
 
@@ -319,3 +340,5 @@ export function withFollowUp(reply: string, question: string): string {
   const first = reply.match(/^[^.!?]+[.!?]/)?.[0]?.trim() ?? "";
   return first && words(first) + words(question) <= 16 ? `${first} ${question}` : reply;
 }
+
+

@@ -1,6 +1,35 @@
-# Résumé — où on en est (31/10/2026, soir)
+# Résumé — où on en est (02/11/2026, nuit)
 
-## À reprendre, dans l'ordre
+## Reprise du 02/11 : en cours
+
+**Rien n'est commité depuis `c097167`.** Ne pousser qu'après « push ». Non commité : moteur de dialogue (`lib/scenes.ts`, `lib/dialogue.ts`, `lib/evalHook.ts`, `lib/prompts.ts`, `components/Conversation.tsx`, `mac/main.swift`), `public/dict-fr-he.json` enrichi, `scripts/*_dictionary*.py`.
+
+### 1. Passage de l'IA de WebLLM à llama.cpp (en cours, prochaine étape)
+- But : DictaLM 1.7B en **8 bits** (au lieu de 4 bits WebLLM), plus rapide, via Metal natif. MLX abandonné : il faut le Metal Toolchain de Xcode, dont le téléchargement ne marche pas sur ce Mac.
+- Fait : binaire llama.cpp **b11732** (macOS arm64, 19/10) dans `~/learnbyspeaking-models/llamacpp/llama-b11732/` ; modèle converti `~/learnbyspeaking-models/llamacpp/dictalm-1.7b-instruct-q8_0.gguf` (1,8 Go, depuis les poids officiels `dicta-il/DictaLM-3.0-1.7B-Instruct` dans `~/learnbyspeaking-models/src-instruct`).
+- Claude Code refuse de lancer du code téléchargé : démarrer le serveur soi-même :
+  `! cd ~/learnbyspeaking-models/llamacpp && (llama-b11732/llama-server -m dictalm-1.7b-instruct-q8_0.gguf --port 47900 --jinja -ngl 99 > server.log 2>&1 &) && sleep 5 && tail -3 server.log`
+- **Fait le 02/11 (après-midi)** :
+  - Banc d'essai (108 générations brutes, consignes de l'app, premier essai) : 8 bits llama.cpp = 0 trop longue, 29 sans question, 4 genre, 7,1 mots, **286 ms/réplique** ; 4 bits WebLLM (31/10) = 12 trop longues, 64 sans question, 4 genre, ~700 ms. Moteur complet `nextReply` : 0 défaut sur 36. Notation (`yesProbability` par logprobs) : justes pertinentes 1,00, hors sujet 0,00.
+  - Piège : les pénalités `frequency/presence_penalty` de llama.cpp s'appliquent aussi au prompt (donc au jeton de fin des exemples) → répliques de 17,8 mots, 18/36 trop longues. Remplacées par `dry_multiplier: 0.8` pour llama.cpp.
+  - `lib/llm.ts` : fournisseur `llamacpp` (streaming SSE, JSON contraint, logprobs, attente jusqu'à 60 s pendant le chargement du modèle), `nativeLlama()` lit `window.__lbsNative` injecté par l'app Mac. `lib/store.ts` force `llamacpp` dans l'app Mac (et revient à WebLLM ailleurs). `LlmSetup` : pas de téléchargement du cerveau dans l'app Mac.
+  - `mac/main.swift` : `LlamaServer` lance `Contents/Resources/llama/llama-server` (port 47900, `--api-key` aléatoire par lancement, `--no-webui`, `-c 8192 -np 2`), tue un serveur orphelin, l'arrête à la fermeture ; journal dans `~/Library/Application Support/LearnBySpeaking/llama-server.log`. Modèle lu dans `~/Library/Application Support/LearnBySpeaking/models/dictalm-1.7b-instruct-q8_0.gguf` (lien symbolique vers la copie de dev) ou `LEARNBYSPEAKING_GGUF`. `LEARNBYSPEAKING_NOLLAMA=1` : garder WebLLM. `mac/build.sh` copie le binaire et ses dylibs (app : 92 Mo).
+- À faire : vérifier l'app Mac lancée par l'utilisateur (Claude Code ne lance pas le binaire téléchargé) ; téléchargement du GGUF au premier lancement de l'app Mac, donc décider où l'héberger (Hugging Face `sivelsguy/…` ? demander avant d'envoyer).
+- Ensuite : Whisper hébreu d'**ivrit-ai** (`ivrit-ai/whisper-large-v3-turbo-ggml`) avec whisper.cpp, pour mieux comprendre l'hébreu parlé.
+
+### 2. Entraînement LoRA de DictaLM : essayé, pas intégré
+- `~/learnbyspeaking-models/lora/` : `data_he.py` + `data_he2.py` (164 dialogues écrits à la main, m/f), `gen.py`, `evalh.py`, adaptateurs `adapters` (500 it.), `a250`, `a80`, `b150` (meilleur). venv : `~/.venvs/lora` (mlx-lm, torch).
+- Résultat : réponses plus courtes, genre toujours juste, mais moins pertinentes que DictaLM d'origine → rien intégré. Il faudrait des milliers de dialogues (génération par Claude via l'API, ou par lots).
+- Corpus regardés, aucun prêt pour un tuteur : Kol Zchut, HeQ, hebrew_speech_campus (cours magistraux), ivrit-ai (parole, utile pour Whisper), HUJI Corpus of Spoken Hebrew (30 appels, PDF, usage académique), HebDB (2 500 h transcrites automatiquement, CC BY 4.0).
+
+### 3. Dictionnaire papier (fait)
+- Extraction : `scripts/extract_dictionary2.py` (appariement hébreu/français par position) puis `scripts/clean_dictionary2.py` → `~/Documents/dictionnaire-extrait/dico2_fiable.jsonl` (47 222 entrées, ~85 % justes).
+- Dans l'app : seulement les mots confirmés par le Wiktionnaire (`scripts/merge_dictionary.py`) : 270 mots, 315 sens ajoutés à `public/dict-fr-he.json`.
+
+### Ménage possible
+- `~/learnbyspeaking-models/src-instruct` (3,2 Go) et `lora/` si la piste LoRA est abandonnée ; `llamacpp/src*` et le `.tar.gz` après intégration.
+
+## À reprendre, dans l'ordre (historique)
 
 1. ~~Envoyer les 2 modèles sur Hugging Face~~ : fait le 30/10 (`sivelsguy/DictaLM-3.0-1.7B-Instruct-q4f16_1-MLC`, `sivelsguy/opus-mt-tc-big-he-en-onnx`, tous les fichiers présents).
 2. ~~Tester l'app avec les modèles hébergés~~ : fait le 30/10 (Chrome, WebGPU Metal). Préparation ~95 s (1,7 Go), 1re réplique de Noa ~4 s, transcription Whisper exacte en ~3 s, réponse ~5 s, traduction opus-mt correcte. 1re utilisation plus lente (~110 s) : téléchargement du traducteur (465 Mo). `.env.local` renommé en `.env.local.off` pour ce test.

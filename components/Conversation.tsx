@@ -1,15 +1,14 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LANGUAGES, type Scenario } from "@/lib/languages";
-import { complete, errorMessage, type LlmSettings, type Msg } from "@/lib/llm";
-import {
-  correctionsToWeakPoints, followUpMessages, withFollowUp, pickGender, replyFlaws, replyShots, tidyFollowUp, tidyReply, translateMessages,
-  openingPrompt, replySystem,
-} from "@/lib/prompts";
+import { complete, errorMessage, type LlmSettings } from "@/lib/llm";
+import { correctionsToWeakPoints, translateMessages } from "@/lib/prompts";
 import { LEVEL_RATE, STT_ERRORS, cancelSpeech, hasVoice, speak, useRecognizer, useWhisperRecognizer } from "@/lib/speech";
 import { judge } from "@/lib/judge";
+import { nextReply } from "@/lib/dialogue";
 import { scoreSessionAI } from "@/lib/sessionScore";
 import { canTranslate, translateHebrew } from "@/lib/translate";
+import { SCENES, lineText, sceneProgress, type SceneProgress, type SceneScript } from "@/lib/scenes";
 import type { Correction, Message, NewWord, Profile, SessionRecord } from "@/lib/types";
 import {
   RiArrowLeftRightLine, RiHand, RiHeadphoneLine, RiLightbulbLine, RiMicFill, RiMicLine,
@@ -74,6 +73,7 @@ export function Conversation({
   const handsFreeRef = useRef(false);
   const repeatRef = useRef(false);
   const weak = useRef(correctionsToWeakPoints(pastCorrections));
+  const script = SCENES[sc.id];
 
   const update = useCallback((fn: (m: Message[]) => Message[]) => {
     msgs.current = fn(msgs.current);
@@ -198,48 +198,23 @@ export function Conversation({
         await say(text);
         return;
       }
-      const history: Msg[] = msgs.current.map((m) => ({ role: m.role, content: m.text }));
-      if (!history.length) history.push({ role: "user", content: openingPrompt() });
       try {
-        const said = msgs.current.filter((m) => m.role === "assistant").map((m) => m.text);
-        const g = profile.gender ?? "m";
-        let clean = "";
-        let best = Infinity;
-        // Jusqu'à 3 essais : on garde la réplique avec le moins de défauts (genre, longueur, pas de question, répétition…).
-        for (const temperature of [0.5, 0.8, 1]) {
-          const out = await complete(llm, {
-            messages: [{ role: "system", content: replySystem(profile, sc, weak.current) }, ...replyShots(profile, sc.id), ...history],
-            onToken: setStreaming,
-            signal: abort.current.signal,
-            maxTokens: 50,
-            temperature,
-            antiRepeat: true,
-          });
-          const cand = pickGender(tidyReply(out), g);
-          const flaws = replyFlaws(cand, g, said);
-          // Poids : genre, alphabet latin et répétition comptent plus qu'une question manquante.
-          const cost = flaws.reduce((a, f) => a + (f === "sans question" || f === "long" ? 1 : 3), 0);
-          if (cost < best) {
-            best = cost;
-            clean = cand;
-          }
-          if (cost === 0 || abort.current.signal.aborted) break;
-        }
-        // Pas de question : on en ajoute une courte, pour que l'apprenant sache quoi répondre.
-        const lastUser = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
-        if (clean && !clean.includes("?") && lastUser && !abort.current.signal.aborted) {
-          const q = tidyFollowUp(await complete(llm, { messages: followUpMessages(profile, lastUser, clean), temperature: 0.3, maxTokens: 25 }), g);
-          if (q && !said.some((x) => x.includes(q))) clean = withFollowUp(clean, q);
-        }
+        const turns = msgs.current.map((m) => ({ role: m.role, text: m.text, tr: m.extra?.locked ? m.extra.transliteration : undefined, fr: m.extra?.locked ? m.extra.translation : undefined }));
+        const r = await nextReply({ llm, profile, sc, turns, weak: weak.current, onToken: setStreaming, signal: abort.current.signal });
         setStreaming("");
-        if (!clean) {
+        if (!r || abort.current.signal.aborted) {
           setStatus("idle");
           return;
         }
         const id = uid();
-        update((m) => [...m, { id, role: "assistant", text: clean, analyzing: true }]);
-        void analyze(id, clean, false);
-        await say(clean);
+        if (r.tr !== undefined) {
+          // Réplique écrite à la main : translittération et traduction déjà là.
+          update((m) => [...m, { id, role: "assistant", text: r.text, extra: { transliteration: r.tr ?? "", translation: r.fr ?? "", locked: true } }]);
+        } else {
+          update((m) => [...m, { id, role: "assistant", text: r.text, analyzing: true }]);
+          void analyze(id, r.text, false);
+        }
+        await say(r.text);
       } catch (e) {
         setStreaming("");
         setStatus("idle");
@@ -337,6 +312,7 @@ export function Conversation({
     );
   }
 
+  const progress = script ? sceneProgress(script, messages.filter((m) => m.role === "user").map((m) => m.text)) : null;
   const busy = status === "thinking";
   return (
     <div className="mx-auto flex h-dvh max-w-lg lg:max-w-3xl flex-col">
@@ -349,6 +325,7 @@ export function Conversation({
         <p className="rounded-xl bg-accent/10 p-3 text-sm text-accent">
           <b>{sc.opening}</b> Objectif : {sc.goal}.
         </p>
+        {script && progress && <MissionList script={script} progress={progress} />}
         {!voiceOk && (
           <p className="rounded-xl bg-warn/10 p-3 text-sm text-warn">
             Aucune voix {lang.name.toLowerCase()} sur cet appareil : tu liras sans entendre. Installe-la dans les réglages
@@ -365,6 +342,9 @@ export function Conversation({
           <div className={`max-w-[85%] rounded-2xl rounded-bl-md border border-line bg-card px-4 py-3 ${lang.rtl ? "he text-lg" : ""}`}>{streaming}</div>
         )}
         {busy && !streaming && <p className="flex items-center gap-2 text-sm text-muted"><Avatar size={36} mood="think" /> Shuli réfléchit…</p>}
+        {script && progress && !busy && !streaming && messages.length > 0 && (
+          <MissionHint progress={progress} gender={profile.gender ?? "m"} he={lang.rtl ? "he" : ""} onSpeak={(t) => say(t)} onUse={(t) => setText(t)} />
+        )}
         {assist && (
           <div className="rounded-2xl border border-accent/40 bg-card p-3 text-sm">
             {assist && (
@@ -534,6 +514,61 @@ function Bubble({
             <Btn variant="soft" onClick={() => onUse(m.correction!.corrected)} className="!min-h-11">Renvoyer</Btn>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+/** Liste des missions de la scène : cochées au fur et à mesure. */
+function MissionList({ script, progress }: { script: SceneScript; progress: SceneProgress }) {
+  const n = progress.done.length;
+  return (
+    <div className="rounded-2xl border-2 border-line bg-card p-3" aria-label="Missions">
+      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">Missions · {n}/{script.missions.length}</p>
+      <ul className="space-y-1.5">
+        {script.missions.map((m) => {
+          const ok = progress.done.includes(m.id);
+          return (
+            <li key={m.id} className={`flex items-center gap-2 text-sm ${ok ? "text-good" : m.id === progress.next?.id ? "font-bold" : "text-muted"}`}>
+              <span aria-hidden className={`grid size-5 shrink-0 place-items-center rounded-full border-2 text-[11px] ${ok ? "border-good bg-good text-white" : "border-line"}`}>{ok ? "✓" : ""}</span>
+              <span className={ok ? "line-through" : ""}>{m.fr}</span>
+              <span className="sr-only">{ok ? " (faite)" : ""}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/** « À toi » : la prochaine mission, avec une phrase d'exemple à la demande. */
+function MissionHint({ progress, gender, he, onSpeak, onUse }: { progress: SceneProgress; gender: "m" | "f"; he: string; onSpeak: (t: string) => void; onUse: (t: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const m = progress.next;
+  if (!m) {
+    return (
+      <div className="flex items-center gap-3 rounded-2xl bg-soft p-3 text-sm">
+        <Avatar size={52} mood="cheer" className="pop-in shrink-0" />
+        <p><b>Missions accomplies !</b> Tu peux continuer à parler, ou toucher « Terminer » pour ton bilan.</p>
+      </div>
+    );
+  }
+  const ex = lineText(m.example, gender);
+  return (
+    <div className="rounded-2xl border-2 border-accent/40 bg-soft p-3 text-sm">
+      <p className="flex items-center gap-2 font-bold text-accent"><Avatar size={32} mood="wink" /> À toi : {m.fr}</p>
+      {open ? (
+        <div className="mt-2 space-y-1">
+          <p className={`${he} text-lg`}>{ex.he}</p>
+          <p className="text-muted">{ex.tr}</p>
+          <p>{ex.fr}</p>
+          <div className="flex gap-2 pt-1">
+            <Btn variant="soft" className="flex !min-h-11 items-center gap-1" onClick={() => onSpeak(ex.he)}><RiVolumeUpLine aria-hidden /> Écouter</Btn>
+            <Btn variant="soft" className="!min-h-11" onClick={() => onUse(ex.he)}>Utiliser</Btn>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setOpen(true)} className="mt-1 min-h-11 text-accent underline">Besoin d&apos;aide ?</button>
       )}
     </div>
   );

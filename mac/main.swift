@@ -83,12 +83,72 @@ final class StaticServer {
     }
 }
 
+// MARK: - Cerveau de Shuli (llama.cpp)
+
+/// DictaLM 3.0 1.7B en 8 bits (GGUF) servi par llama-server (embarqué dans le paquet, Metal) sur 127.0.0.1.
+/// Jeton aléatoire à chaque lancement : seule la page de l'app le connaît (une page web ouverte ailleurs ne peut pas s'en servir).
+final class LlamaServer {
+    static let port: UInt16 = 47900
+    static let modelName = "dictalm-1.7b-instruct-q8_0.gguf"
+    let key = UUID().uuidString
+    private var proc: Process?
+
+    static var supportDir: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("LearnBySpeaking")
+    }
+
+    /// LEARNBYSPEAKING_GGUF=<fichier> pour un autre modèle, sinon ~/Library/Application Support/LearnBySpeaking/models/.
+    static func modelURL() -> URL? {
+        let url = ProcessInfo.processInfo.environment["LEARNBYSPEAKING_GGUF"].map { URL(fileURLWithPath: $0) }
+            ?? supportDir.appendingPathComponent("models").appendingPathComponent(modelName)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    var running: Bool { proc?.isRunning ?? false }
+
+    /// Lance le serveur ; false si le binaire ou le modèle manque (la page reste alors sur WebLLM).
+    func start() -> Bool {
+        guard ProcessInfo.processInfo.environment["LEARNBYSPEAKING_NOLLAMA"] == nil,
+              let bin = Bundle.main.resourceURL?.appendingPathComponent("llama/llama-server"),
+              FileManager.default.isExecutableFile(atPath: bin.path),
+              let model = Self.modelURL() else { return false }
+        // Serveur resté orphelin après un plantage de l'app : il occuperait le port.
+        let kill = Process()
+        kill.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
+        kill.arguments = ["-f", bin.path]
+        try? kill.run()
+        kill.waitUntilExit()
+
+        try? FileManager.default.createDirectory(at: Self.supportDir, withIntermediateDirectories: true)
+        let logURL = Self.supportDir.appendingPathComponent("llama-server.log")
+        FileManager.default.createFile(atPath: logURL.path, contents: nil)
+        let log = try? FileHandle(forWritingTo: logURL)
+
+        let p = Process()
+        p.executableURL = bin
+        p.arguments = ["-m", model.path, "--host", appHost, "--port", "\(Self.port)", "--jinja", "-ngl", "99",
+                       "-c", "8192", "-np", "2", "--no-webui", "--api-key", key]
+        p.standardOutput = log
+        p.standardError = log
+        do { try p.run() } catch { return false }
+        proc = p
+        return true
+    }
+
+    func stop() {
+        guard let p = proc, p.isRunning else { return }
+        p.terminate()
+        p.waitUntilExit()
+    }
+}
+
 // MARK: - Application
 
 final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNavigationDelegate, WKScriptMessageHandler {
     var window: NSWindow!
     var web: WKWebView!
     var server: StaticServer!
+    let llama = LlamaServer()
     var status: NSStatusItem!
     let home = URL(string: "http://\(appHost):\(appPort)/")!
 
@@ -106,6 +166,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
         cfg.websiteDataStore = .default()
         cfg.mediaTypesRequiringUserActionForPlayback = []
         cfg.userContentController.add(self, name: "lbsSave") // export de sauvegarde : panneau « Enregistrer »
+        // Cerveau natif : la page passe sur llama.cpp (lib/llm.ts, nativeLlama) au lieu de télécharger le modèle WebLLM.
+        if llama.start() {
+            let js = "window.__lbsNative={llamacpp:{url:'http://\(appHost):\(LlamaServer.port)',key:'\(llama.key)'}};"
+            cfg.userContentController.addUserScript(WKUserScript(source: js, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        }
         web = WKWebView(frame: .zero, configuration: cfg)
         web.uiDelegate = self
         web.navigationDelegate = self
@@ -144,6 +209,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
     }
+
+    func applicationWillTerminate(_ n: Notification) { llama.stop() }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ app: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ app: NSApplication, hasVisibleWindows: Bool) -> Bool { show(); return true }
@@ -232,6 +299,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
     // LEARNBYSPEAKING_SELFTEST=<fichier> : après le chargement, écrit l'état de la page (WebGPU, contexte sécurisé…) puis quitte.
     func webView(_ w: WKWebView, didFinish navigation: WKNavigation!) {
         if let path = ProcessInfo.processInfo.environment["LEARNBYSPEAKING_BGTEST"] { runBackgroundTest(w, path); return }
+        if let out = ProcessInfo.processInfo.environment["LEARNBYSPEAKING_EVAL"], let js = ProcessInfo.processInfo.environment["LEARNBYSPEAKING_EVAL_JS"] {
+            runEval(w, js: js, out: out)
+            return
+        }
         guard let path = ProcessInfo.processInfo.environment["LEARNBYSPEAKING_SELFTEST"] else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
             let js = """
@@ -244,6 +315,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
                 let out: String
                 switch r { case .success(let v): out = "\(v)"; case .failure(let e): out = "ERREUR \(e)" }
                 try? out.write(toFile: path, atomically: true, encoding: .utf8)
+                NSApp.terminate(nil)
+            }
+        }
+    }
+
+    // LEARNBYSPEAKING_EVAL=<sortie> LEARNBYSPEAKING_EVAL_JS=<script.js> : exécute un script de test dans la page (window.__lbs) et écrit son résultat.
+    func runEval(_ w: WKWebView, js path: String, out: String) {
+        guard let body = try? String(contentsOfFile: path, encoding: .utf8) else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            w.callAsyncJavaScript(body, in: nil, in: .page) { r in
+                let text: String
+                switch r { case .success(let v): text = "\(v ?? "nil")"; case .failure(let e): text = "ERREUR \(e)" }
+                try? text.write(toFile: out, atomically: true, encoding: .utf8)
                 NSApp.terminate(nil)
             }
         }

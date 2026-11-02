@@ -3,9 +3,9 @@ import type { MLCEngineInterface } from "@mlc-ai/web-llm";
 import { HF_DICTA_REPO, MODEL_HOST } from "./hosting";
 import { whenAlive } from "./workerReady";
 
-/** 100 % local et gratuit : WebLLM (WebGPU, dans le navigateur) ou Ollama (localhost). */
+/** 100 % local et gratuit : WebLLM (WebGPU, dans le navigateur), llama.cpp (serveur natif lancé par l'app Mac) ou Ollama (localhost). */
 export interface LlmSettings {
-  provider: "webllm" | "ollama";
+  provider: "webllm" | "ollama" | "llamacpp";
   /** Reconnaissance vocale : Whisper ivrit-ai local, ou celle du navigateur (envoie l'audio en ligne). */
   stt: "whisper" | "browser";
   /** Voix de Shuli en hébreu : voix naturelle locale (Phonikud + Piper) ou voix du système. */
@@ -13,6 +13,8 @@ export interface LlmSettings {
   webllmModel: string;
   ollamaUrl: string;
   ollamaModel: string;
+  /** Serveur llama.cpp (API compatible OpenAI) : DictaLM en 8 bits sur Metal. */
+  llamacppUrl: string;
 }
 
 /**
@@ -44,7 +46,15 @@ export const DEFAULT_LLM: LlmSettings = {
   webllmModel: DICTA_ID,
   ollamaUrl: "http://localhost:11434",
   ollamaModel: "qwen3:8b",
+  llamacppUrl: "http://127.0.0.1:47900",
 };
+
+/** Serveur llama.cpp lancé par l'app Mac : adresse et jeton, injectés dans la page avant son chargement. */
+export function nativeLlama(): { url: string; key: string } | null {
+  if (typeof window === "undefined") return null;
+  const n = (window as unknown as { __lbsNative?: { llamacpp?: { url: string; key: string } } }).__lbsNative;
+  return n?.llamacpp ?? null;
+}
 
 export type Msg = { role: "system" | "user" | "assistant"; content: string };
 
@@ -99,7 +109,7 @@ export function hasWebGPU(): boolean {
 }
 
 export function isReady(s: LlmSettings): boolean {
-  return s.provider === "ollama" || (engine !== null && engineModel === s.webllmModel);
+  return s.provider !== "webllm" || (engine !== null && engineModel === s.webllmModel);
 }
 
 export async function isCached(model: string): Promise<boolean> {
@@ -298,7 +308,7 @@ export async function complete(s: LlmSettings, o: CompleteOpts): Promise<string>
   const messages = prepareMessages(o.messages, s.provider === "ollama" ? s.ollamaModel : s.webllmModel);
   const onToken = o.onToken;
   const opts: CompleteOpts = { ...o, messages, onToken: onToken && ((t) => onToken(stripThink(t))) };
-  const out = s.provider === "ollama" ? await completeOllama(s, opts) : await completeWebLLM(opts);
+  const out = s.provider === "ollama" ? await completeOllama(s, opts) : s.provider === "llamacpp" ? await completeLlamaCpp(s, opts) : await completeWebLLM(opts);
   return stripThink(out).trim();
 }
 
@@ -333,6 +343,7 @@ async function completeWebLLM(o: CompleteOpts): Promise<string> {
 /**
  * Probabilité que le modèle réponde « oui » (premier mot de sa réponse), entre 0 et 1.
  * WebLLM : lue dans les probabilités des tokens, donc nuancée et sans tirage au sort.
+ * llama.cpp : idem, via les logprobs de l'API compatible OpenAI.
  * Ollama : réponse générée à température 0, donc 0 ou 1.
  */
 export async function yesProbability(s: LlmSettings, messages: Msg[], yes = "כן", no = "לא"): Promise<number> {
@@ -341,6 +352,20 @@ export async function yesProbability(s: LlmSettings, messages: Msg[], yes = "כ�
     const out = stripThink(await completeOllama(s, { messages: msgs, temperature: 0, maxTokens: 4 })).trim();
     return out.startsWith(yes) ? 1 : out.startsWith(no) ? 0 : 0.5;
   }
+  const top = s.provider === "llamacpp" ? await llamaCppTopLogprobs(s, msgs) : await webllmTopLogprobs(msgs);
+  let py = 0;
+  let pn = 0;
+  for (const t of top) {
+    const w = t.token.trim();
+    if (w && yes.startsWith(w)) py += Math.exp(t.logprob);
+    else if (w && no.startsWith(w)) pn += Math.exp(t.logprob);
+  }
+  return py + pn > 0 ? py / (py + pn) : 0.5;
+}
+
+type TopLogprob = { token: string; logprob: number };
+
+async function webllmTopLogprobs(msgs: Msg[]): Promise<TopLogprob[]> {
   if (!engine) throw new Error("MODEL_NOT_LOADED");
   const r = await engine.chat.completions.create({
     messages: msgs,
@@ -351,15 +376,77 @@ export async function yesProbability(s: LlmSettings, messages: Msg[], yes = "כ�
     stream: false,
     ...(/qwen/i.test(engineModel) ? { extra_body: { enable_thinking: false } } : {}),
   });
-  const top = r.choices[0]?.logprobs?.content?.[0]?.top_logprobs ?? [];
-  let py = 0;
-  let pn = 0;
-  for (const t of top) {
-    const w = t.token.trim();
-    if (w && yes.startsWith(w)) py += Math.exp(t.logprob);
-    else if (w && no.startsWith(w)) pn += Math.exp(t.logprob);
+  return r.choices[0]?.logprobs?.content?.[0]?.top_logprobs ?? [];
+}
+
+async function llamaCppTopLogprobs(s: LlmSettings, msgs: Msg[]): Promise<TopLogprob[]> {
+  const res = await llamaCppFetch(s, { messages: msgs, temperature: 0, max_tokens: 1, logprobs: true, top_logprobs: 5 });
+  const r = await res.json();
+  return r.choices?.[0]?.logprobs?.content?.[0]?.top_logprobs ?? [];
+}
+
+/**
+ * Requête au serveur llama.cpp. Lancé par l'app Mac, il met quelques secondes à charger le modèle (503) :
+ * on patiente jusqu'à 60 s au lieu d'échouer à la première question.
+ */
+async function llamaCppFetch(s: LlmSettings, body: object, signal?: AbortSignal): Promise<Response> {
+  const native = nativeLlama();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (native?.key) headers.Authorization = `Bearer ${native.key}`;
+  const until = Date.now() + (native ? 60_000 : 0);
+  for (;;) {
+    let res: Response | null = null;
+    try {
+      res = await fetch(`${s.llamacppUrl.replace(/\/$/, "")}/v1/chat/completions`, { method: "POST", signal, headers, body: JSON.stringify(body) });
+    } catch (e) {
+      if (signal?.aborted) throw e;
+    }
+    if (res?.ok) return res;
+    if ((res && res.status !== 503) || Date.now() > until) throw new Error(res ? `LLAMACPP_${res.status}` : "LLAMACPP_UNREACHABLE");
+    await new Promise((r) => setTimeout(r, 500));
   }
-  return py + pn > 0 ? py / (py + pn) : 0.5;
+}
+
+/** llama.cpp (llama-server) : API compatible OpenAI, réponses en flux SSE. */
+async function completeLlamaCpp(s: LlmSettings, o: CompleteOpts): Promise<string> {
+  const res = await llamaCppFetch(s, {
+    messages: o.messages,
+    stream: !!o.onToken,
+    temperature: o.temperature ?? 0.6,
+    max_tokens: o.maxTokens ?? 400,
+    response_format: o.schema ? { type: "json_schema", json_schema: { schema: o.schema } } : undefined,
+    // Pas de pénalités de fréquence ni de présence : llama.cpp les applique aussi au prompt, donc au jeton de fin
+    // présent dans les exemples, et les répliques s'allongeaient (17,8 mots au lieu de 6,8, 18/36 trop longues).
+    // DRY bloque les boucles sans toucher au jeton de fin.
+    ...(o.antiRepeat ? { dry_multiplier: 0.8, top_p: 0.9 } : {}),
+  }, o.signal);
+  if (!o.onToken) return (await res.json()).choices?.[0]?.message?.content ?? "";
+  const reader = res.body!.getReader();
+  const dec = new TextDecoder();
+  let text = "";
+  let buf = "";
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() ?? "";
+      for (const l of lines) {
+        const d = l.startsWith("data:") ? l.slice(5).trim() : "";
+        if (!d || d === "[DONE]") continue;
+        try {
+          text += JSON.parse(d).choices?.[0]?.delta?.content ?? "";
+          o.onToken(text);
+        } catch {
+          /* ligne partielle */
+        }
+      }
+    }
+  } catch (e) {
+    if (!o.signal?.aborted) throw e;
+  }
+  return text;
 }
 
 async function completeOllama(s: LlmSettings, o: CompleteOpts): Promise<string> {
@@ -414,6 +501,8 @@ export function errorMessage(e: unknown): string {
   if (m === "MODEL_NOT_LOADED") return "Le modèle n'est pas chargé. Ouvre les réglages IA.";
   if (m === "OLLAMA_UNREACHABLE")
     return "Ollama injoignable. Lance-le avec OLLAMA_ORIGINS=* ollama serve, ou repasse sur le mode navigateur.";
+  if (m === "LLAMACPP_UNREACHABLE") return "Le moteur local de Shuli ne répond pas. Relance l'app.";
+  if (m.startsWith("LLAMACPP_")) return `Le moteur local a répondu ${m.slice(9)}. Relance l'app.`;
   if (m.startsWith("OLLAMA_")) return `Ollama a répondu ${m.slice(7)}. Vérifie le nom du modèle.`;
   if (typeof navigator !== "undefined" && !navigator.onLine) return "Hors ligne. Réessaie.";
   return "Le tuteur a rencontré une erreur. Réessaie.";

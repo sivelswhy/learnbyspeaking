@@ -18,6 +18,17 @@ swiftc -swift-version 5 -O -o "$APP/Contents/MacOS/LearnBySpeaking" mac/main.swi
 cp mac/Info.plist "$APP/Contents/Info.plist"
 cp -R out "$APP/Contents/Resources/out"
 
+# Cerveau de Shuli : llama-server (llama.cpp, Metal) et ses bibliothèques. Le modèle GGUF n'est pas dans le paquet :
+# il est lu dans ~/Library/Application Support/LearnBySpeaking/models/ (voir LlamaServer dans main.swift).
+LLAMA=${LLAMA_DIR:-$HOME/learnbyspeaking-models/llamacpp/llama-b11732}
+if [ -x "$LLAMA/llama-server" ]; then
+  mkdir -p "$APP/Contents/Resources/llama"
+  cp -a "$LLAMA/llama-server" "$LLAMA"/libllama-server-impl.dylib "$LLAMA"/libllama-common.*dylib "$LLAMA"/libmtmd.*dylib \
+    "$LLAMA"/libllama.*dylib "$LLAMA"/libggml*.dylib "$APP/Contents/Resources/llama/"
+else
+  echo "llama-server absent ($LLAMA) : l'app utilisera WebLLM" >&2
+fi
+
 # Icône : mac/icon/icon-1024.png (gabarit macOS : marge + ombre) -> .icns
 ICONSET=mac/build/LearnBySpeaking.iconset
 mkdir -p "$ICONSET"

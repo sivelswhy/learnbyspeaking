@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import type { CourseProgress, PlacementResult, Profile, SessionRecord, VocabCard, NewWord } from "./types";
 import { lowMemoryDevice } from "./device";
-import { DEFAULT_LLM, type LlmSettings } from "./llm";
+import { DEFAULT_LLM, nativeLlama, type LlmSettings } from "./llm";
 import { LANGUAGES } from "./languages";
 import { schedule, type Grade } from "./srs";
 import { BACKUP_KEYS, clearMirror, mirror, restoreIfEmpty } from "./backup";
@@ -50,6 +50,10 @@ export function useStore() {
       const saved = { ...DEFAULT_LLM, ...(lowMemoryDevice() ? { stt: "browser" as const } : {}), ...read<Partial<LlmSettings>>(K.llm, {}) };
       // Les anciens modèles Qwen se sont révélés mauvais en hébreu : on bascule sur DictaLM.
       if (saved.webllmModel !== DEFAULT_LLM.webllmModel) saved.webllmModel = DEFAULT_LLM.webllmModel;
+      // App Mac : DictaLM 8 bits sur llama.cpp, lancé par l'app (rien à télécharger dans la page).
+      const native = nativeLlama();
+      if (native) Object.assign(saved, { provider: "llamacpp", llamacppUrl: native.url });
+      else if (saved.provider === "llamacpp") saved.provider = "webllm";
       setLlmState(saved);
       setCourse(read<CourseProgress>(K.course, {}));
       setPlacementState(read<PlacementResult | null>(K.placement, null));
