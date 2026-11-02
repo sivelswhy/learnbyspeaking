@@ -250,14 +250,7 @@ private struct PlacementTest: View {
     }
 
     private func shuliSays(_ text: String, mood: Mood) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Avatar(mood: mood, size: 28)
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(text).font(.he(18))
-                Button { say(text) } label: { Label("Écouter", systemImage: "speaker.wave.2") }.buttonStyle(.plain).font(.app(14, .medium)).frame(minHeight: 32)
-            }.padding(.horizontal, 16).padding(.vertical, 8).background(Palette.card, in: RoundedRectangle(cornerRadius: 16)).cardShadow()
-            Spacer(minLength: 40)
-        }
+        ShuliBubble(text: text, mood: mood, say: { say($0) })
     }
 
     @ViewBuilder private var bottom: some View {
@@ -627,5 +620,35 @@ private struct VoiceBox: View {
         }
         .font(.app(14)).frame(maxWidth: .infinity, alignment: .leading).padding(12)
         .background(Palette.soft, in: RoundedRectangle(cornerRadius: 12)).padding(.top, 12)
+    }
+}
+
+
+/// Réplique de Shuli dans le test : écouter et traduire (comme la question).
+private struct ShuliBubble: View {
+    let text: String
+    let mood: Mood
+    let say: (String) -> Void
+    @EnvironmentObject var app: AppModel
+    @State private var tr: String?
+    @State private var busy = false
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Avatar(mood: mood, size: 28)
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(text).font(.he(18))
+                HStack(spacing: 12) {
+                    Button { say(text) } label: { Label("Écouter", systemImage: "speaker.wave.2") }
+                    Button { translate() } label: { Label(busy ? "…" : "Traduire", systemImage: "character.bubble") }.disabled(busy)
+                }.buttonStyle(.plain).font(.app(14, .medium)).frame(minHeight: 32)
+                if let tr { Text(tr).font(.app(14)).foregroundStyle(Palette.muted).frame(maxWidth: .infinity, alignment: .leading) }
+            }.padding(.horizontal, 16).padding(.vertical, 8).background(Palette.card, in: RoundedRectangle(cornerRadius: 16)).cardShadow()
+            Spacer(minLength: 40)
+        }
+    }
+    private func translate() {
+        if tr != nil { tr = nil; return }
+        busy = true
+        Task { tr = await app.llm.translate(text) ?? "Traduction indisponible."; busy = false }
     }
 }

@@ -4,6 +4,7 @@ import { RiEyeLine, RiKeyboardLine, RiLightbulbLine, RiShareBoxLine, RiStopFill,
 import { LANGUAGES, type Gender, type Level } from "@/lib/languages";
 import type { LlmSettings } from "@/lib/llm";
 import { judge } from "@/lib/judge";
+import { canTranslate, translateHebrew } from "@/lib/translate";
 import { MAX_QUESTIONS, confidence, estimateFrom, levelOf, pickNext, prior, shouldStop } from "@/lib/adaptive";
 import {
   PLACEMENT, SCORING_EXPLANATION, SCORING_EXPLANATION_NO_AI, dontKnow, itemOf, scoreAnswer, type AnswerScore, type PlacementQuestion,
@@ -40,6 +41,32 @@ function wavyPath(r: number, amp: number, k: number, phase: number) {
     pts.push(`${(100 + rr * Math.cos(a)).toFixed(1)},${(100 + rr * Math.sin(a)).toFixed(1)}`);
   }
   return `M${pts.join("L")}Z`;
+}
+
+/** Réplique de Shuli dans le test : écouter et traduire (comme la question). */
+function ShuliBubble({ text, mood, he, say, profile }: { text: string; mood: "happy" | "cheer"; he: string; say: (t: string) => void; profile: Profile }) {
+  const [tr, setTr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const can = canTranslate(profile.target, profile.native);
+  const toggle = async () => {
+    if (tr) return setTr(null);
+    setBusy(true);
+    setTr(can ? await translateHebrew(text, profile.native).catch(() => "Traduction indisponible.") : "Traduction indisponible.");
+    setBusy(false);
+  };
+  return (
+    <div className="flex items-start gap-2">
+      <Avatar size={28} mood={mood} />
+      <div className="rounded-2xl bg-card px-4 py-2 shadow-card">
+        <p dir="rtl" className={`${he} text-lg`}>{text}</p>
+        <div className="mt-1 flex gap-3">
+          <button onClick={() => say(text)} className="flex min-h-8 items-center gap-1 text-sm font-medium"><RiVolumeUpLine aria-hidden /> Écouter</button>
+          <button onClick={toggle} disabled={busy} className="flex min-h-8 items-center gap-1 text-sm font-medium">{busy ? "…" : "Traduire"}</button>
+        </div>
+        {tr && <p className="text-sm text-muted">{tr}</p>}
+      </div>
+    </div>
+  );
 }
 
 function Intro({ onStart, onSkip, gender, onGender }: { onStart: () => void; onSkip: () => void; gender?: Gender; onGender?: (g: Gender) => void }) {
@@ -255,13 +282,7 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
               {(asides[k] ?? []).map((x, n) => (x.who === "me" ? (
                 <p key={n} dir="auto" className={`${he} ms-auto w-fit max-w-[85%] rounded-2xl rounded-tr-md bg-accent/80 px-4 py-2 text-base text-accent-ink`}>{x.text || "…"}</p>
               ) : (
-                <div key={n} className="flex items-start gap-2">
-                  <Avatar size={28} mood="happy" />
-                  <div className="rounded-2xl bg-card px-4 py-2 shadow-card">
-                    <p dir="rtl" className={`${he} text-lg`}>{x.text}</p>
-                    <button onClick={() => say(x.text)} className="mt-1 flex min-h-8 items-center gap-1 text-sm font-medium"><RiVolumeUpLine aria-hidden /> Écouter</button>
-                  </div>
-                </div>
+                <ShuliBubble key={n} text={x.text} mood="happy" he={he} say={say} profile={profile} />
               )))}
               {current && thinking && <p className="animate-pulse text-sm text-muted">Shuli réfléchit…</p>}
               {t && (
@@ -271,10 +292,7 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
                     <p dir="auto" className={`${he} max-w-[85%] rounded-2xl rounded-tr-md bg-accent px-4 py-3 text-lg text-accent-ink`}>{t.answer || "—"}</p>
                   </div>
                   {t.reaction && (
-                    <div className="flex items-start gap-2">
-                      <Avatar size={28} mood={t.score && t.score.score >= 55 ? "cheer" : "happy"} />
-                      <p dir="rtl" className={`${he} rounded-2xl bg-card px-4 py-2 text-lg shadow-card`}>{t.reaction}</p>
-                    </div>
+                    <ShuliBubble text={t.reaction} mood={t.score && t.score.score >= 55 ? "cheer" : "happy"} he={he} say={say} profile={profile} />
                   )}
                   <Feedback t={t} q={qq} gnd={gnd} he={he} speech={lang.speech} />
                 </>
