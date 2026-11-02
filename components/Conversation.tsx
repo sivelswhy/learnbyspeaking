@@ -202,7 +202,7 @@ export function Conversation({
         return;
       }
       try {
-        const turns = msgs.current.map((m) => ({ role: m.role, text: m.text, tr: m.extra?.locked ? m.extra.transliteration : undefined, fr: m.extra?.locked ? m.extra.translation : undefined }));
+        const turns = msgs.current.map((m) => ({ role: m.role, text: m.text, missions: m.missions, tr: m.extra?.locked ? m.extra.transliteration : undefined, fr: m.extra?.locked ? m.extra.translation : undefined }));
         const r = await nextReply({ llm, profile, sc, turns, weak: weak.current, onToken: setStreaming, signal: abort.current.signal });
         setStreaming("");
         if (!r || abort.current.signal.aborted) {
@@ -210,6 +210,11 @@ export function Conversation({
           return;
         }
         const id = uid();
+        // Mission validée par le juge : mémorisée sur le message de l'apprenant (la progression la garde ensuite).
+        if (r.mission) {
+          const lastUser = [...msgs.current].reverse().find((m) => m.role === "user");
+          if (lastUser) update((m) => m.map((x) => (x.id === lastUser.id ? { ...x, missions: [...(x.missions ?? []), r.mission!] } : x)));
+        }
         if (r.tr !== undefined) {
           // Réplique écrite à la main : translittération et traduction déjà là.
           update((m) => [...m, { id, role: "assistant", text: r.text, extra: { transliteration: r.tr ?? "", translation: r.fr ?? "", locked: true } }]);
@@ -240,7 +245,7 @@ export function Conversation({
       await reply();
       // Avis de Shuli après sa réplique (sinon le juge retarderait la réponse) : correction, conseils, exemple.
       if (profile.target !== "he") return;
-      const fb = await reviewAnswer(llm, { question, answer: value, level: profile.level, gender: profile.gender ?? "m" }).catch(() => null);
+      const fb = await reviewAnswer(llm, { question, answer: value, learner: { level: profile.level, targetLevel: profile.targetLevel, goal: profile.goal, focus: profile.focus, gender: profile.gender ?? "m" } }).catch(() => null);
       update((m) => m.map((x) => (x.id === id ? { ...x, reviewing: false, feedback: fb ?? undefined } : x)));
     },
     [reply, update, llm, profile],
@@ -325,7 +330,8 @@ export function Conversation({
     );
   }
 
-  const progress = script ? sceneProgress(script, messages.filter((m) => m.role === "user").map((m) => m.text)) : null;
+  const userMsgs = messages.filter((m) => m.role === "user");
+  const progress = script ? sceneProgress(script, userMsgs.map((m) => m.text), userMsgs.map((m) => m.missions)) : null;
   const busy = status === "thinking";
   return (
     <div className="mx-auto flex h-dvh max-w-lg lg:max-w-3xl flex-col">
@@ -548,7 +554,9 @@ function FeedbackCard({ f, he, onSpeak, onRepeat }: { f: Feedback; he: string; o
   );
   return (
     <div className="w-full max-w-[92%] space-y-2 rounded-2xl border border-line bg-card p-3 text-sm">
-      <p className="flex items-center gap-2 font-semibold"><Avatar size={24} mood={f.praise ? "cheer" : "happy"} /> {f.praise ?? "Pour améliorer ta réponse"}</p>
+      <p className="flex items-center gap-2 font-semibold"><Avatar size={24} mood={f.praise ? "cheer" : "happy"} /> <span className="min-w-0 flex-1">{f.praise ?? "Pour améliorer ta réponse"}</span>
+        {f.context && <span className="shrink-0 rounded-full bg-soft px-2 py-0.5 text-xs font-semibold text-accent" title="Ton niveau → niveau visé · objectif">{f.context}</span>}
+      </p>
       {f.correction && line("Plus correct", f.correction)}
       {f.tips.length > 0 && (
         <ul className="space-y-1">

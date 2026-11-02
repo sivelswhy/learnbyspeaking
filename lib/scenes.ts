@@ -321,7 +321,7 @@ export const SCENES: Record<string, SceneScript> = {
       {
         id: "dest", fr: "Dis où tu voyages.",
         example: L({ m: "אני טס לפריז.", f: "אני טסה לפריז." }, { m: "Ani tas le-Pariz.", f: "Ani tasa le-Pariz." }, "Je vais à Paris."),
-        detect: has(/טס|טסה|פריז|פאריז|לונדון|רומא|ברלין|ניו יורק|מדריד|לנסוע/),
+        detect: has(/טס|טסה|נוסע|נוסעת|טסים|פריז|פאריז|לונדון|רומא|ברלין|ניו יורק|מדריד|ברצלונה|אמסטרדם|לנסוע/),
         requires: ["passport"],
         reply: L({ m: "מצוין. יש לך מזוודות?", f: "מצוין. יש לך מזוודות?" }, { m: "Metsuyan. Yesh lekha mizvadot?", f: "Metsuyan. Yesh lakh mizvadot?" }, "Parfait. Vous avez des bagages ?"),
       },
@@ -335,7 +335,7 @@ export const SCENES: Record<string, SceneScript> = {
       {
         id: "seat", fr: "Choisis ta place.",
         example: L("חלון, בבקשה.", "Khalon, bevakasha.", "Hublot, s'il vous plaît."),
-        detect: has(/חלון|מעבר/),
+        detect: (t: string) => /חלון|מעבר/.test(t) || /לא משנה|לא אכפת|מה שיש|מה שנוח|איפה שיש/.test(t),
         requires: ["bags"],
         reply: L("הנה כרטיס העלייה. נסיעה טובה!", "Hine kartis ha-aliya. Nesia tova!", "Voici votre carte d'embarquement. Bon voyage !"),
       },
@@ -363,11 +363,11 @@ export interface SceneProgress {
  * Une mission est accomplie par la première phrase qui la déclenche une fois ses prérequis remplis ;
  * un seul message peut en accomplir plusieurs si elles sont indépendantes (« קילו עגבניות, כמה זה עולה ? »).
  */
-export function sceneProgress(script: SceneScript, userTexts: string[]): SceneProgress {
+export function sceneProgress(script: SceneScript, userTexts: string[], credited: (string[] | undefined)[] = []): SceneProgress {
   const done = new Set<string>();
   let newly: Mission[] = [];
   let spoken = 0; // messages précédents qui ne sont pas de simples salutations
-  userTexts.forEach((raw) => {
+  userTexts.forEach((raw, i) => {
     const turn = spoken;
     if (!isGreeting(raw)) spoken++;
     const t = flat(raw);
@@ -376,7 +376,8 @@ export function sceneProgress(script: SceneScript, userTexts: string[]): ScenePr
     const before = new Set(done);
     for (const m of script.missions) {
       if (before.has(m.id) || !(m.requires ?? []).every((r) => before.has(r))) continue;
-      if (t && m.detect(t, turn)) {
+      // credited : missions validées par le juge (réponse dite autrement que prévu), mémorisées sur le message.
+      if ((t && m.detect(t, turn)) || credited[i]?.includes(m.id)) {
         done.add(m.id);
         got.push(m);
       }
@@ -386,6 +387,12 @@ export function sceneProgress(script: SceneScript, userTexts: string[]): ScenePr
   const next = script.missions.find((m) => !done.has(m.id) && (m.requires ?? []).every((r) => done.has(r))) ?? null;
   return { done: [...done], newly, next };
 }
+
+/**
+ * Mission où l'apprenant doit poser une question (« באיזו שעה העלייה? », « יש ארוחת בוקר? ») : une simple réponse pertinente
+ * à la question du personnage ne l'accomplit pas, le juge ne doit donc pas la valider (« על השם כהן » validait « petit-déjeuner »).
+ */
+export const answersOnlyByAsking = (m: Mission) => (typeof m.example.he === "string" ? m.example.he : m.example.he.m).includes("?");
 
 export const lineText = (l: Line, gender: Gender) => ({ he: pick(l.he, gender), tr: pick(l.tr, gender), fr: l.fr });
 

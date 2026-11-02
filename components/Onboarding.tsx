@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { FOCUS, GOALS, LANGUAGES, LEVELS, NATIVE_LANGS, TARGET_LANGS, type Focus, type Goal, type Level } from "@/lib/languages";
+import { FOCUS, GOALS, LANGUAGES, LEVELS, NATIVE_LANGS, TARGET_LANGS, targetLevelOf, type Focus, type Goal, type Level } from "@/lib/languages";
 import type { Profile } from "@/lib/types";
 import { RiSpeakLine } from "react-icons/ri";
 import { Btn, Chip } from "./ui";
@@ -53,6 +53,13 @@ export function Onboarding({ initial, onDone }: { initial?: Profile | null; onDo
       <Section title="Ton niveau">
         {LEVELS.map((l: Level) => (
           <Chip key={l} active={p.level === l} onClick={() => setP({ ...p, level: l })}>
+            {l}
+          </Chip>
+        ))}
+      </Section>
+      <Section title="Niveau que tu veux atteindre">
+        {LEVELS.filter((l) => LEVELS.indexOf(l) > LEVELS.indexOf(p.level)).map((l: Level) => (
+          <Chip key={l} active={targetLevelOf(p) === l} onClick={() => setP({ ...p, targetLevel: l })}>
             {l}
           </Chip>
         ))}

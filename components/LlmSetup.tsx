@@ -222,7 +222,7 @@ export function LlmSetup({ llm, onChange, onReady, native = "fr", required = fal
     (llm.voice === "natural" && !vCached && vs.phase !== "ready" ? VOICE_MB : 0) +
     (!mCached && ms.phase !== "ready" ? translatorsMB(native) : 0);
   const items: [string, number, boolean][] = [
-    ...(llm.provider === "llamacpp" ? [["Cerveau de Shuli (DictaLM 8 bits)", LLAMACPP_MB, isReady(llm)] as [string, number, boolean]] : [["Cerveau de Shuli (DictaLM)", WEBLLM_MODELS.find((m) => m.id === llm.webllmModel)?.mb ?? 0, !!cached[llm.webllmModel] || ls.phase === "ready"] as [string, number, boolean]]),
+    ...(llm.provider === "llamacpp" ? [["Cerveau de Shuli (Gemma 4)", LLAMACPP_MB, isReady(llm)] as [string, number, boolean]] : [["Cerveau de Shuli (DictaLM)", WEBLLM_MODELS.find((m) => m.id === llm.webllmModel)?.mb ?? 0, !!cached[llm.webllmModel] || ls.phase === "ready"] as [string, number, boolean]]),
     ...(llm.stt === "whisper" && gpu ? [["Reconnaissance de ta voix (Whisper)", whisperMB(), wCached || ws.phase === "ready"] as [string, number, boolean]] : []),
     ...(llm.voice === "natural" ? [["Voix de Shuli", VOICE_MB, vCached || vs.phase === "ready"] as [string, number, boolean]] : []),
     ...(translatorsMB(native) ? [["Traducteurs", translatorsMB(native), mCached || ms.phase === "ready"] as [string, number, boolean]] : []),
@@ -272,7 +272,7 @@ export function LlmSetup({ llm, onChange, onReady, native = "fr", required = fal
       </div>
 
       {llm.provider === "llamacpp" ? (
-        <p className="rounded-lg bg-good/10 p-3 text-sm">Le cerveau de Shuli (DictaLM, 8 bits) tourne directement dans l&apos;app Mac, sur la puce graphique.</p>
+        <p className="rounded-lg bg-good/10 p-3 text-sm">Le cerveau de Shuli (Gemma 4 E2B) tourne directement dans l&apos;app Mac, sur la puce graphique.</p>
       ) : (<>
       <div className="grid grid-cols-2 gap-2">
         {(["webllm", "ollama"] as const).map((p) => (

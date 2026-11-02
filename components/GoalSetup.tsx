@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { FOCUS, GOALS, type Focus, type Goal } from "@/lib/languages";
+import { FOCUS, GOALS, LEVELS, targetLevelOf, type Focus, type Goal, type Level } from "@/lib/languages";
 import type { PlacementResult, Profile } from "@/lib/types";
 import { Avatar } from "./Avatar";
 import { Btn, Chip } from "./ui";
@@ -34,6 +34,7 @@ export function GoalSetup({ profile, placement, onDone }: { profile: Profile; pl
   const [focus, setFocus] = useState<Focus[]>(profile.focus ?? weak);
   const [name, setName] = useState(profile.name ?? "");
   const [minutes, setMinutes] = useState(profile.dailyMinutes);
+  const [target, setTarget] = useState<Level>(targetLevelOf(profile));
   const toggle = (f: Focus) => setFocus((cur) => (cur.includes(f) ? cur.filter((x) => x !== f) : [...cur, f]));
 
   return (
@@ -52,6 +53,12 @@ export function GoalSetup({ profile, placement, onDone }: { profile: Profile; pl
       <Section title="Ton objectif en hébreu">
         {(Object.keys(GOALS) as Goal[]).map((g) => (
           <Chip key={g} active={goal === g} aria-pressed={goal === g} onClick={() => setGoal(g)}>{GOALS[g]}</Chip>
+        ))}
+      </Section>
+
+      <Section title="Quel niveau veux-tu atteindre ?" hint="Shuli te conseille, après chaque réponse, ce qui te rapproche de ce niveau.">
+        {LEVELS.filter((l) => LEVELS.indexOf(l) > LEVELS.indexOf(profile.level)).map((l) => (
+          <Chip key={l} active={target === l} aria-pressed={target === l} onClick={() => setTarget(l)}>{l}</Chip>
         ))}
       </Section>
 
@@ -76,7 +83,7 @@ export function GoalSetup({ profile, placement, onDone }: { profile: Profile; pl
 
       <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-6">
         <Btn disabled={!goal || !focus.length} className="mx-auto block min-h-14 w-full max-w-lg lg:max-w-3xl text-base"
-          onClick={() => goal && onDone({ ...profile, goal, focus, name: name.trim() || undefined, dailyMinutes: minutes, onboarding: undefined })}>
+          onClick={() => goal && onDone({ ...profile, goal, focus, targetLevel: target, name: name.trim() || undefined, dailyMinutes: minutes, onboarding: undefined })}>
           {!goal ? "Choisis ton objectif" : !focus.length ? "Choisis au moins un point" : "C'est parti"}
         </Btn>
       </div>

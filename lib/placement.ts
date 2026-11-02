@@ -258,7 +258,10 @@ export function scoreAnswer(q: PlacementQuestion, answer: string, ai?: AiJudgeme
 const related = (a: string, b: string) => {
   const x = a.replace(/^[והבלמשכ]{1,2}(?=.{2})/, "");
   const y = b.replace(/^[והבלמשכ]{1,2}(?=.{2})/, "");
-  return a.includes(b) || b.includes(a) || x.includes(y) || y.includes(x) || (x.length >= 3 && y.length >= 3 && x.slice(0, 2) === y.slice(0, 2));
+  // Squelette sans les lettres-voyelles ו et י : « הולכת » et « הלכתי » (même verbe, autre temps) commencent tous deux par « הלכ ».
+  const k = (w: string) => w.replace(/[וי]/g, "");
+  const same3 = (p: string, q: string) => k(p).length >= 3 && k(q).length >= 3 && k(p).slice(0, 3) === k(q).slice(0, 3);
+  return a.includes(b) || b.includes(a) || x.includes(y) || y.includes(x) || (x.length >= 3 && y.length >= 3 && x.slice(0, 2) === y.slice(0, 2)) || same3(a, b) || same3(x, y);
 };
 
 /** La correction ne fait que remplacer des mots par d'autres mots (aucune autre forme d'un mot de l'apprenant) ? */

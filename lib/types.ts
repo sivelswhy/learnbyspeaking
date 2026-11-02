@@ -11,6 +11,8 @@ export interface Profile {
   gender?: Gender;
   /** Niveau mesuré par le test de niveau (sinon déclaré). */
   placementDone?: boolean;
+  /** Niveau que l'apprenant veut atteindre (absent : le niveau suivant, voir targetLevelOf). */
+  targetLevel?: Level;
   /** Points à améliorer choisis après le test de niveau. */
   focus?: Focus[];
   /** Étape du premier lancement encore à faire (absent : terminé). */
@@ -49,6 +51,8 @@ export interface Message {
   /** Traduction / translittération, sur les messages du tuteur. */
   extra?: Extra;
   analyzing?: boolean;
+  /** Missions de scène validées par le juge sur ce message (dites autrement que prévu). */
+  missions?: string[];
   /** Avis de Shuli sur cette réponse de l'apprenant (lib/feedback.ts). */
   feedback?: import("./feedback").Feedback;
   reviewing?: boolean;

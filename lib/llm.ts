@@ -53,8 +53,8 @@ export const DEFAULT_LLM: LlmSettings = {
 /** Serveur llama.cpp lancé par l'app Mac (lib/native.ts). */
 export const nativeLlama = () => nativeModel("llamacpp");
 
-/** Taille du modèle GGUF 8 bits téléchargé par l'app Mac (Mo). */
-export const LLAMACPP_MB = 1835;
+/** Taille du modèle GGUF (Gemma 4 E2B, 4 bits) téléchargé par l'app Mac (Mo). */
+export const LLAMACPP_MB = 3107;
 
 /** App Mac : fait télécharger le modèle GGUF par l'app (si besoin) puis démarrer llama-server ; avancée dans loadStore. */
 export function loadLlamaCpp(): Promise<void> {
@@ -388,7 +388,7 @@ async function webllmTopLogprobs(msgs: Msg[]): Promise<TopLogprob[]> {
 }
 
 async function llamaCppTopLogprobs(s: LlmSettings, msgs: Msg[]): Promise<TopLogprob[]> {
-  const res = await llamaCppFetch(s, { messages: msgs, temperature: 0, max_tokens: 1, logprobs: true, top_logprobs: 5 });
+  const res = await llamaCppFetch(s, { messages: msgs, temperature: 0, max_tokens: 1, logprobs: true, top_logprobs: 5, chat_template_kwargs: { enable_thinking: false } });
   const r = await res.json();
   return r.choices?.[0]?.logprobs?.content?.[0]?.top_logprobs ?? [];
 }
@@ -423,6 +423,8 @@ async function completeLlamaCpp(s: LlmSettings, o: CompleteOpts): Promise<string
     temperature: o.temperature ?? 0.6,
     max_tokens: o.maxTokens ?? 400,
     response_format: o.schema ? { type: "json_schema", json_schema: { schema: o.schema } } : undefined,
+    // Gemma 4 : pas de réflexion préalable (ignoré par les modèles qui n'en ont pas).
+    chat_template_kwargs: { enable_thinking: false },
     // Pas de pénalités de fréquence ni de présence : llama.cpp les applique aussi au prompt, donc au jeton de fin
     // présent dans les exemples, et les répliques s'allongeaient (17,8 mots au lieu de 6,8, 18/36 trop longues).
     // DRY bloque les boucles sans toucher au jeton de fin.

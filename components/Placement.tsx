@@ -9,6 +9,7 @@ import {
   PLACEMENT, SCORING_EXPLANATION, SCORING_EXPLANATION_NO_AI, itemOf, scoreAnswer, type AnswerScore, type PlacementQuestion,
 } from "@/lib/placement";
 import { useSpaceKey } from "@/lib/keys";
+import { classify, shuliLine } from "@/lib/placementTalk";
 import { avgFluency, type SpeechMetrics } from "@/lib/speechMetrics";
 import { LEVEL_RATE, STT_ERRORS, cancelSpeech, speak, useVoiceInput } from "@/lib/speech";
 import type { PlacementResult, Profile } from "@/lib/types";
@@ -89,7 +90,9 @@ function Intro({ onStart, onSkip, gender, onGender }: { onStart: () => void; onS
 }
 
 /** score null : l'IA est en train de noter la réponse. */
-interface Turn { answer: string; score: AnswerScore | null; speech?: SpeechMetrics | null }
+interface Turn { answer: string; score: AnswerScore | null; speech?: SpeechMetrics | null; reaction?: string }
+/** Échanges avant la réponse notée : « לא הבנתי », silence, français, « ואתה? »… et ce que Shuli y a répondu. */
+type Aside = { who: "me" | "shuli"; text: string };
 
 const clock = () => new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
@@ -110,6 +113,8 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
   const [showEx, setShowEx] = useState(false);
   const [typing, setTyping] = useState(false);
   const [text, setText] = useState("");
+  const [asides, setAsides] = useState<Record<number, Aside[]>>({});
+  const [thinking, setThinking] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
   const q = qs[i];
   const done = turns.length > i; // la question courante a une réponse
@@ -126,17 +131,49 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
   useEffect(() => () => cancelSpeech(), []);
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [turns, i, showEx, showTr]);
+  }, [turns, i, showEx, showTr, asides, thinking]);
+
+  const say = (line: string) => void speak(line, lang.speech, LEVEL_RATE[profile.level] ?? 0.85);
 
   function answer(a: string, speech?: SpeechMetrics | null) {
-    if (!q || done) return;
+    if (!q || done || thinking) return;
     const k = i;
-    setTurns((t) => [...t, { answer: a, score: null, speech }]);
+    const question = q.text[gnd];
     setText("");
     setTyping(false);
-    void judge(llm, q.text[gnd], a, gnd).then((ai) =>
-      setTurns((t) => t.map((turn, j) => (j === k ? { ...turn, score: scoreAnswer(q, a, ai, speech) } : turn))),
-    );
+    // Comme un humain : ce qui n'est pas une réponse reçoit une réplique, et la question reste ouverte.
+    const retries = (asides[k] ?? []).filter((x) => x.who === "me").length;
+    const kind = classify(a, retries);
+    if (kind !== "answer") {
+      setAsides((m) => ({ ...m, [k]: [...(m[k] ?? []), { who: "me", text: a }] }));
+      if (kind === "clarify") setShowTr(true);
+      if (kind === "french") setShowEx(true);
+      setThinking(true);
+      void shuliLine(llm, { kind, question, said: a, gender: gnd, level: profile.level }).then((line) => {
+        setAsides((m) => ({ ...m, [k]: [...(m[k] ?? []), { who: "shuli", text: line }] }));
+        setThinking(false);
+        say(line);
+      });
+      return;
+    }
+    setTurns((t) => [...t, { answer: a, score: null, speech }]);
+    void judge(llm, question, a, gnd).then(async (ai) => {
+      const score = scoreAnswer(q, a, ai, speech);
+      // Réponse hors sujet (« אני גרה בפריז » à « que manges-tu ? ») : comme un humain, Shuli réagit et repose la
+      // question une fois ; la réponse suivante est notée.
+      if (ai && ai.relevance < 0.25 && retries < 2) {
+        const line = await shuliLine(llm, { kind: "offTopic", question, said: a, gender: gnd, level: profile.level });
+        setTurns((t) => t.slice(0, k));
+        setAsides((m) => ({ ...m, [k]: [...(m[k] ?? []), { who: "me", text: a }, { who: "shuli", text: line }] }));
+        say(line);
+        return;
+      }
+      setTurns((t) => t.map((turn, j) => (j === k ? { ...turn, score } : turn)));
+      // Réaction à ce qui a été dit (pas à la note), avant de passer à la suite.
+      const reaction = await shuliLine(llm, { kind: "answer", question, said: a, gender: gnd, level: profile.level, score: score.score });
+      setTurns((t) => t.map((turn, j) => (j === k ? { ...turn, reaction } : turn)));
+      say(reaction);
+    });
   }
   useEffect(() => {
     answerRef.current = answer;
@@ -215,13 +252,36 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
                   )}
                 </div>
               </div>
+              {(asides[k] ?? []).map((x, n) => (x.who === "me" ? (
+                <p key={n} dir="auto" className={`${he} ms-auto w-fit max-w-[85%] rounded-2xl rounded-tr-md bg-accent/80 px-4 py-2 text-base text-accent-ink`}>{x.text || "…"}</p>
+              ) : (
+                <div key={n} className="flex items-start gap-2">
+                  <Avatar size={28} mood="happy" />
+                  <div className="rounded-2xl bg-card px-4 py-2 shadow-card">
+                    <p dir="rtl" className={`${he} text-lg`}>{x.text}</p>
+                    <button onClick={() => say(x.text)} className="mt-1 flex min-h-8 items-center gap-1 text-sm font-medium"><RiVolumeUpLine aria-hidden /> Écouter</button>
+                  </div>
+                </div>
+              )))}
+              {current && thinking && <p className="animate-pulse text-sm text-muted">Shuli réfléchit…</p>}
               {t && (
                 <>
                   <div className="flex flex-col items-end">
                     <p className="mb-1 flex items-center gap-2 text-sm text-muted">moi <span className="grid size-7 place-items-center rounded-full bg-soft text-xs font-bold text-accent">{(profile.name || "?").slice(0, 1).toUpperCase()}</span></p>
                     <p dir="auto" className={`${he} max-w-[85%] rounded-2xl rounded-tr-md bg-accent px-4 py-3 text-lg text-accent-ink`}>{t.answer || "—"}</p>
                   </div>
-                  <Feedback t={t} q={qq} gnd={gnd} he={he} speech={lang.speech} />
+                  {t.reaction && (
+                    <div className="flex items-start gap-2">
+                      <Avatar size={28} mood={t.score && t.score.score >= 55 ? "cheer" : "happy"} />
+                      <p dir="rtl" className={`${he} rounded-2xl bg-card px-4 py-2 text-lg shadow-card`}>{t.reaction}</p>
+                    </div>
+                  )}
+                  {t.score ? (
+                    <details className="group">
+                      <summary className="cursor-pointer list-none text-sm font-medium text-muted">Voir l&apos;analyse de ta réponse</summary>
+                      <div className="mt-2"><Feedback t={t} q={qq} gnd={gnd} he={he} speech={lang.speech} /></div>
+                    </details>
+                  ) : <Feedback t={t} q={qq} gnd={gnd} he={he} speech={lang.speech} />}
                 </>
               )}
             </div>
@@ -233,8 +293,8 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
 
       <div className="bg-bg px-4 pb-[max(env(safe-area-inset-bottom),12px)] pt-3">
         {done ? (
-          <Btn onClick={next} disabled={!turns[i]?.score} className="min-h-14 w-full text-base">
-            {!turns[i]?.score ? "Shuli analyse ta réponse…" : "Continuer"}
+          <Btn onClick={next} disabled={!turns[i]?.reaction} className="min-h-14 w-full text-base">
+            {!turns[i]?.reaction ? "Shuli t'écoute…" : "Continuer"}
           </Btn>
         ) : typing ? (
           <form onSubmit={(e) => { e.preventDefault(); if (text.trim()) answer(text.trim()); }} className="flex gap-2">
@@ -244,7 +304,7 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
         ) : (
           <>
           {voice.listening && <LivePanel level={voice.level} />}
-          <button onClick={() => (voice.listening ? voice.stop() : (cancelSpeech(), voice.start()))} disabled={voice.transcribing}
+          <button onClick={() => (voice.listening ? voice.stop() : (cancelSpeech(), voice.start()))} disabled={voice.transcribing || thinking}
             style={voice.listening && voice.level ? { boxShadow: `0 0 0 ${2 + voice.level * 10}px color-mix(in srgb, var(--accent) 25%, transparent)` } : undefined}
             className="flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-soft font-semibold text-accent disabled:opacity-60">
             {voice.listening ? <RiStopFill aria-hidden className="size-5" /> : <RiVoiceprintLine aria-hidden className="size-5" />}

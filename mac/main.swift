@@ -108,13 +108,14 @@ struct NativeSpec {
     let healthPath: String
 }
 
-/// Cerveau : DictaLM 3.0 1.7B en 8 bits (GGUF) sur llama-server. Jeton aléatoire par lancement (--api-key) :
+/// Cerveau : Gemma 4 E2B (Google, 4 bits Q4_K_M d'unsloth) sur llama-server : conversations libres, comme avec un humain
+/// (DictaLM 1.7B sortait de son rôle sans répliques écrites d'avance). Jeton aléatoire par lancement (--api-key) :
 /// seule la page de l'app le connaît, une page web ouverte ailleurs ne peut pas s'en servir.
 let llamaSpec = NativeSpec(
     id: "llamacpp", bin: "llama/llama-server", port: 47900,
-    modelName: "dictalm-1.7b-instruct-q8_0.gguf",
-    remote: "https://huggingface.co/sivelsguy/DictaLM-3.0-1.7B-Instruct-Q8_0-GGUF/resolve/main/dictalm-1.7b-instruct-q8_0.gguf",
-    sha256: "871d3ba72c76a5fa25a1915be001d412e817191d6f32f817bf67fb6c7266c8a7",
+    modelName: "gemma-4-E2B-it-Q4_K_M.gguf",
+    remote: "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf",
+    sha256: "740185b21d22ceb83a11c3aa62ad5842ef32c70f6096d756bbee85a1e4ec34b8",
     envModel: "LEARNBYSPEAKING_GGUF", envURL: "LEARNBYSPEAKING_GGUF_URL",
     args: { m, k in ["-m", m, "--host", appHost, "--port", "47900", "--jinja", "-ngl", "99", "-c", "8192", "-np", "2", "--no-webui", "--api-key", k] },
     healthPath: "/health")
@@ -283,6 +284,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
     /// SIGTERM (pkill, fermeture de session) : quitter proprement, sinon llama-server resterait orphelin.
     private var sigterm: DispatchSourceSignal?
     var status: NSStatusItem!
+    var onboardingStatus: NSStatusItem?
     let home = URL(string: "http://\(appHost):\(appPort)/")!
 
     /// Garde en vie l'app (fenêtre masquée, autre app au premier plan) : sans cela, App Nap peut ralentir les téléchargements.
@@ -410,6 +412,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
             let m = NSMenu(title: "Debug"); debug.forEach(m.addItem); sub.submenu = m
             menu.addItem(sub)
             if #available(macOS 13.3, *) { web.isInspectable = true }
+        }
+        // Debug local : icône à part pour rejouer le premier lancement et le test de niveau.
+        let onboarding = debugOnboardingItems(ctx)
+        if !onboarding.isEmpty {
+            let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+            item.button?.image = NSImage(systemSymbolName: "ladybug", accessibilityDescription: "Debug premier lancement")
+            let m = NSMenu(title: "Premier lancement"); onboarding.forEach(m.addItem)
+            item.menu = m
+            onboardingStatus = item
         }
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quitter", action: #selector(NSApplication.terminate(_:)), keyEquivalent: ""))

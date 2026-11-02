@@ -28,7 +28,7 @@ function genderLine(p: Profile) {
     : "The learner is a man: address him with masculine forms (אתה, לך, רוצה, ספר…).";
 }
 
-const HE_LEVEL: Record<string, string> = {
+export const HE_LEVEL: Record<string, string> = {
   A1: "משפטים קצרים מאוד (3 עד 7 מילים), מילים בסיסיות, זמן הווה בלבד",
   A2: "משפטים קצרים ופשוטים, מילים יומיומיות",
   B1: "משפטים באורך בינוני, אוצר מילים מגוון",
@@ -38,7 +38,7 @@ const HE_LEVEL: Record<string, string> = {
 };
 
 /** Rôle et objectif des scénarios en hébreu : DictaLM suit mal une description en français. */
-const HE_SCENE: Record<string, { role: string; goal: string; asks?: string; learner?: string }> = {
+export const HE_SCENE: Record<string, { role: string; goal: string; asks?: string; learner?: string }> = {
   free: { role: "חבר נחמד שמדבר בטבעיות", goal: "לדבר על מה שבא לו" },
   restaurant: { role: "מלצר במסעדה בתל אביב", goal: "להזמין אוכל ולבקש חשבון", asks: "כמה אנשים, מה לשתות, מה להזמין, אם הכול היה טעים", learner: "מזמין אוכל ושתייה ומבקש את החשבון" },
   market: { role: "מוכר בשוק הכרמל", goal: "לשאול מחיר ולקנות", asks: "מה צריך, כמה קילו", learner: "שואל מה המחיר ומבקש הנחה" },

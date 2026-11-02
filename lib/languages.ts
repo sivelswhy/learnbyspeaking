@@ -65,6 +65,12 @@ export const NATIVE_LANGS: LangCode[] = ["fr", "en", "es"];
 export const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
 export type Level = (typeof LEVELS)[number];
 
+/** Niveau visé : celui choisi par l'apprenant, sinon le niveau suivant (B2 au plus pour le cours). */
+export function targetLevelOf(p: { level: Level; targetLevel?: Level }): Level {
+  if (p.targetLevel && LEVELS.indexOf(p.targetLevel) > LEVELS.indexOf(p.level)) return p.targetLevel;
+  return LEVELS[Math.min(LEVELS.indexOf(p.level) + 1, LEVELS.length - 1)];
+}
+
 export const GOALS = {
   travel: "Voyage",
   work: "Travail",

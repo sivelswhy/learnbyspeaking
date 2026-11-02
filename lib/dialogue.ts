@@ -2,12 +2,14 @@ import { complete, yesProbability, type LlmSettings, type Msg } from "./llm";
 import { relevancePrompt } from "./placement";
 import type { Scenario } from "./languages";
 import { correctionsToWeakPoints, followUpMessages, openingPrompt, pickGender, replyFlaws, replyShots, replySystem, similar, tidyFollowUp, tidyReply, withFollowUp } from "./prompts";
-import { ASK_TIME, BIZARRE, BYE, CLARIFY, DONT_KNOW, QUEUES, SAFE_LINE, SCENES, THANKS_ONLY, isQuestion, reaction, badQuestions, dropBadQuestions, flat, isGreeting, lineText, sceneProgress, timeLine } from "./scenes";
+import { ASK_TIME, BIZARRE, BYE, CLARIFY, DONT_KNOW, QUEUES, SAFE_LINE, SCENES, THANKS_ONLY, isQuestion, reaction, answersOnlyByAsking, badQuestions, dropBadQuestions, flat, isGreeting, lineText, sceneProgress, timeLine } from "./scenes";
 import type { Correction, Profile } from "./types";
 
 export interface Turn {
   role: "user" | "assistant";
   text: string;
+  /** Missions validées par le juge sur ce message de l'apprenant (dites autrement que prévu). */
+  missions?: string[];
   /** Translittération et traduction de la réplique, si connues (pour la redire telle quelle). */
   tr?: string;
   fr?: string;
@@ -21,6 +23,8 @@ export interface DialogueReply {
   source: "script" | "llm" | "fallback";
   /** Défauts de la réplique retenue (vide = parfaite). */
   flaws: string[];
+  /** Mission validée par le juge sur le dernier message de l'apprenant : à mémoriser sur ce message (Turn.missions). */
+  mission?: string;
 }
 
 /** Poids des défauts : genre, alphabet latin, répétition et rôle inversé comptent plus qu'une question manquante. */
@@ -40,12 +44,31 @@ export async function nextReply(o: {
   freeOnly?: boolean;
 }): Promise<DialogueReply | null> {
   const { llm, profile, sc, turns, signal } = o;
+  // App Mac (Gemma 4 sur llama.cpp) : conversation libre, sans répliques écrites d'avance (lib/humanDialogue.ts).
+  if (llm.provider === "llamacpp" && profile.target === "he" && !o.freeOnly) {
+    const { humanReply } = await import("./humanDialogue");
+    return humanReply(o);
+  }
   const g = profile.gender ?? "m";
   const script = SCENES[sc.id];
   const userTexts = turns.filter((t) => t.role === "user").map((t) => t.text);
 
   if (script && profile.target === "he" && userTexts.length && !o.freeOnly) {
-    const hits = sceneProgress(script, userTexts).newly;
+    const credited = turns.filter((t) => t.role === "user").map((t) => t.missions);
+    const prog = sceneProgress(script, userTexts, credited);
+    const hits = prog.newly;
+    // Réponse dite autrement que prévu (« לברצלונה » au lieu de « לפריז », « רק תיק גב ») : si elle répond à la question
+    // que le personnage vient de poser, le juge de pertinence valide la mission en cours. Mesuré sur 19 répliques de scène :
+    // 16 justes, et aucun « oui » à tort (les ratés sont des refus) ; pas de question de l'apprenant (« איפה השירותים? »).
+    const prevAi = turns.at(-2)?.role === "assistant" ? turns.at(-2)!.text : "";
+    const said = userTexts.at(-1) ?? "";
+    if (!hits.length && prog.next && !answersOnlyByAsking(prog.next) && prevAi.includes("?") && !isQuestion(said) && !isGreeting(said) && !CLARIFY.test(flat(said))) {
+      const p = await yesProbability(llm, relevancePrompt(prevAi, said)).catch(() => 0);
+      if (p >= 0.5) {
+        const l = lineText(prog.next.reply, g);
+        return { text: l.he, tr: l.tr, fr: l.fr, source: "script", flaws: [], mission: prog.next.id };
+      }
+    }
     const hit = hits.at(-1);
     if (hit) {
       const l = lineText(hit.reply, g);
