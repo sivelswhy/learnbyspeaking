@@ -300,7 +300,6 @@ struct DiagnosticCard: View {
                     mic == .authorized ? "Autorisé." : mic == .notDetermined ? "Pas encore demandé : macOS te le proposera au premier enregistrement." : "Refusé : autorise le micro dans Réglages Système › Confidentialité › Micro."))
         out.append(("Cerveau (llama.cpp, Metal)", app.brainReady ? 0 : app.servers[0].modelURL != nil ? 1 : 2, app.brainReady ? "Prêt." : app.servers[0].modelURL != nil ? "En chargement." : "Modèle absent : télécharge-le."))
         out.append(("Oreille (whisper.cpp, Metal)", app.earReady ? 0 : app.servers[1].modelURL != nil ? 1 : 2, app.earReady ? "Prête." : app.servers[1].modelURL != nil ? "En chargement." : "Modèle absent : télécharge-le."))
-        out.append(("Voix hébraïque", Voice.hebrew != nil ? 0 : 2, Voice.hebrew != nil ? "Disponible (\(Voice.hebrew!.name))." : "Absente : Réglages Système › Accessibilité › Contenu énoncé › Voix › Hébreu."))
         if let free = try? URL(fileURLWithPath: NSHomeDirectory()).resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage {
             let go = Double(free) / 1e9
             out.append(("Espace disque", go > 6 ? 0 : go > 4 ? 1 : 2, String(format: "%.1f Go libres (modèles : environ 4 Go).", go).replacingOccurrences(of: ".", with: ",")))

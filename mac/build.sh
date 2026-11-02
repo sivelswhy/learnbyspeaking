@@ -1,45 +1,54 @@
 #!/bin/bash
-# Construit mac/build/LearnBySpeaking.app : interface web exportée + coque macOS native.
-# SKIP_WEB=1 : réutilise le dossier out/ déjà construit.
+# Construit mac/build/LearnBySpeaking.app : app macOS entièrement native (SwiftUI, sans vue web).
+# Les contenus partagés viennent du TypeScript (scripts/export-native.ts).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-[ "${SKIP_WEB:-}" = 1 ] || npm run build
-[ -f out/index.html ] || { echo "out/index.html absent : lance npm run build" >&2; exit 1; }
+npx jiti scripts/export-native.ts
 
-APP=mac/build/LearnBySpeaking.app
+APP="mac/build/LearnBySpeaking.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-# Menu Debug local (ignoré par git) s'il existe, sinon version vide.
-DEBUG=mac/Debug.local.swift
-[ -f "$DEBUG" ] || DEBUG=mac/DebugStub.swift
+DEV=mac/native/Dev.local.swift
+[ -f "$DEV" ] || DEV=mac/native/DevStub.swift
+# onnxruntime (Homebrew : brew install onnxruntime) pour la voix Piper : couche C appelée depuis Swift.
+ORT=$(brew --prefix onnxruntime)
+OBJ=mac/build/ort_shim.o
+clang -c -O2 -I"$ORT/include" mac/native/ort/ort_shim.c -o "$OBJ"
+swiftc -swift-version 5 -O -parse-as-library -import-objc-header mac/native/ort/ort_shim.h \
+  -o "$APP/Contents/MacOS/LearnBySpeaking" mac/Models.swift "$DEV" $(ls mac/native/*.swift | grep -v -e Dev.local.swift -e DevStub.swift) \
+  "$OBJ" -L"$ORT/lib" -lonnxruntime -Xlinker -rpath -Xlinker @executable_path/../Frameworks
 
-swiftc -swift-version 5 -O -o "$APP/Contents/MacOS/LearnBySpeaking" mac/main.swift mac/Models.swift mac/DebugContext.swift "$DEBUG"
-cp mac/Info.plist "$APP/Contents/Info.plist"
-cp -R out "$APP/Contents/Resources/out"
+# Bibliothèques d'onnxruntime et leurs dépendances Homebrew, copiées dans le paquet (noms réécrits en @rpath).
+FW="$APP/Contents/Frameworks"
+mkdir -p "$FW"
+bundle() {
+  local lib=$1 base dep
+  base=$(basename "$lib")
+  [ -f "$FW/$base" ] && return
+  cp -L "$lib" "$FW/$base"; chmod u+w "$FW/$base"
+  install_name_tool -id "@rpath/$base" "$FW/$base" 2>/dev/null
+  for dep in $(otool -L "$lib" | awk 'NR>1 {print $1}' | grep '^/opt/homebrew'); do
+    bundle "$dep"
+    install_name_tool -change "$dep" "@rpath/$(basename "$dep")" "$FW/$base" 2>/dev/null
+  done
+}
+bundle "$ORT/lib/libonnxruntime.1.dylib"
+for f in "$FW"/*.dylib; do install_name_tool -add_rpath @loader_path "$f" 2>/dev/null || true; done
+install_name_tool -change "$ORT/lib/libonnxruntime.1.dylib" @rpath/libonnxruntime.1.dylib "$APP/Contents/MacOS/LearnBySpeaking" 2>/dev/null || true
+for f in "$APP/Contents/MacOS/LearnBySpeaking" "$FW"/*.dylib; do otool -L "$f" | awk 'NR>1{print $1}' | grep -q /opt/homebrew && { echo "dépendance Homebrew restante : $f" >&2; exit 1; }; done
+# Menus système en français (Édition, Fenêtre…) : langue de développement fr.
+sed -e 's#<key>CFBundlePackageType</key>#<key>CFBundleDevelopmentRegion</key><string>fr</string>\n  <key>CFBundleLocalizations</key><array><string>fr</string></array>\n  &#' mac/Info.plist > "$APP/Contents/Info.plist"
+mkdir -p "$APP/Contents/Resources/fr.lproj"
+cp mac/native/Resources/content.json mac/native/Resources/dict-fr-he.json mac/native/Resources/Nunito-*.ttf mac/native/Resources/phonikud-vocab.json "$APP/Contents/Resources/"
 
-# Cerveau de Shuli : llama-server (llama.cpp, Metal) et ses bibliothèques. Le modèle GGUF n'est pas dans le paquet :
-# il est lu dans ~/Library/Application Support/LearnBySpeaking/models/ (voir LlamaServer dans main.swift).
 LLAMA=${LLAMA_DIR:-$HOME/learnbyspeaking-models/llamacpp/llama-b11732}
-if [ -x "$LLAMA/llama-server" ]; then
-  mkdir -p "$APP/Contents/Resources/llama"
-  cp -a "$LLAMA/llama-server" "$LLAMA"/libllama-server-impl.dylib "$LLAMA"/libllama-common.*dylib "$LLAMA"/libmtmd.*dylib \
-    "$LLAMA"/libllama.*dylib "$LLAMA"/libggml*.dylib "$APP/Contents/Resources/llama/"
-else
-  echo "llama-server absent ($LLAMA) : l'app utilisera WebLLM" >&2
-fi
+mkdir -p "$APP/Contents/Resources/llama" "$APP/Contents/Resources/whisper"
+cp -a "$LLAMA/llama-server" "$LLAMA"/libllama-server-impl.dylib "$LLAMA"/libllama-common.*dylib "$LLAMA"/libmtmd.*dylib \
+  "$LLAMA"/libllama.*dylib "$LLAMA"/libggml*.dylib "$APP/Contents/Resources/llama/"
+cp "${WHISPER_BIN:-$HOME/learnbyspeaking-models/whispercpp/src/build/bin/whisper-server}" "$APP/Contents/Resources/whisper/whisper-server"
 
-# Oreille de Shuli : whisper-server (whisper.cpp, compilé en statique avec Metal intégré : un seul fichier).
-WHISPER=${WHISPER_BIN:-$HOME/learnbyspeaking-models/whispercpp/src/build/bin/whisper-server}
-if [ -x "$WHISPER" ]; then
-  mkdir -p "$APP/Contents/Resources/whisper"
-  cp "$WHISPER" "$APP/Contents/Resources/whisper/whisper-server"
-else
-  echo "whisper-server absent ($WHISPER) : l'app utilisera Whisper WebGPU" >&2
-fi
-
-# Icône : mac/icon/icon-1024.png (gabarit macOS : marge + ombre) -> .icns
-ICONSET=mac/build/LearnBySpeaking.iconset
+ICONSET=mac/build/native.iconset
 mkdir -p "$ICONSET"
 for s in 16 32 128 256 512; do
   sips -z $s $s mac/icon/icon-1024.png --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
@@ -48,9 +57,8 @@ done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/LearnBySpeaking.icns"
 rm -rf "$ICONSET"
 
-# Copie sans attributs étendus (com.apple.provenance fait échouer codesign), puis signature ad hoc.
-ditto --noextattr --noqtn --norsrc "$APP" mac/build/clean.app
-rm -rf "$APP"; mv mac/build/clean.app "$APP"
+ditto --noextattr --noqtn --norsrc "$APP" mac/build/clean-native.app
+rm -rf "$APP"; mv mac/build/clean-native.app "$APP"
 xattr -cr "$APP" 2>/dev/null || true
 codesign --force --deep --sign - "$APP"
 echo "OK : $APP"

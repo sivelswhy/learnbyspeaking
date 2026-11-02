@@ -2,7 +2,7 @@ import AVFoundation
 
 // Voix de Shuli : Phonikud vocalise le texte, Piper (VITS) le prononce (lib/voice.worker.ts), via onnxruntime en natif.
 // Modèles dans ~/Library/Application Support/LearnBySpeaking/models/voice/ (Phonikud : MIT ; voix Piper : CC BY-NC).
-// En secours (modèles absents ou erreur) : la voix hébraïque du système.
+// Pas de voix système en hébreu : les modèles de la voix sont requis (téléchargement au premier lancement).
 
 /// Fichiers de la voix, aux révisions figées du site (lib/voiceFiles.ts).
 let VOICE_FILES: [(name: String, url: String, bytes: Int64)] = [
@@ -134,16 +134,15 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
         }
     }
 
-    static var hebrew: AVSpeechSynthesisVoice? {
-        AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix("he") }.max { $0.quality.rawValue < $1.quality.rawValue }
-    }
-
     /// Dit le texte et rend la main à la fin (ou à l'interruption).
     func say(_ text: String, rate: Double = 0.9) async {
         stop()
         generation += 1
         let gen = generation
         await MainActor.run { speaking = true }
+        // Toujours la voix du modèle : si Piper charge encore, on l'attend (jamais la voix du système).
+        var waited = 0
+        while piper == nil && waited < 600 && gen == generation { try? await Task.sleep(nanoseconds: 100_000_000); waited += 1 }
         if let piper {
             let ls = Float(min(1.6, max(0.95, 1.02 / rate)))
             // La phrase suivante se calcule pendant que la précédente est jouée.
@@ -161,11 +160,6 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
                 await play(samples + [Float](repeating: 0, count: Int(piper.sampleRate * 0.1)), rate: piper.sampleRate)
                 if gen != generation { break }
             }
-        } else {
-            let u = AVSpeechUtterance(string: text)
-            u.voice = Voice.hebrew
-            u.rate = Float(Double(AVSpeechUtteranceDefaultSpeechRate) * rate)
-            await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in done = c; synth.speak(u) }
         }
         if gen == generation { await MainActor.run { speaking = false } }
     }

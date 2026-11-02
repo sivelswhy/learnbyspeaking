@@ -50,7 +50,7 @@
 
 ## Réécriture native de l'app Mac (commencée le 02/11, demande : « maximum natif », aucune vue web)
 
-App SwiftUI à part : `mac/build/LearnBySpeaking Native.app` (`bash mac/build-native.sh`, identifiant `app.parle.mac.native`). Fermer l'app web avant (mêmes ports 47900/47901). Le site et l'iPhone restent en web.
+L'app Mac est désormais l'app SwiftUI native : `mac/build/LearnBySpeaking.app` (`bash mac/build.sh`, identifiant `app.parle.mac`). L'ancienne coque web reste dans `mac/build-web.sh` (sortie `LearnBySpeaking Web.app`, mêmes ports 47900/47901 : ne pas lancer les deux). Le site et l'iPhone restent en web.
 - Contenus et consignes partagés : `scripts/export-native.ts` → `mac/native/Resources/content.json` (scènes, missions sérialisées via `spec`, cours, test, sujets, règles regex, consignes Gemma à trous `{{Q}}`/`{{A}}`/`{{LEVEL}}`…). Toujours modifier le TS, puis relancer le build natif.
 - Serveurs partagés : `mac/Models.swift` (extrait de `main.swift`).
 - Données : `~/Library/Application Support/LearnBySpeaking/data/lbs.*.json`, reprises une fois du localStorage WebKit de l'app web (`Store.swift`).
@@ -62,7 +62,7 @@ App SwiftUI à part : `mac/build/LearnBySpeaking Native.app` (`bash mac/build-na
 3. ~~Premier lancement~~ (`OnboardingViews.swift`, `PlacementView.swift`, `Placement.swift`, `SpeechMetrics.swift`) : téléchargement des modèles et de la voix, test adaptatif mené comme une discussion, analyse de la voix en direct, rapport, objectifs.
 4. ~~Cours~~ (`CoursViews.swift`, `PracticeView.swift`) : niveaux, frise des jours, écran du jour, ressources, entraînement à la parole.
 5. ~~Bilan, Moi, outils~~ (`ReportViews.swift`, `MoiViews.swift`, `ParlerViews.swift`, `ToolChatView.swift`) : radar, semaine, historique, vocabulaire à révision espacée, réglages (modèles, sauvegarde au format du site, taille du texte, diagnostic, profil), hub, situations, Comment dire / Traduction / Dictionnaire (Wiktionnaire + Gemma vérifié).
-6. Voix Piper native (fait, testée : 0,18 s de calcul pour 4 s d audio) : `Phonikud.swift` (portage de lib/phonikud : 2 466/2 466 phonèmes identiques au TS, nombres identiques), `Voice.swift` (onnxruntime via `mac/native/ort/ort_shim.c`, `brew install onnxruntime`, bibliothèques copiées dans Contents/Frameworks par `build-native.sh`). Voix système en secours. Reste : traducteurs opus-mt natifs (aujourd'hui traduction par Gemma), puis remplacer l'app web par l'app native.
+6. Voix Piper native (fait, testée : 0,18 s de calcul pour 4 s d audio) : `Phonikud.swift` (portage de lib/phonikud : 2 466/2 466 phonèmes identiques au TS, nombres identiques), `Voice.swift` (onnxruntime via `mac/native/ort/ort_shim.c`, `brew install onnxruntime`, bibliothèques copiées dans Contents/Frameworks par `build.sh`). Plus de voix système en hébreu : les modèles de la voix sont requis, la voix attend le chargement de Piper. Reste : traducteurs opus-mt natifs (aujourd'hui traduction par Gemma), l'app web est remplacée (fait).
 - Menu Dev natif (`mac/native/Dev.local.swift`) : test de niveau (intro, m, f), objectifs A1-B2, premier lancement, terminer.
 
 ## À reprendre, dans l'ordre (historique)
