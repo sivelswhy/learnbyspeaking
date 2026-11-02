@@ -194,11 +194,11 @@ export function replyShots(p: Profile, sceneId?: string): Chat {
 }
 
 /** Formes de « tu » au mauvais genre (liste non exhaustive des plus fréquentes). */
-const MASC_YOU = /(^|[\s,.!?])(אתה|תגיד|תן|שים|קח|תבחר|תספר|ספר לי|בוא|תזמין|תרצה|תהנה|תיהנה|תצטרך|תוכל|אתה רוצה)(?=[\s,.!?]|$)/;
-const FEM_YOU = /(^|[\s,.!?])(תגידי|תני|שימי|קחי|תבחרי|תספרי|ספרי לי|בואי|תזמיני|תרצי|תהני|תיהני|תצטרכי|תוכלי)(?=[\s,.!?]|$)/;
+export const MASC_YOU = /(^|[\s,.!?])(אתה|תגיד|תן|שים|קח|תבחר|תספר|ספר לי|בוא|תזמין|תרצה|תהנה|תיהנה|תצטרך|תוכל|אתה רוצה)(?=[\s,.!?]|$)/;
+export const FEM_YOU = /(^|[\s,.!?])(תגידי|תני|שימי|קחי|תבחרי|תספרי|ספרי לי|בואי|תזמיני|תרצי|תהני|תיהני|תצטרכי|תוכלי)(?=[\s,.!?]|$)/;
 
 /** Shuli est un homme : « אני » suivi d'une forme féminine (« אני שמחה ») est une faute. */
-const NOAM_FEM = /(^|[\s,.!?])(ו|ש|כש)?אני\s+(לא\s+)?(יכולה|שמחה|אוהבת|גרה|עובדת|לומדת|מבינה|חושבת|צריכה|מחפשת|יודעת|מדברת|הולכת|מצטערת|בטוחה|ממליצה|מציעה|נותנת|מכינה|מביאה)(?=[\s,.!?]|$)/;
+export const NOAM_FEM = /(^|[\s,.!?])(ו|ש|כש)?אני\s+(לא\s+)?(יכולה|שמחה|אוהבת|גרה|עובדת|לומדת|מבינה|חושבת|צריכה|מחפשת|יודעת|מדברת|הולכת|מצטערת|בטוחה|ממליצה|מציעה|נותנת|מכינה|מביאה)(?=[\s,.!?]|$)/;
 
 /** Défauts d'une réplique de Shuli (0 = parfaite) : sert à choisir la meilleure de plusieurs tentatives. */
 /** Deux phrases partagent plus de 60 % de leurs mots hébreux. */

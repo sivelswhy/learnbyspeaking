@@ -7,14 +7,14 @@ cd "$(dirname "$0")/.."
 [ -f out/index.html ] || { echo "out/index.html absent : lance npm run build" >&2; exit 1; }
 
 APP=mac/build/LearnBySpeaking.app
-rm -rf mac/build
+rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 # Menu Debug local (ignoré par git) s'il existe, sinon version vide.
 DEBUG=mac/Debug.local.swift
 [ -f "$DEBUG" ] || DEBUG=mac/DebugStub.swift
 
-swiftc -swift-version 5 -O -o "$APP/Contents/MacOS/LearnBySpeaking" mac/main.swift mac/DebugContext.swift "$DEBUG"
+swiftc -swift-version 5 -O -o "$APP/Contents/MacOS/LearnBySpeaking" mac/main.swift mac/Models.swift mac/DebugContext.swift "$DEBUG"
 cp mac/Info.plist "$APP/Contents/Info.plist"
 cp -R out "$APP/Contents/Resources/out"
 

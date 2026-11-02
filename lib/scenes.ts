@@ -67,16 +67,17 @@ function words(re: RegExp): RegExp {
   const alts = re.source.split("|").map((a) => (/^[\u05d0-\u05ea]{1,3}$/.test(a) ? `(?<![\u05d0-\u05ea])[ובלמהשכ]?${a}(?![\u05d0-\u05ea])` : a));
   return new RegExp(alts.join("|"));
 }
+/** La règle reste lisible par l'app Mac native (spec : exportée en JSON par scripts/export-native.ts). */
 const has = (re: RegExp) => {
   const w = words(re);
-  return (t: string) => w.test(t);
+  return Object.assign((t: string) => w.test(t), { spec: { kind: "has", re: w.source } });
 };
 /** Salutation seule : ne répond à aucune mission. */
 export const isGreeting = (t: string) => /^(שלום|הי|היי|הלו|אהלן|בוקר טוב|ערב טוב|צהריים טובים|מה נשמע|מה שלומך)( שלום)?$/.test(flat(t));
 /** Premier message : compte comme réponse à la première question, sauf s'il ne fait que saluer. */
 const first = (re: RegExp) => {
   const w = words(re);
-  return (t: string, turn: number) => (turn === 0 && !isGreeting(t)) || w.test(t);
+  return Object.assign((t: string, turn: number) => (turn === 0 && !isGreeting(t)) || w.test(t), { spec: { kind: "first", re: w.source } });
 };
 
 
@@ -335,7 +336,7 @@ export const SCENES: Record<string, SceneScript> = {
       {
         id: "seat", fr: "Choisis ta place.",
         example: L("חלון, בבקשה.", "Khalon, bevakasha.", "Hublot, s'il vous plaît."),
-        detect: (t: string) => /חלון|מעבר/.test(t) || /לא משנה|לא אכפת|מה שיש|מה שנוח|איפה שיש/.test(t),
+        detect: has(/חלון|מעבר|לא משנה|לא אכפת|מה שיש|מה שנוח|איפה שיש/),
         requires: ["bags"],
         reply: L("הנה כרטיס העלייה. נסיעה טובה!", "Hine kartis ha-aliya. Nesia tova!", "Voici votre carte d'embarquement. Bon voyage !"),
       },

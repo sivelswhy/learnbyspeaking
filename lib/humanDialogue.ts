@@ -61,7 +61,7 @@ export function turnHint(said: string, lastAi: string, f: boolean): string {
  * Questions dont la réponse doit contenir un mot attendu : « כמה זה עולה? » recevait la durée du trajet.
  * Une réplique sans ce mot est notée « à côté » et refaite.
  */
-const MUST_ANSWER: [RegExp, RegExp][] = [
+export const MUST_ANSWER: [RegExp, RegExp][] = [
   [/כמה\s+(זה\s+)?(עולה|עולים)|מה\s+המחיר/, /שקל|ש"ח|₪|מחיר|עולה|עולים|חינם|מונה|יורו|דולר|לא בטוח|לא יודע/],
   [/כמה\s+זמן/, /דק(ה|ות)|שע(ה|ות|תיים)|זמן|רגע|לא בטוח|לא יודע/],
   [/באיזו\s+שעה|מתי/, /שעה|בשעה|ב-?\d|בבוקר|בערב|בצהריים|עכשיו|עוד|אחרי|לפני|מחר|היום|לא בטוח|לא יודע/],
@@ -69,10 +69,10 @@ const MUST_ANSWER: [RegExp, RegExp][] = [
 const offAnswer = (said: string, reply: string) => MUST_ANSWER.some(([q, a]) => q.test(said) && !a.test(reply));
 
 /** Rien de dit : silence, « אממ », « ... » (Whisper rend parfois juste une hésitation). */
-const FILLER = /^[\s.…!?,\-]*((א|ה)+מ+|א+ה+|ה+מ+|אה|אמ)?[\s.…!?,\-]*$/;
+export const FILLER = /^[\s.…!?,\-]*((א|ה)+מ+|א+ה+|ה+מ+|אה|אמ)?[\s.…!?,\-]*$/;
 
 /** « את » pronom (pas la particule de l'objet : « את ה… », « את זה ») dit à un homme : faute de genre. */
-const AT_TO_MAN = /(^|[\s,.!?])את\s+(?!ה|זה|זאת|זו|כל|מה|מי|עצמ|ש)[א-ת]/;
+export const AT_TO_MAN = /(^|[\s,.!?])את\s+(?!ה|זה|זאת|זו|כל|מה|מי|עצמ|ש)[א-ת]/;
 
 /** Défauts pondérés : genre, latin, rôle inversé et répétition comptent plus que la longueur. */
 const cost = (flaws: string[]) => flaws.reduce((a, x) => a + (x === "long" || x === "sans question" ? 1 : 3), 0);

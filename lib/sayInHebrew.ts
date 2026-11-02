@@ -32,7 +32,7 @@ export function applyFeminine(orig: string, cand: string): string {
 }
 
 /** Formes les plus courantes après « אני » : sûres, sans passer par le modèle. */
-const FEM: Record<string, string> = {
+export const FEM: Record<string, string> = {
   לומד: "לומדת", עובד: "עובדת", גר: "גרה", אוהב: "אוהבת", צריך: "צריכה", מחפש: "מחפשת", שמח: "שמחה", עייף: "עייפה",
   רעב: "רעבה", מבין: "מבינה", יכול: "יכולה", חושב: "חושבת", הולך: "הולכת", מבקר: "מבקרת", מדבר: "מדברת", יודע: "יודעת",
   נוסע: "נוסעת", כותב: "כותבת", קורא: "קוראת", אוכל: "אוכלת", מרגיש: "מרגישה", בא: "באה", חי: "חיה", מתכנן: "מתכננת",

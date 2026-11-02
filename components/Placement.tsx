@@ -276,12 +276,7 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
                       <p dir="rtl" className={`${he} rounded-2xl bg-card px-4 py-2 text-lg shadow-card`}>{t.reaction}</p>
                     </div>
                   )}
-                  {t.score ? (
-                    <details className="group">
-                      <summary className="cursor-pointer list-none text-sm font-medium text-muted">Voir l&apos;analyse de ta réponse</summary>
-                      <div className="mt-2"><Feedback t={t} q={qq} gnd={gnd} he={he} speech={lang.speech} /></div>
-                    </details>
-                  ) : <Feedback t={t} q={qq} gnd={gnd} he={he} speech={lang.speech} />}
+                  <Feedback t={t} q={qq} gnd={gnd} he={he} speech={lang.speech} />
                 </>
               )}
             </div>

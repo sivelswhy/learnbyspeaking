@@ -29,10 +29,10 @@ export interface Learner {
 }
 
 /** Longueur d'une réponse développée au niveau visé (mots hébreux). */
-const DEV_WORDS: Record<Level, number> = { A1: 3, A2: 5, B1: 8, B2: 12, C1: 14, C2: 14 };
+export const DEV_WORDS: Record<Level, number> = { A1: 3, A2: 5, B1: 8, B2: 12, C1: 14, C2: 14 };
 
 /** Ce qui distingue le niveau visé : un conseil, seulement si la réponse ne le montre pas encore. */
-const LEVEL_SKILL: Partial<Record<Level, { has: RegExp; tip: string }>> = {
+export const LEVEL_SKILL: Partial<Record<Level, { has: RegExp; tip: string }>> = {
   A2: { has: /(^|\s)(ו[א-ת]|גם|אבל)/, tip: "Pour viser l'A2 : relie deux idées (ו…, גם…, אבל…)." },
   B1: { has: /(^|\s)(כי|אבל|אז|בגלל|כש|לכן)/, tip: "Pour viser le B1 : explique ou enchaîne tes idées (כי…, אבל…, אז…, כש…)." },
   B2: { has: /(לדעתי|אני חושב|אני חושבת|נראה לי|למרות|אם|הייתי|לכן|בגלל ש)/, tip: "Pour viser le B2 : nuance ou donne ton avis (לדעתי…, למרות ש…, אם… הייתי…)." },
@@ -40,7 +40,7 @@ const LEVEL_SKILL: Partial<Record<Level, { has: RegExp; tip: string }>> = {
 };
 
 /** Pour une réponse déjà bonne : une piste tournée vers l'objectif de l'apprenant. */
-const GOAL_TIP: Record<Goal, string> = {
+export const GOAL_TIP: Record<Goal, string> = {
   travel: "Pour voyager : entraîne-toi aussi à demander (אפשר…? איפה…? כמה זה עולה?).",
   work: "Pour le travail : essaie une tournure polie (הייתי רוצה…, אפשר בבקשה…).",
   study: "Pour les études : précise ton domaine et tes cours (אני לומד/ת…, הקורס על…).",
@@ -56,7 +56,7 @@ const SHOTS: [string, string, string][] = [
 ];
 
 /** Consigne : la même idée, en meilleur hébreu, au niveau visé, au genre de l'apprenant. */
-function betterMessages(question: string, answer: string, f: boolean, target: Level): Msg[] {
+export function betterMessages(question: string, answer: string, f: boolean, target: Level): Msg[] {
   return [
     {
       role: "system",

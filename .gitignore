@@ -46,3 +46,4 @@ design-refs/
 # App macOS : paquet compilé et menu Debug local
 /mac/build/
 /mac/Debug.local.swift
+mac/native/Dev.local.swift

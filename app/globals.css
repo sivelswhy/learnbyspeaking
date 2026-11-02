@@ -35,6 +35,14 @@
   --font-sans: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+/* Comme une app, pas comme un site : pas de rebond élastique (WebKit sur Mac et iPhone) ni de défilement
+   horizontal dû à un élément qui déborde de quelques pixels. */
+html,
+body {
+  overscroll-behavior: none;
+  overflow-x: clip;
+}
+
 body {
   background: var(--bg);
   color: var(--ink);
