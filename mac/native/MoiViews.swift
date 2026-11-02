@@ -189,6 +189,7 @@ struct ModelsCard: View {
             row("Cerveau : Gemma 4 E2B", "3,1 Go", app.servers[0].modelURL != nil, app.brainReady, app.progress["llamacpp"])
             row("Oreille : Whisper hébreu (ivrit-ai)", "874 Mo", app.servers[1].modelURL != nil, app.earReady, app.progress["whisper"])
             row("Voix : Piper (Phonikud TTS)", "371 Mo", voiceFilesPresent, app.voice.natural, app.progress["voice"])
+            row("Traducteurs : opus-mt", "\(mtNeeded(app.native).reduce(0) { $0 + $1.bytes } / 1_000_000) Mo", mtPresent(app.native), mtPresent(app.native), app.progress["mt"])
             if !app.modelsPresent && app.ai != .downloading {
                 Button("Télécharger les modèles") { app.downloadModels() }.buttonStyle(Btn(full: true))
             }

@@ -18,3 +18,8 @@ int ort_shim_run(OrtShimSession *s,
                  const char *scale_name, const float *scales, int64_t nscales,
                  const char **out_names, int nouts, OrtShimOutput *outs, char *err);
 void ort_shim_free(void *p);
+
+/// Entrée quelconque : dtype 0 = int64, 1 = float32, 2 = bool ; une dimension nulle est permise (data peut alors être NULL).
+typedef struct { const char *name; int dtype; const int64_t *shape; int ndim; const void *data; } OrtShimInput;
+/// Lance le modèle avec ces entrées ; chaque sortie (float32) est copiée dans un tampon malloc. Renvoie le nombre de sorties, -1 en cas d'erreur.
+int ort_shim_run_generic(OrtShimSession *s, const OrtShimInput *ins, int nin, const char **out_names, int nouts, OrtShimOutput *outs, char *err);

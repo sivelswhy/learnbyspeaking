@@ -15,6 +15,7 @@ var voiceFilesPresent: Bool { VOICE_FILES.allSatisfy { FileManager.default.fileE
 
 final class OrtModel {
     private let s: OpaquePointer
+    var shimSession: OpaquePointer { s }
     init?(_ path: String) {
         var err = [CChar](repeating: 0, count: 512)
         guard let p = ort_shim_open(path, &err) else { NSLog("ONNX \(path) : \(String(cString: err))"); return nil }

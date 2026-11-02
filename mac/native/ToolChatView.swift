@@ -98,6 +98,10 @@ private func containsWord(_ sentence: String, _ he: String) -> Bool {
 extension LLM {
     /// Vers l'hébreu, au genre de l'apprenant (lib/sayInHebrew.ts).
     func toHebrew(_ text: String, g: Gender) async -> String {
+        if Translator.shared.available(native(), toHebrew: true),
+           let t = await Translator.shared.translate(text, native: native(), toHebrew: true), !t.isEmpty {
+            return g == .f ? await feminize(t) : t
+        }
         let he = ((try? await complete(fill(T.toHebrew[g.rawValue]!, ["T": text]), temperature: 0.1, maxTokens: 120)) ?? "").components(separatedBy: "\n").first?.trimmed ?? ""
         return g == .f ? await feminize(he) : he
     }

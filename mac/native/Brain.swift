@@ -108,6 +108,9 @@ extension LLM {
     // MARK: Traduction
 
     func translate(_ he: String) async -> String? {
+        // Traducteur dédié (opus-mt) d'abord, plus fiable ; Gemma seulement s'il manque ou échoue.
+        if Translator.shared.available(native(), toHebrew: false),
+           let t = await Translator.shared.translate(he, native: native(), toHebrew: false), !t.isEmpty { return t }
         let out = try? await complete(fill(T.translate, ["T": he]), temperature: 0.1, maxTokens: 100)
         let line = out?.components(separatedBy: "\n").first?.trimmed ?? ""
         return line.isEmpty ? nil : line

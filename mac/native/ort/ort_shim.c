@@ -78,3 +78,43 @@ done:
     api()->ReleaseMemoryInfo(mem);
     return rc;
 }
+
+int ort_shim_run_generic(OrtShimSession *s, const OrtShimInput *ins, int nin, const char **out_names, int nouts, OrtShimOutput *outs, char *err) {
+    enum { MAXIN = 64, MAXOUT = 8 };
+    if (nin > MAXIN || nouts > MAXOUT) { if (err) snprintf(err, 512, "trop d'entrées ou de sorties"); return -1; }
+    OrtMemoryInfo *mem = NULL;
+    if (fail(api()->CreateCpuMemoryInfo(OrtArenaAllocator, OrtMemTypeDefault, &mem), err)) return -1;
+    const char *names[MAXIN];
+    OrtValue *vals[MAXIN] = {0};
+    OrtValue *res[MAXOUT] = {0};
+    static char dummy[8];
+    int rc = -1;
+    for (int i = 0; i < nin; i++) {
+        size_t n = 1;
+        for (int d = 0; d < ins[i].ndim; d++) n *= (size_t)ins[i].shape[d];
+        size_t isz = ins[i].dtype == 0 ? 8 : ins[i].dtype == 1 ? 4 : 1;
+        ONNXTensorElementDataType t = ins[i].dtype == 0 ? ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64 : ins[i].dtype == 1 ? ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT : ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL;
+        names[i] = ins[i].name;
+        void *p = (n == 0 || !ins[i].data) ? (void *)dummy : (void *)ins[i].data;
+        if (fail(api()->CreateTensorWithDataAsOrtValue(mem, p, n * isz, ins[i].shape, (size_t)ins[i].ndim, t, &vals[i]), err)) goto done;
+    }
+    if (fail(api()->Run(s->session, NULL, names, (const OrtValue *const *)vals, (size_t)nin, out_names, (size_t)nouts, res), err)) goto done;
+    for (int i = 0; i < nouts; i++) {
+        OrtTensorTypeAndShapeInfo *info = NULL;
+        size_t count = 0;
+        float *p = NULL;
+        api()->GetTensorTypeAndShape(res[i], &info);
+        api()->GetTensorShapeElementCount(info, &count);
+        api()->ReleaseTensorTypeAndShapeInfo(info);
+        api()->GetTensorMutableData(res[i], (void **)&p);
+        outs[i].data = malloc(count * sizeof(float) + 1);
+        memcpy(outs[i].data, p, count * sizeof(float));
+        outs[i].count = count;
+        api()->ReleaseValue(res[i]);
+    }
+    rc = nouts;
+done:
+    for (int i = 0; i < nin; i++) if (vals[i]) api()->ReleaseValue(vals[i]);
+    api()->ReleaseMemoryInfo(mem);
+    return rc;
+}

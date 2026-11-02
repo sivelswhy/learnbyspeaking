@@ -11,7 +11,7 @@ final class AppModel: ObservableObject {
     lazy var downloads = Dictionary(uniqueKeysWithValues: servers.map { ($0.spec.id, ModelDownload($0)) })
     @Published var brainReady = false
     @Published var earReady = false
-    lazy var llm = LLM(port: llamaSpec.port, key: servers[0].key)
+    lazy var llm: LLM = { let l = LLM(port: llamaSpec.port, key: servers[0].key); l.native = { [unowned self] in self.native }; return l }()
     lazy var ear = Ear(port: whisperSpec.port, path: servers[1].key)
 
     func startServers() {
@@ -22,55 +22,76 @@ final class AppModel: ObservableObject {
         }
     }
 
-    var modelsPresent: Bool { servers.allSatisfy { $0.modelURL != nil } && voiceFilesPresent }
+    var modelsPresent: Bool { servers.allSatisfy { $0.modelURL != nil } && voiceFilesPresent && mtPresent(native) }
 
     enum AiStatus { case ready, loading, missing, downloading }
     @Published var progress: [String: Double] = [:]
     @Published var downloadError: String?
     var ai: AiStatus {
         if brainReady && earReady { return .ready }
-        if downloads.values.contains(where: \.active) || voiceDownloading { return .downloading }
+        if downloads.values.contains(where: \.active) || voiceDownloading || mtDownloading { return .downloading }
         return modelsPresent ? .loading : .missing
     }
 
     @Published var voiceDownloading = false
+    @Published var mtDownloading = false
+    /// Langue maternelle de l'apprenant (traducteurs).
+    var native: String { store.profile?.native ?? "fr" }
+
+    /// Télécharge une série de fichiers (reprise : ceux déjà là sont sautés), avec la progression de l'ensemble sous `key`.
+    private func fetch(_ key: String, _ label: String, _ items: [(url: String, dest: URL, bytes: Int64)]) async -> Bool {
+        let total = Double(max(1, items.reduce(0) { $0 + $1.bytes }))
+        var before: Int64 = 0
+        for f in items {
+            try? FileManager.default.createDirectory(at: f.dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if FileManager.default.fileExists(atPath: f.dest.path) { before += f.bytes; continue }
+            do {
+                let (bytes, resp) = try await URLSession.shared.bytes(from: URL(string: f.url)!)
+                guard (resp as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+                let part = f.dest.appendingPathExtension("part")
+                FileManager.default.createFile(atPath: part.path, contents: nil)
+                let h = try FileHandle(forWritingTo: part)
+                var buf = Data(); buf.reserveCapacity(1 << 20)
+                var got: Int64 = 0
+                for try await b in bytes {
+                    buf.append(b)
+                    if buf.count >= 1 << 20 {
+                        try h.write(contentsOf: buf); got += Int64(buf.count); buf.removeAll(keepingCapacity: true)
+                        let p = Double(before + got) / total
+                        await MainActor.run { self.progress[key] = p }
+                    }
+                }
+                try h.write(contentsOf: buf); try h.close()
+                try FileManager.default.moveItem(at: part, to: f.dest)
+                before += f.bytes
+            } catch {
+                await MainActor.run { self.downloadError = "\(label) : \(error.localizedDescription)" }
+                return false
+            }
+        }
+        await MainActor.run { self.progress[key] = 1 }
+        return true
+    }
 
     /// Voix Piper (3 fichiers, ≈ 371 Mo) : téléchargée dans models/voice/, puis chargée.
     func downloadVoice() {
         guard !voiceFilesPresent, !voiceDownloading else { return }
         voiceDownloading = true
         Task {
-            try? FileManager.default.createDirectory(at: voiceDir, withIntermediateDirectories: true)
-            let total = Double(VOICE_FILES.reduce(0) { $0 + $1.bytes })
-            var before: Int64 = 0
-            for f in VOICE_FILES {
-                let dest = voiceDir.appendingPathComponent(f.name)
-                if FileManager.default.fileExists(atPath: dest.path) { before += f.bytes; continue }
-                do {
-                    let (bytes, resp) = try await URLSession.shared.bytes(from: URL(string: f.url)!)
-                    guard (resp as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
-                    let part = dest.appendingPathExtension("part")
-                    FileManager.default.createFile(atPath: part.path, contents: nil)
-                    let h = try FileHandle(forWritingTo: part)
-                    var buf = Data(); buf.reserveCapacity(1 << 20)
-                    var got: Int64 = 0
-                    for try await b in bytes {
-                        buf.append(b)
-                        if buf.count >= 1 << 20 {
-                            try h.write(contentsOf: buf); got += Int64(buf.count); buf.removeAll(keepingCapacity: true)
-                            let p = Double(before + got) / total
-                            await MainActor.run { self.progress["voice"] = p }
-                        }
-                    }
-                    try h.write(contentsOf: buf); try h.close()
-                    try FileManager.default.moveItem(at: part, to: dest)
-                    before += f.bytes
-                } catch {
-                    await MainActor.run { self.downloadError = "Voix de Shuli : \(error.localizedDescription)"; self.voiceDownloading = false }
-                    return
-                }
-            }
-            await MainActor.run { self.progress["voice"] = 1; self.voiceDownloading = false; self.voice.loadPiper() }
+            let ok = await fetch("voice", "Voix de Shuli", VOICE_FILES.map { ($0.url, voiceDir.appendingPathComponent($0.name), $0.bytes) })
+            await MainActor.run { self.voiceDownloading = false; if ok { self.voice.loadPiper() } }
+        }
+    }
+
+    /// Traducteurs opus-mt de la langue maternelle (≈ 620 Mo pour le français).
+    func downloadTranslators() {
+        let specs = mtNeeded(native).filter { !$0.present }
+        guard !specs.isEmpty, !mtDownloading else { return }
+        mtDownloading = true
+        Task {
+            let items = specs.flatMap { sp in sp.files.map { (url: "https://huggingface.co/\(sp.repo)/resolve/main/\($0.remote)", dest: sp.dir.appendingPathComponent($0.local), bytes: $0.bytes) } }
+            _ = await fetch("mt", "Traducteurs", items)
+            await MainActor.run { self.mtDownloading = false; self.objectWillChange.send() }
         }
     }
 
@@ -78,6 +99,7 @@ final class AppModel: ObservableObject {
     func downloadModels() {
         downloadError = nil
         downloadVoice()
+        downloadTranslators()
         for s in servers where s.modelURL == nil {
             let d = downloads[s.spec.id]!
             d.onProgress = { [weak self] done, total in

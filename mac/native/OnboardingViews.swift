@@ -17,6 +17,7 @@ struct DownloadCard: View {
             ("Cerveau de Shuli (Gemma 4)", 3107, app.servers[0].modelURL != nil),
             ("Reconnaissance de ta voix (Whisper)", 874, app.servers[1].modelURL != nil),
             ("Voix de Shuli (Piper)", 371, voiceFilesPresent),
+            ("Traducteurs (opus-mt)", Int(mtNeeded(app.native).reduce(0) { $0 + $1.bytes } / 1_000_000), mtPresent(app.native)),
         ]
         let toDownload = items.filter { !$0.2 }.reduce(0) { $0 + $1.1 }
         VStack(alignment: .leading, spacing: 16) {
@@ -36,11 +37,11 @@ struct DownloadCard: View {
                     }
                 }
             }
-            ForEach(["llamacpp", "whisper", "voice"], id: \.self) { id in
+            ForEach(["llamacpp", "whisper", "voice", "mt"], id: \.self) { id in
                 if let p = app.progress[id], p < 1 {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text(id == "llamacpp" ? "Cerveau de Shuli" : id == "whisper" ? "Reconnaissance de ta voix" : "Voix de Shuli").font(.app(14, .medium))
+                            Text(id == "llamacpp" ? "Cerveau de Shuli" : id == "whisper" ? "Reconnaissance de ta voix" : id == "mt" ? "Traducteurs" : "Voix de Shuli").font(.app(14, .medium))
                             Spacer()
                             Text("\(Int(p * 100)) %").font(.app(14)).monospacedDigit().foregroundStyle(Palette.muted)
                         }

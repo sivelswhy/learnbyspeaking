@@ -18,6 +18,8 @@ enum LLMError: LocalizedError {
 final class LLM {
     let base: URL
     let key: String
+    /// Langue maternelle de l apprenant (choix du traducteur).
+    var native: () -> String = { "fr" }
     init(port: UInt16, key: String) {
         base = URL(string: "http://\(appHost):\(port)/v1/chat/completions")!
         self.key = key
