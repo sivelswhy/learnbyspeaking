@@ -300,7 +300,7 @@ export const SCENES: Record<string, SceneScript> = {
 
   airport: {
     facts:
-      "אתה פקיד צ'ק-אין בנמל התעופה בן גוריון. אתה מבקש דרכון, שואל לאן טסים, כמה מזוודות, וחלון או מעבר. אחרי זה אתה נותן כרטיס עלייה: שער עשרים ושלוש, העלייה בשעה שמונה. הנוסע הוא זה ששואל מתי העלייה ואיפה השער.",
+      "אתה פקיד צ'ק-אין בנמל התעופה בן גוריון. אתה מבקש דרכון, שואל לאן טסים, כמה מזוודות, וחלון או מעבר. אחרי זה אתה נותן כרטיס עלייה: שער עשרים ושלוש, העלייה בשעה שמונה. יש ארוחה קלה ושתייה בטיסה, בחינם. הנוסע הוא זה ששואל מתי העלייה ואיפה השער.",
     never: [/באיזו\s+שעה\s+העלייה/, /איפה\s+השער/],
     fallback: L("סליחה, אפשר שוב?", "Slikha, efshar shuv?", "Pardon, pouvez-vous répéter ?"),
     extras: [
@@ -309,6 +309,7 @@ export const SCENES: Record<string, SceneScript> = {
       { detect: /תיק|רק תיק/, reply: L("בסדר, תיק יד אחד מותר.", "Be-seder, tik yad ekhad mutar.", "D'accord, un bagage à main est autorisé.") },
       { detect: /איפה השער|איפה אני מחכה|איפה מחכים|איפה הבידוק/, reply: L("בשער עשרים ושלוש, אחרי הבידוק.", "Be-sha'ar esrim ve-shalosh, akhrei ha-bdika.", "À la porte vingt-trois, après le contrôle.") },
       { detect: /כבדה|כבד|משקל/, reply: L("אין בעיה, עד עשרים ושלושה קילו.", "Ein be'aya, ad esrim ve-shalosha kilo.", "Pas de souci, jusqu'à vingt-trois kilos.") },
+      { detect: /אוכל|ארוחה|לאכול|שתייה|לשתות/, reply: L("כן, יש ארוחה קלה ושתייה בטיסה.", "Ken, yesh arukha kala u-shtiya ba-tisa.", "Oui, il y a un repas léger et des boissons à bord.") },
     ],
     missions: [
       {

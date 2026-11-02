@@ -29,6 +29,15 @@ else
   echo "llama-server absent ($LLAMA) : l'app utilisera WebLLM" >&2
 fi
 
+# Oreille de Shuli : whisper-server (whisper.cpp, compilé en statique avec Metal intégré : un seul fichier).
+WHISPER=${WHISPER_BIN:-$HOME/learnbyspeaking-models/whispercpp/src/build/bin/whisper-server}
+if [ -x "$WHISPER" ]; then
+  mkdir -p "$APP/Contents/Resources/whisper"
+  cp "$WHISPER" "$APP/Contents/Resources/whisper/whisper-server"
+else
+  echo "whisper-server absent ($WHISPER) : l'app utilisera Whisper WebGPU" >&2
+fi
+
 # Icône : mac/icon/icon-1024.png (gabarit macOS : marge + ombre) -> .icns
 ICONSET=mac/build/LearnBySpeaking.iconset
 mkdir -p "$ICONSET"

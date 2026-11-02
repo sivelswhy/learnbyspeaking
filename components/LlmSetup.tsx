@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { RiCheckboxCircleFill, RiCpuLine, RiDownloadCloud2Line, RiErrorWarningLine, RiLoader4Line } from "react-icons/ri";
 import {
-  DEFAULT_LLM, WEBLLM_MODELS, complete, errorMessage, hasWebGPU, isCached, isReady, loadStore, loadWebLLM,
+  DEFAULT_LLM, LLAMACPP_MB, WEBLLM_MODELS, loadLlamaCpp, nativeLlama, complete, errorMessage, hasWebGPU, isCached, isReady, loadStore, loadWebLLM,
   type LlmSettings, type LoadState,
 } from "@/lib/llm";
 import { lowMemoryDevice } from "@/lib/device";
@@ -10,7 +10,7 @@ import type { LangCode } from "@/lib/languages";
 import { mtStore, preloadTranslators, translatorsCached, translatorsMB } from "@/lib/translate";
 import { setKeepAwake, useKeepAwakePref, wakeLockSupported } from "@/lib/wakeLock";
 import { VOICE_MB, loadVoice, voiceCached, voiceStore } from "@/lib/voice";
-import { WHISPER_MB, loadWhisper, whisperCached, whisperStore } from "@/lib/whisper";
+import { loadWhisper, whisperCached, whisperMB, whisperStore } from "@/lib/whisper";
 import { Avatar } from "./Avatar";
 import { Btn, Card } from "./ui";
 
@@ -70,7 +70,7 @@ export function useAiStatus(llm: LlmSettings): AiStatus {
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const llmOk = llm.provider !== "webllm" || (await isCached(llm.webllmModel));
+      const llmOk = llm.provider === "llamacpp" ? nativeLlama()?.ready !== false : llm.provider === "ollama" || (await isCached(llm.webllmModel));
       const wOk = llm.stt !== "whisper" || !hasWebGPU() || (await whisperCached());
       const vOk = llm.voice !== "natural" || (await voiceCached());
       if (alive) setOnDevice(llmOk && wOk && vOk);
@@ -151,7 +151,7 @@ export function LlmSetup({ llm, onChange, onReady, native = "fr", required = fal
   const [cached, setCached] = useState<Record<string, boolean>>({});
   const gpu = hasWebGPU();
   const lowMem = lowMemoryDevice();
-  const loadingThis = ls.model === llm.webllmModel && (ls.phase === "download" || ls.phase === "init");
+  const loadingThis = ls.model === (llm.provider === "llamacpp" ? "llamacpp" : llm.webllmModel) && (ls.phase === "download" || ls.phase === "init");
 
   useEffect(() => {
     Promise.all(WEBLLM_MODELS.map(async (m) => [m.id, await isCached(m.id)] as const)).then((r) => setCached(Object.fromEntries(r)));
@@ -173,6 +173,7 @@ export function LlmSetup({ llm, onChange, onReady, native = "fr", required = fal
       // Traducteurs d'abord : leur worker est fermé aussitôt, avant que les autres modèles n'occupent la mémoire.
       await preloadTranslators(native);
       if (llm.provider === "webllm") await loadWebLLM(llm.webllmModel);
+      else if (llm.provider === "llamacpp") await loadLlamaCpp();
       else await complete(llm, { messages: [{ role: "user", content: "ok" }], maxTokens: 2 });
       if (llm.stt === "whisper" && gpu) await loadWhisper();
       if (llm.voice === "natural") await loadVoice();
@@ -216,12 +217,13 @@ export function LlmSetup({ llm, onChange, onReady, native = "fr", required = fal
   const anyLoading = busy || loadingThis || wLoading || vLoading || mLoading;
   const toDownloadMB =
     (llm.provider === "webllm" && !cached[llm.webllmModel] ? (WEBLLM_MODELS.find((m) => m.id === llm.webllmModel)?.mb ?? 0) : 0) +
-    (llm.stt === "whisper" && gpu && !wCached && ws.phase !== "ready" ? WHISPER_MB : 0) +
+    (llm.provider === "llamacpp" && !isReady(llm) ? LLAMACPP_MB : 0) +
+    (llm.stt === "whisper" && gpu && !wCached && ws.phase !== "ready" ? whisperMB() : 0) +
     (llm.voice === "natural" && !vCached && vs.phase !== "ready" ? VOICE_MB : 0) +
     (!mCached && ms.phase !== "ready" ? translatorsMB(native) : 0);
   const items: [string, number, boolean][] = [
-    ...(llm.provider === "llamacpp" ? [] : [["Cerveau de Shuli (DictaLM)", WEBLLM_MODELS.find((m) => m.id === llm.webllmModel)?.mb ?? 0, !!cached[llm.webllmModel] || ls.phase === "ready"] as [string, number, boolean]]),
-    ...(llm.stt === "whisper" && gpu ? [["Reconnaissance de ta voix (Whisper)", WHISPER_MB, wCached || ws.phase === "ready"] as [string, number, boolean]] : []),
+    ...(llm.provider === "llamacpp" ? [["Cerveau de Shuli (DictaLM 8 bits)", LLAMACPP_MB, isReady(llm)] as [string, number, boolean]] : [["Cerveau de Shuli (DictaLM)", WEBLLM_MODELS.find((m) => m.id === llm.webllmModel)?.mb ?? 0, !!cached[llm.webllmModel] || ls.phase === "ready"] as [string, number, boolean]]),
+    ...(llm.stt === "whisper" && gpu ? [["Reconnaissance de ta voix (Whisper)", whisperMB(), wCached || ws.phase === "ready"] as [string, number, boolean]] : []),
     ...(llm.voice === "natural" ? [["Voix de Shuli", VOICE_MB, vCached || vs.phase === "ready"] as [string, number, boolean]] : []),
     ...(translatorsMB(native) ? [["Traducteurs", translatorsMB(native), mCached || ms.phase === "ready"] as [string, number, boolean]] : []),
   ];
@@ -314,7 +316,7 @@ export function LlmSetup({ llm, onChange, onReady, native = "fr", required = fal
         <h3 className="text-sm font-semibold">Reconnaissance de ta voix</h3>
         <div className="space-y-2" role="radiogroup" aria-label="Reconnaissance vocale">
           {([
-            ["whisper", "Whisper ivrit-ai · 100 % local", `≈ ${WHISPER_MB} Mo · entraîné sur l'hébreu, rien ne quitte l'appareil${lowMem ? " · risque de recharger la page sur iPhone" : ""}`],
+            ["whisper", "Whisper ivrit-ai · 100 % local", `≈ ${whisperMB()} Mo · entraîné sur l'hébreu, rien ne quitte l'appareil${lowMem ? " · risque de recharger la page sur iPhone" : ""}`],
             ["browser", "Reconnaissance du navigateur", "Aucun téléchargement · l'audio est envoyé à Google/Apple/Microsoft"],
           ] as const).map(([v, label, note]) => (
             <button key={v} role="radio" aria-checked={llm.stt === v} disabled={wLoading || (v === "whisper" && !gpu)} onClick={() => set({ stt: v })}

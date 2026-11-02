@@ -2,6 +2,7 @@
 import type { MLCEngineInterface } from "@mlc-ai/web-llm";
 import { HF_DICTA_REPO, MODEL_HOST } from "./hosting";
 import { whenAlive } from "./workerReady";
+import { nativeDownload, nativeModel, toLoadState } from "./native";
 
 /** 100 % local et gratuit : WebLLM (WebGPU, dans le navigateur), llama.cpp (serveur natif lancé par l'app Mac) ou Ollama (localhost). */
 export interface LlmSettings {
@@ -49,11 +50,17 @@ export const DEFAULT_LLM: LlmSettings = {
   llamacppUrl: "http://127.0.0.1:47900",
 };
 
-/** Serveur llama.cpp lancé par l'app Mac : adresse et jeton, injectés dans la page avant son chargement. */
-export function nativeLlama(): { url: string; key: string } | null {
-  if (typeof window === "undefined") return null;
-  const n = (window as unknown as { __lbsNative?: { llamacpp?: { url: string; key: string } } }).__lbsNative;
-  return n?.llamacpp ?? null;
+/** Serveur llama.cpp lancé par l'app Mac (lib/native.ts). */
+export const nativeLlama = () => nativeModel("llamacpp");
+
+/** Taille du modèle GGUF 8 bits téléchargé par l'app Mac (Mo). */
+export const LLAMACPP_MB = 1835;
+
+/** App Mac : fait télécharger le modèle GGUF par l'app (si besoin) puis démarrer llama-server ; avancée dans loadStore. */
+export function loadLlamaCpp(): Promise<void> {
+  const t0 = Date.now();
+  setState({ model: "llamacpp", phase: "download", progress: 0, doneMB: 0, totalMB: LLAMACPP_MB, mbps: 0, etaSec: null, cachedMB: 0, fromCache: false, error: undefined });
+  return nativeDownload("llamacpp", (p) => setState({ model: "llamacpp", ...toLoadState(p, t0) }));
 }
 
 export type Msg = { role: "system" | "user" | "assistant"; content: string };
@@ -109,7 +116,8 @@ export function hasWebGPU(): boolean {
 }
 
 export function isReady(s: LlmSettings): boolean {
-  return s.provider !== "webllm" || (engine !== null && engineModel === s.webllmModel);
+  if (s.provider === "llamacpp") return nativeLlama()?.ready !== false;
+  return s.provider === "ollama" || (engine !== null && engineModel === s.webllmModel);
 }
 
 export async function isCached(model: string): Promise<boolean> {

@@ -2,9 +2,17 @@
 import type { LoadState } from "./llm";
 import { isIOS } from "./device";
 import { whenAlive } from "./workerReady";
+import { nativeDownload, nativeModel, toLoadState } from "./native";
 
-/** Reconnaissance vocale 100 % locale : Whisper ivrit-ai dans un worker (WebGPU). */
+/**
+ * Reconnaissance vocale 100 % locale : Whisper ivrit-ai dans un worker (WebGPU),
+ * ou, dans l'app Mac, whisper.cpp natif (Metal, modèle complet en f16 : lib/native.ts).
+ */
 export const WHISPER_MB = 560;
+const NATIVE_WHISPER_MB = 874;
+const native = () => nativeModel("whisper");
+/** Taille à télécharger pour la reconnaissance vocale sur cet appareil (Mo). */
+export const whisperMB = () => (native() ? NATIVE_WHISPER_MB : WHISPER_MB);
 
 /**
  * q4f16 (≈ 560 Mo) si le GPU calcule en fp16 : environ moitié moins de mémoire que q4, dont le reste est en fp32.
@@ -46,6 +54,8 @@ export function whisperReady() {
 }
 
 export async function whisperCached(): Promise<boolean> {
+  const n = native();
+  if (n) return !!n.ready;
   try {
     const c = await caches.open("transformers-cache");
     const keys = await c.keys();
@@ -58,6 +68,15 @@ export async function whisperCached(): Promise<boolean> {
 
 export function loadWhisper(): Promise<void> {
   if (readyP) return readyP;
+  if (native()) {
+    const t0 = Date.now();
+    if (!native()!.ready) setState({ phase: "download", progress: 0, doneMB: 0, totalMB: NATIVE_WHISPER_MB, mbps: 0, etaSec: null, fromCache: false, error: undefined });
+    readyP = nativeDownload("whisper", (p) => setState(toLoadState(p, t0))).catch((err) => {
+      readyP = null;
+      throw err;
+    });
+    return readyP;
+  }
   readyP = (async () => {
     const fromCache = await whisperCached();
     if (!fromCache) await navigator.storage?.persist?.().catch(() => false);
@@ -117,8 +136,54 @@ function onResult(e: MessageEvent) {
   else p.reject(new Error(m.message));
 }
 
+/** Audio 16 kHz mono → WAV PCM 16 bits (format attendu par whisper-server). */
+function wav(audio: Float32Array): Blob {
+  const buf = new ArrayBuffer(44 + audio.length * 2);
+  const v = new DataView(buf);
+  const str = (o: number, t: string) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  str(0, "RIFF");
+  v.setUint32(4, 36 + audio.length * 2, true);
+  str(8, "WAVEfmt ");
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);
+  v.setUint16(22, 1, true);
+  v.setUint32(24, 16000, true);
+  v.setUint32(28, 32000, true);
+  v.setUint16(32, 2, true);
+  v.setUint16(34, 16, true);
+  str(36, "data");
+  v.setUint32(40, audio.length * 2, true);
+  for (let i = 0; i < audio.length; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, audio[i])) * 0x7fff, true);
+  return new Blob([buf], { type: "audio/wav" });
+}
+
+/** whisper.cpp natif (app Mac) : le chemin d'inférence secret tient lieu de jeton. */
+async function transcribeNative(audio: Float32Array, lang: string): Promise<string> {
+  const n = native()!;
+  const form = new FormData();
+  form.append("file", wav(audio), "audio.wav");
+  form.append("language", lang in WHISPER_LANG ? lang : "he");
+  form.append("temperature", "0.0");
+  form.append("response_format", "json");
+  // Amorce avec des « ? » : sans elle, Whisper oubliait le point d'interrogation (2 questions sur 3),
+  // dont dépend le repérage des questions de l'apprenant (lib/scenes.ts, isQuestion).
+  if (lang === "he") form.append("prompt", "מה שלומך? אני בסדר, תודה. איפה אתה גר?");
+  // Juste après l'ouverture de l'app, le serveur charge encore le modèle (≈ 4 s) : on réessaie jusqu'à 20 s.
+  const until = Date.now() + 20_000;
+  let res: Response | null = null;
+  for (;;) {
+    res = await fetch(`${n.url}/${n.key}`, { method: "POST", body: form }).catch(() => null);
+    if (res || Date.now() > until) break;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!res?.ok) throw new Error(`WHISPER_${res?.status ?? "UNREACHABLE"}`);
+  // L'amorce laisse parfois une virgule ou un tiret en tête (« , שלום… », « -באיזו… »).
+  return String((await res.json()).text ?? "").replace(/\s+/g, " ").trim().replace(/^[,.\-–—\s]+/, "");
+}
+
 export async function transcribe(audio: Float32Array, lang: string): Promise<string> {
   await loadWhisper();
+  if (native()) return transcribeNative(audio, lang);
   const id = nextId++;
   return new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject });

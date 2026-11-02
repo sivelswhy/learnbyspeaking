@@ -5,11 +5,13 @@ import { complete, errorMessage, type LlmSettings } from "@/lib/llm";
 import { correctionsToWeakPoints, translateMessages } from "@/lib/prompts";
 import { LEVEL_RATE, STT_ERRORS, cancelSpeech, hasVoice, speak, useRecognizer, useWhisperRecognizer } from "@/lib/speech";
 import { judge } from "@/lib/judge";
+import { reviewAnswer } from "@/lib/feedback";
 import { nextReply } from "@/lib/dialogue";
 import { scoreSessionAI } from "@/lib/sessionScore";
 import { canTranslate, translateHebrew } from "@/lib/translate";
 import { SCENES, lineText, sceneProgress, type SceneProgress, type SceneScript } from "@/lib/scenes";
 import type { Correction, Message, NewWord, Profile, SessionRecord } from "@/lib/types";
+import type { Feedback } from "@/lib/feedback";
 import {
   RiArrowLeftRightLine, RiHand, RiHeadphoneLine, RiLightbulbLine, RiMicFill, RiMicLine,
   RiRepeatLine, RiSendPlaneFill, RiStopFill, RiTranslate2, RiVolumeUpLine,
@@ -18,6 +20,7 @@ import { Avatar } from "./Avatar";
 import { LlmSetup, allReady } from "./LlmSetup";
 import { whisperStore } from "@/lib/whisper";
 import { Btn, Header, wordMatch } from "./ui";
+import { useSpaceKey } from "@/lib/keys";
 
 type Status = "idle" | "listening" | "thinking" | "speaking";
 interface Assist {
@@ -230,12 +233,17 @@ export function Conversation({
       if (!value) return;
       cancelSpeech();
       const id = uid();
-      update((m) => [...m, { id, role: "user", text: value }]);
+      const question = [...msgs.current].reverse().find((x) => x.role === "assistant")?.text ?? "";
+      update((m) => [...m, { id, role: "user", text: value, reviewing: profile.target === "he" }]);
       setText("");
       setAssist(null);
       await reply();
+      // Avis de Shuli après sa réplique (sinon le juge retarderait la réponse) : correction, conseils, exemple.
+      if (profile.target !== "he") return;
+      const fb = await reviewAnswer(llm, { question, answer: value, level: profile.level, gender: profile.gender ?? "m" }).catch(() => null);
+      update((m) => m.map((x) => (x.id === id ? { ...x, reviewing: false, feedback: fb ?? undefined } : x)));
     },
-    [reply, update],
+    [reply, update, llm, profile],
   );
   useEffect(() => {
     sendRef.current = (t) => void send(t);
@@ -258,6 +266,11 @@ export function Conversation({
     setStatus("listening");
     rec.start();
   }
+
+  // Barre d'espace : parler / arrêter, comme le gros bouton micro.
+  useSpaceKey(() => {
+    if (!busy && !finishing && !transcribing) mic();
+  });
 
   function interrupt() {
     abort.current?.abort();
@@ -499,6 +512,8 @@ function Bubble({
           </Pill>
         </div>
       )}
+      {user && m.reviewing && <p className="animate-pulse text-xs text-muted">Shuli regarde ta réponse…</p>}
+      {user && m.feedback && <FeedbackCard f={m.feedback} he={he} onSpeak={onSpeak} onRepeat={onRepeat} />}
       {user && m.correction && (
         <div className="w-full max-w-[92%] space-y-1 rounded-2xl border border-warn/40 bg-card p-3 text-sm">
           <p className="text-xs font-semibold uppercase text-warn">Correction · {m.correction.category}</p>
@@ -515,6 +530,32 @@ function Bubble({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Avis de Shuli sous une réponse de l'apprenant. */
+function FeedbackCard({ f, he, onSpeak, onRepeat }: { f: Feedback; he: string; onSpeak: (t: string) => void; onRepeat: (t: string) => void }) {
+  const line = (label: string, text: string) => (
+    <div className="space-y-1">
+      <p className="text-xs font-semibold uppercase text-muted">{label}</p>
+      <div className="flex items-center gap-2">
+        <p className={`${he} min-w-0 flex-1 text-lg font-medium text-good`}>{text}</p>
+        <Pill onClick={() => onSpeak(text)} aria-label={`Écouter : ${label}`}><RiVolumeUpLine aria-hidden /></Pill>
+        <Pill onClick={() => onRepeat(text)} aria-label={`Répéter : ${label}`}><RiMicLine aria-hidden /></Pill>
+      </div>
+    </div>
+  );
+  return (
+    <div className="w-full max-w-[92%] space-y-2 rounded-2xl border border-line bg-card p-3 text-sm">
+      <p className="flex items-center gap-2 font-semibold"><Avatar size={24} mood={f.praise ? "cheer" : "happy"} /> {f.praise ?? "Pour améliorer ta réponse"}</p>
+      {f.correction && line("Plus correct", f.correction)}
+      {f.tips.length > 0 && (
+        <ul className="space-y-1">
+          {f.tips.map((t) => <li key={t} className="flex gap-1.5"><RiLightbulbLine aria-hidden className="mt-0.5 shrink-0 text-accent" /> {t}</li>)}
+        </ul>
+      )}
+      {f.example && line("Exemple", f.example)}
     </div>
   );
 }

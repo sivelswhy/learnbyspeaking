@@ -49,6 +49,9 @@ export interface Message {
   /** Traduction / translittération, sur les messages du tuteur. */
   extra?: Extra;
   analyzing?: boolean;
+  /** Avis de Shuli sur cette réponse de l'apprenant (lib/feedback.ts). */
+  feedback?: import("./feedback").Feedback;
+  reviewing?: boolean;
 }
 
 export interface SessionRecord {

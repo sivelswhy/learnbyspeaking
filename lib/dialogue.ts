@@ -1,4 +1,5 @@
-import { complete, type LlmSettings, type Msg } from "./llm";
+import { complete, yesProbability, type LlmSettings, type Msg } from "./llm";
+import { relevancePrompt } from "./placement";
 import type { Scenario } from "./languages";
 import { correctionsToWeakPoints, followUpMessages, openingPrompt, pickGender, replyFlaws, replyShots, replySystem, similar, tidyFollowUp, tidyReply, withFollowUp } from "./prompts";
 import { ASK_TIME, BIZARRE, BYE, CLARIFY, DONT_KNOW, QUEUES, SAFE_LINE, SCENES, THANKS_ONLY, isQuestion, reaction, badQuestions, dropBadQuestions, flat, isGreeting, lineText, sceneProgress, timeLine } from "./scenes";
@@ -35,21 +36,39 @@ const cost = (flaws: string[]) => flaws.reduce((a, f) => a + (f === "sans questi
 export async function nextReply(o: {
   llm: LlmSettings; profile: Profile; sc: Scenario; turns: Turn[]; weak?: string[];
   onToken?: (t: string) => void; signal?: AbortSignal;
+  /** Sauter les répliques écrites à la main (réponse à la question annexe d'un message qui accomplit une mission). */
+  freeOnly?: boolean;
 }): Promise<DialogueReply | null> {
   const { llm, profile, sc, turns, signal } = o;
   const g = profile.gender ?? "m";
   const script = SCENES[sc.id];
   const userTexts = turns.filter((t) => t.role === "user").map((t) => t.text);
 
-  if (script && profile.target === "he" && userTexts.length) {
-    const hit = sceneProgress(script, userTexts).newly.at(-1);
+  if (script && profile.target === "he" && userTexts.length && !o.freeOnly) {
+    const hits = sceneProgress(script, userTexts).newly;
+    const hit = hits.at(-1);
     if (hit) {
       const l = lineText(hit.reply, g);
-      return { text: l.he, tr: l.tr, fr: l.fr, source: "script", flaws: [] };
+      const done: DialogueReply = { text: l.he, tr: l.tr, fr: l.fr, source: "script", flaws: [] };
+      // « אני רוצה חלון, אבל יש אוכל במטוס? » : la mission (hublot) est faite, mais la question annexe mérite une réponse,
+      // placée avant la réplique écrite à la main.
+      const extra = sideQuestion(userTexts.at(-1) ?? "", hits);
+      if (!extra) return done;
+      const ex = script.extras?.find((e) => e.detect.test(flat(extra)));
+      let ans: { he: string; tr?: string; fr?: string } | null = ex ? lineText(ex.reply, g) : null;
+      if (!ans) {
+        const sub = await nextReply({ ...o, onToken: undefined, freeOnly: true, turns: [...turns.slice(0, -1), { role: "user", text: extra }] });
+        // Un petit modèle répond souvent à côté : on garde sa réponse seulement si le juge (celui du test de niveau) la trouve pertinente.
+        const ok = sub && sub.source === "llm" && !sub.flaws.length && (await yesProbability(llm, relevancePrompt(extra, sub.text)).catch(() => 0)) >= 0.5;
+        ans = ok ? { he: sub.text } : lineText(DONT_KNOW, g);
+      }
+      const join = (a?: string, b?: string) => (a && b ? `${a} ${b}` : undefined);
+      return { text: `${ans.he} ${l.he}`, tr: join(ans.tr, l.tr), fr: join(ans.fr, l.fr), source: ans.tr ? "script" : "llm", flaws: [] };
     }
   }
 
   const lastUser = userTexts.at(-1) ?? "";
+  if (o.freeOnly) return generate();
   const lastAi = turns.filter((t) => t.role === "assistant").at(-1);
   const t = flat(lastUser);
   if (profile.target === "he" && t) {
@@ -90,6 +109,9 @@ export async function nextReply(o: {
     if (BYE.test(t) && t.split(" ").length <= 4) return { text: "להתראות, יום טוב!", tr: "Lehitra'ot, yom tov!", fr: "Au revoir, bonne journée !", source: "script", flaws: [] };
   }
 
+  return generate();
+
+  async function generate(): Promise<DialogueReply | null> {
   const history: Msg[] = turns.map((t) => ({ role: t.role, content: t.text }));
   if (!history.length) history.push({ role: "user", content: openingPrompt() });
   const said = turns.filter((t) => t.role === "assistant").map((t) => t.text);
@@ -157,6 +179,22 @@ export async function nextReply(o: {
     if (q && !said.some((x) => x.includes(q)) && !badQuestions(sc.id, q).length) clean = withFollowUp(clean, q);
   }
   return { text: clean, source: "llm", flaws: bestFlaws };
+  }
+}
+
+/**
+ * Partie d'un message qui pose une autre question que la mission accomplie (« …, אבל יש אוכל במטוס? »), ou null.
+ * Le message est coupé aux virgules, points et « אבל » ; un morceau qui ne déclenche aucune des missions et qui est une question est gardé.
+ */
+export function sideQuestion(raw: string, hits: { detect: (t: string, turn: number) => boolean }[]): string | null {
+  const parts = raw.split(/[,.!;]+|\s+אבל\s+|(?<=\?)/).map((x) => x.trim()).filter((x) => flat(x).split(" ").length >= 2);
+  if (parts.length < 2) return null;
+  const fires = (x: string) => hits.some((m) => m.detect(flat(x), 99));
+  // Une autre partie (non interrogative) accomplit déjà la mission : la question est annexe, même si elle contient un mot de la mission
+  // (« מזוודה אחת, אפשר לקחת גם תיק יד? »).
+  const missionElsewhere = parts.some((x) => !isQuestion(x) && fires(x));
+  const q = parts.find((x) => isQuestion(x) && (missionElsewhere || !fires(x)));
+  return q ?? null;
 }
 
 export { correctionsToWeakPoints };
