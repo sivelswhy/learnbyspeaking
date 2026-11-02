@@ -83,7 +83,7 @@ function Intro({ onStart, onSkip, gender, onGender }: { onStart: () => void; onS
         </div>
       )}
       <button onClick={onStart} disabled={!!onGender && !gender} className="min-h-14 w-full max-w-md rounded-full bg-white text-lg font-semibold text-accent active:scale-[0.99] disabled:opacity-50">{onGender && !gender ? "Choisis d'abord ci-dessus" : "Démarrer"}</button>
-      <button onClick={onSkip} className="mt-2 min-h-11 text-sm text-white/80 underline">Plus tard</button>
+      {!onGender && <button onClick={onSkip} className="mt-2 min-h-11 text-sm text-white/80 underline">Plus tard</button>}
       </div>
     </main>
   );

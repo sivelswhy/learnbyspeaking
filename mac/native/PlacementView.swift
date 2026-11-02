@@ -106,7 +106,8 @@ private struct PlacementIntro: View {
                         .frame(maxWidth: 448, minHeight: 56).background(.white, in: Capsule())
                 }.buttonStyle(PressStyle()).disabled(askGender && gender == nil).opacity(askGender && gender == nil ? 0.5 : 1)
                     .keyboardShortcut(.return, modifiers: [])
-                Button("Plus tard", action: onSkip).buttonStyle(.plain).font(.app(14)).underline().foregroundStyle(.white.opacity(0.8)).frame(minHeight: 44).padding(.top, 8)
+                // Au premier lancement le test est obligatoire : pas de « Plus tard » (gardé quand on l'ouvre depuis l'app).
+                if !askGender { Button("Plus tard", action: onSkip).buttonStyle(.plain).font(.app(14)).underline().foregroundStyle(.white.opacity(0.8)).frame(minHeight: 44).padding(.top, 8) }
             }.padding(.bottom, 16)
         }
         .foregroundStyle(.white)
