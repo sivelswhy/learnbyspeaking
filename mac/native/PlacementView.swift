@@ -152,16 +152,27 @@ private struct PlacementTest: View {
         VStack(spacing: 0) {
             Column { Header(title: "Test de niveau", onBack: onExit) }
             Column {
-                GeometryReader { geo in
-                    let est = estimate()
-                    let frac = min(1, max(Double(turns.count) / Double(MAX_QUESTIONS), Double(confidence(est)) / 100 * 0.9))
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Palette.accent.opacity(0.15)).frame(height: 4)
-                        Capsule().fill(Palette.accent.opacity(0.6)).frame(width: geo.size.width * frac, height: 4)
-                        Circle().fill(Palette.accent.opacity(0.7)).frame(width: 14, height: 14).offset(x: -4)
-                        Circle().fill(Palette.accent.opacity(0.25)).frame(width: 14, height: 14).offset(x: geo.size.width - 10)
+                let est = estimate()
+                let frac = min(1, Double(turns.count) / Double(MAX_QUESTIONS))
+                VStack(spacing: 6) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Question \(min(i + 1, MAX_QUESTIONS))").font(.app(14, .semibold))
+                        Text("sur \(MIN_QUESTIONS) à \(MAX_QUESTIONS)").font(.app(14)).foregroundStyle(Palette.muted)
+                        Spacer()
+                        Text("Fiabilité \(confidence(est)) %").font(.app(14)).foregroundStyle(Palette.muted)
                     }
-                }.frame(height: 14).padding(.horizontal, 24).padding(.top, 8)
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Palette.accent.opacity(0.15))
+                            Capsule().fill(LinearGradient(colors: [Palette.accent.opacity(0.7), Palette.accent], startPoint: .leading, endPoint: .trailing))
+                                .frame(width: geo.size.width * frac)
+                                .animation(.easeOut(duration: 0.5), value: frac)
+                            ForEach(1..<MAX_QUESTIONS, id: \.self) { k in
+                                Rectangle().fill(Palette.bg.opacity(0.7)).frame(width: 2).offset(x: geo.size.width * Double(k) / Double(MAX_QUESTIONS) - 1)
+                            }
+                        }.clipShape(Capsule())
+                    }.frame(height: 10)
+                }.padding(.horizontal, 24).padding(.top, 8)
             }
             ScrollViewReader { proxy in
                 ScrollView {

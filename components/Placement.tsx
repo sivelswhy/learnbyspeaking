@@ -5,7 +5,7 @@ import { LANGUAGES, type Gender, type Level } from "@/lib/languages";
 import type { LlmSettings } from "@/lib/llm";
 import { judge } from "@/lib/judge";
 import { canTranslate, translateHebrew } from "@/lib/translate";
-import { MAX_QUESTIONS, confidence, estimateFrom, levelOf, pickNext, prior, shouldStop } from "@/lib/adaptive";
+import { MAX_QUESTIONS, MIN_QUESTIONS, confidence, estimateFrom, levelOf, pickNext, prior, shouldStop } from "@/lib/adaptive";
 import {
   PLACEMENT, SCORING_EXPLANATION, SCORING_EXPLANATION_NO_AI, dontKnow, itemOf, scoreAnswer, type AnswerScore, type PlacementQuestion,
 } from "@/lib/placement";
@@ -247,10 +247,17 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
   return (
     <div className="mx-auto flex h-dvh max-w-lg lg:max-w-3xl flex-col">
       <Header title="Test de niveau" onBack={onExit} />
-      <div className="relative mx-6 mt-2 h-1 rounded-full bg-accent/15" role="progressbar" aria-valuemin={0} aria-valuemax={MAX_QUESTIONS} aria-valuenow={turns.length} aria-label={`Question ${i + 1}`}>
-        <div className="h-full rounded-full bg-accent/60 transition-[width]" style={{ width: `${Math.min(100, Math.max(turns.length / MAX_QUESTIONS, confidence(estimateFrom(turns.map((t, k) => ({ item: itemOf(qs[k]), s: (t.score?.score ?? 0) / 100 })))) / 100 * 0.9) * 100)}%` }} />
-        <span className="absolute -start-1 top-1/2 grid size-3.5 -translate-y-1/2 place-items-center rounded-full bg-accent/70" />
-        <span className="absolute -end-1 top-1/2 size-3.5 -translate-y-1/2 rounded-full bg-accent/25" />
+      <div className="mx-6 mt-2">
+        <div className="mb-1.5 flex items-baseline justify-between text-sm">
+          <span className="font-semibold">Question {Math.min(i + 1, MAX_QUESTIONS)} <span className="font-normal text-muted">sur {MIN_QUESTIONS} à {MAX_QUESTIONS}</span></span>
+          <span className="text-muted">Fiabilité {confidence(estimateFrom(turns.map((t, k) => ({ item: itemOf(qs[k]), s: (t.score?.score ?? 0) / 100 }))))} %</span>
+        </div>
+        <div className="relative h-2.5 overflow-hidden rounded-full bg-accent/15" role="progressbar" aria-valuemin={0} aria-valuemax={MAX_QUESTIONS} aria-valuenow={turns.length} aria-label={`Question ${i + 1}`}>
+          <div className="h-full rounded-full bg-gradient-to-r from-accent/70 to-accent transition-[width] duration-500 ease-out" style={{ width: `${Math.min(100, (turns.length / MAX_QUESTIONS) * 100)}%` }} />
+          {Array.from({ length: MAX_QUESTIONS - 1 }, (_, k) => (
+            <span key={k} className="absolute top-0 h-full w-0.5 bg-bg/70" style={{ left: `${((k + 1) / MAX_QUESTIONS) * 100}%` }} />
+          ))}
+        </div>
       </div>
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
         {qs.map((qq, k) => {
