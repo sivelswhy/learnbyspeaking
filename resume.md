@@ -2,7 +2,7 @@
 
 ## Reprise du 02/11 : en cours
 
-**Dernier push : `0020cf8` (02/11, Pages OK).** Ne pousser qu'après « push ».
+**Dernier push : `814714c` (03/11).** Ne pousser qu'après « push ».
 
 ### 1. Passage de l'IA de WebLLM à llama.cpp (en cours, prochaine étape)
 - But : DictaLM 1.7B en **8 bits** (au lieu de 4 bits WebLLM), plus rapide, via Metal natif. MLX abandonné : il faut le Metal Toolchain de Xcode, dont le téléchargement ne marche pas sur ce Mac.
