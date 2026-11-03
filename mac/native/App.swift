@@ -157,7 +157,7 @@ struct LearnBySpeakingApp: App {
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .newItem) {}
-            DevCommands(store: delegate.model.store)
+            DevCommands(store: delegate.model.store, voice: delegate.model.voice)
         }
     }
 }

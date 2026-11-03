@@ -117,6 +117,20 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     private let queue = DispatchQueue(label: "piper", qos: .userInitiated)
     private var generation = 0
 
+    /// Voix disponibles (menu Dev) et leurs réglages de synthèse.
+    static let models: [(file: String, label: String)] = [("michael.onnx", "michael (par défaut)"), ("shaul.onnx", "shaul")]
+    static let settings: [String: (noise: Float, noiseW: Float)] = ["michael.onnx": (0.3, 0.6), "shaul.onnx": (0.3, 0.6)]
+    @Published var model: String = UserDefaults.standard.string(forKey: "voiceModel") ?? "michael.onnx"
+
+    /// Change de voix : recharge le modèle choisi (s'il est sur le disque).
+    func useModel(_ file: String) {
+        guard FileManager.default.fileExists(atPath: voiceDir.appendingPathComponent(file).path) else { return }
+        stop()
+        UserDefaults.standard.set(file, forKey: "voiceModel")
+        model = file
+        queue.async { self.piper = nil; DispatchQueue.main.async { self.natural = false; self.loadPiper() } }
+    }
+
     static func rate(_ level: String) -> Double {
         ["A1": 0.78, "A2": 0.85, "B1": 0.92, "B2": 1.0, "C1": 1.0, "C2": 1.0][level] ?? 0.9
     }
@@ -130,8 +144,11 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
 
     /// Charge Phonikud et Piper, puis une phrase à vide pour préparer les modèles.
     func loadPiper() {
+        let name = model
         queue.async {
-            guard self.piper == nil, let p = Piper() else { return }
+            guard self.piper == nil, let p = Piper(model: name) else { return }
+            let set = Voice.settings[name] ?? (0.3, 0.6)
+            p.noise = set.noise; p.noiseW = set.noiseW
             _ = p.audio("שלום", lengthScale: 1)
             self.piper = p
             DispatchQueue.main.async { self.natural = true }
