@@ -284,7 +284,7 @@ function phonemizeHebrew(letters: Letter[]): string[] {
 
 const DICT: Record<string, string> = Object.fromEntries(
   Object.entries({
-    "וַאלְלָה": "wˈala", "וַסַבִּי": "wasˈabi", "פינגוין": "pinguwˈin", "וואצאפ": "wˈatsʔap", "וואטסאפ": "wˈatsʔap",
+    "וַאלְלָה": "wˈala", "וַסַבִּי": "wasˈabi", "פינגוין": "pinguwˈin", "וואצאפ": "wˈatsʔap", "וואו": "wˈau", "וואוו": "wˈau", "וואווו": "wˈau", "ווואו": "wˈau", "וואוי": "wˈauj",  "וואטסאפ": "wˈatsʔap",
     "יאללה": "jˈala", "וולטר": "wˈolter", "₪": "ʃˈekel", "$": "dˈolar", "%": "axˈuz", "צה״ל": "tsˈahal",
   }).map(([k, v]) => [normalize(k), v]),
 );

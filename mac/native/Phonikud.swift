@@ -347,7 +347,7 @@ enum Phonemizer {
     }
 
     static let DICT: [String: String] = {
-        let raw = ["וַאלְלָה": "wˈala", "וַסַבִּי": "wasˈabi", "פינגוין": "pinguwˈin", "וואצאפ": "wˈatsʔap", "וואטסאפ": "wˈatsʔap",
+        let raw = ["וַאלְלָה": "wˈala", "וַסַבִּי": "wasˈabi", "פינגוין": "pinguwˈin", "וואצאפ": "wˈatsʔap", "וואו": "wˈau", "וואוו": "wˈau", "וואווו": "wˈau", "ווואו": "wˈau", "וואוי": "wˈauj",  "וואטסאפ": "wˈatsʔap",
                    "יאללה": "jˈala", "וולטר": "wˈolter", "₪": "ʃˈekel", "$": "dˈolar", "%": "axˈuz", "צה״ל": "tsˈahal"]
         return Dictionary(raw.map { (normalize($0.key), $0.value) }, uniquingKeysWith: { a, _ in a })
     }()
