@@ -1,13 +1,13 @@
 import AVFoundation
 
 // Voix de Shuli : Phonikud vocalise le texte, Piper (VITS) le prononce (lib/voice.worker.ts), via onnxruntime en natif.
-// Modèles dans ~/Library/Application Support/LearnBySpeaking/models/voice/ (Phonikud : MIT ; voix Piper : CC BY-NC).
+// Modèles dans ~/Library/Application Support/LearnBySpeaking/models/voice/ (Phonikud : MIT ; voix « michael » de Phonikud TTS : CC BY-NC ; mesurée sur 90 phrases avec Whisper : 97 % des mots retrouvés contre 92 % pour l'ancienne voix, réglages noise 0,3 / noise_w 0,6).
 // Pas de voix système en hébreu : les modèles de la voix sont requis (téléchargement au premier lancement).
 
 /// Fichiers de la voix, aux révisions figées du site (lib/voiceFiles.ts).
 let VOICE_FILES: [(name: String, url: String, bytes: Int64)] = [
     ("phonikud-1.0.int8.onnx", "https://huggingface.co/Phonikud/phonikud-onnx/resolve/b806189fe1fc0085b1012b7560ffb5e8ecfd72a2/phonikud-1.0.int8.onnx", 307_844_158),
-    ("piper.onnx", "https://huggingface.co/Phonikud/phonikud-tts-checkpoints/resolve/ff64ba389a3833c49a85c58fc51a7060a6984b87/model.onnx", 63_511_038),
+    ("michael.onnx", "https://huggingface.co/Phonikud/phonikud-tts-checkpoints/resolve/ff64ba389a3833c49a85c58fc51a7060a6984b87/michael.onnx", 63_516_050),
     ("piper.config.json", "https://huggingface.co/Phonikud/phonikud-tts-checkpoints/resolve/ff64ba389a3833c49a85c58fc51a7060a6984b87/model.config.json", 7_073),
 ]
 let voiceDir = supportDir.appendingPathComponent("models/voice")
@@ -59,11 +59,14 @@ final class Piper {
     let piper: OrtModel
     let idMap: [String: [Int64]]
     let sampleRate: Double
+    /// Réglages de la synthèse VITS (noise_scale, noise_w).
+    var noise: Float = 0.3
+    var noiseW: Float = 0.6
 
-    init?() {
+    init?(model: String = "michael.onnx") {
         guard voiceFilesPresent,
               let n = OrtModel(voiceDir.appendingPathComponent("phonikud-1.0.int8.onnx").path),
-              let p = OrtModel(voiceDir.appendingPathComponent("piper.onnx").path),
+              let p = OrtModel(voiceDir.appendingPathComponent(model).path),
               let d = try? Data(contentsOf: voiceDir.appendingPathComponent("piper.config.json")),
               let j = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
               let map = j["phoneme_id_map"] as? [String: [Int]] else { return nil }
@@ -88,7 +91,7 @@ final class Piper {
             ids += v + (idMap["_"] ?? [])
         }
         ids += idMap["$"] ?? []
-        guard let o = piper.run(ints: [("input", ids)], length: ("input_lengths", Int64(ids.count)), scales: ("scales", [0.64, lengthScale, 1.0]), outputs: ["output"]) else { return nil }
+        guard let o = piper.run(ints: [("input", ids)], length: ("input_lengths", Int64(ids.count)), scales: ("scales", [noise, lengthScale, noiseW]), outputs: ["output"]) else { return nil }
         return o[0].map { max(-1, min(1, $0 * 2)) }
     }
 
