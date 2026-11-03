@@ -62,6 +62,8 @@ final class Piper {
     /// Réglages de la synthèse VITS (noise_scale, noise_w).
     var noise: Float = 0.3
     var noiseW: Float = 0.6
+    /// Fin de phrase : phonèmes ajoutés avant la fin, pour que le dernier « a » ne soit pas avalé.
+    var tail = "..."
 
     init?(model: String = "michael.onnx") {
         guard voiceFilesPresent,
@@ -86,7 +88,7 @@ final class Piper {
     /// Comme piper_onnx : ^ au début, _ après chaque phonème connu, $ à la fin.
     func synthesize(_ phonemes: String, lengthScale: Float) -> [Float]? {
         var ids: [Int64] = []
-        for p in ["^"] + phonemes.unicodeScalars.map(String.init) {
+        for p in ["^"] + (phonemes + tail).unicodeScalars.map(String.init) {
             guard let v = idMap[p] else { continue }
             ids += v + (idMap["_"] ?? [])
         }
