@@ -169,7 +169,9 @@ export function speakVoice(text: string, rate: number, onEnd?: () => void): bool
   onEndCb = onEnd ?? null;
   audio();
   // La démo Phonikud utilise 1,2 ; on ralentit encore pour les débutants.
-  const lengthScale = Math.min(1.6, Math.max(0.95, 1.02 / rate));
+  // Phrase courte (3 mots ou moins) : débit lent, sinon les syllabes sont mâchées (« אני רעב »).
+  const short = text.split(/\s+/).filter((w) => /[\u05d0-\u05ea]/.test(w)).length <= 3;
+  const lengthScale = Math.min(1.6, Math.max(short ? 1.5 : 0.95, 1.02 / rate));
   worker.postMessage({ type: "speak", id: current, text, lengthScale });
   return true;
 }

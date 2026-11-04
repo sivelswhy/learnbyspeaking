@@ -86,14 +86,14 @@ final class Piper {
     }
 
     /// Comme piper_onnx : ^ au début, _ après chaque phonème connu, $ à la fin.
-    func synthesize(_ phonemes: String, lengthScale: Float) -> [Float]? {
+    func synthesize(_ phonemes: String, lengthScale: Float, noise: Float? = nil, noiseW: Float? = nil) -> [Float]? {
         var ids: [Int64] = []
         for p in ["^"] + (phonemes + tail).unicodeScalars.map(String.init) {
             guard let v = idMap[p] else { continue }
             ids += v + (idMap["_"] ?? [])
         }
         ids += idMap["$"] ?? []
-        guard let o = piper.run(ints: [("input", ids)], length: ("input_lengths", Int64(ids.count)), scales: ("scales", [noise, lengthScale, noiseW]), outputs: ["output"]) else { return nil }
+        guard let o = piper.run(ints: [("input", ids)], length: ("input_lengths", Int64(ids.count)), scales: ("scales", [noise ?? self.noise, lengthScale, noiseW ?? self.noiseW]), outputs: ["output"]) else { return nil }
         return o[0].map { max(-1, min(1, $0 * 2)) }
     }
 
@@ -104,7 +104,10 @@ final class Piper {
     func audio(_ sentence: String, lengthScale: Float) -> [Float]? {
         guard let diac = diacritize(sentence) else { return nil }
         let ph = Phonemizer.phonemize(diac)
-        return ph.trimmed.isEmpty ? nil : synthesize(ph, lengthScale: lengthScale)
+        if ph.trimmed.isEmpty { return nil }
+        // Phrase courte (3 mots ou moins) : débit lent (1,5) et réglages stables, sinon les syllabes sont mâchées (« אני רעב »).
+        let short = sentence.split(whereSeparator: { $0.isWhitespace }).filter { $0.unicodeScalars.contains { (0x5D0...0x5EA).contains($0.value) } }.count <= 3
+        return short ? synthesize(ph, lengthScale: max(lengthScale, 1.5), noise: 0.1, noiseW: 0.3) : synthesize(ph, lengthScale: lengthScale)
     }
 }
 
