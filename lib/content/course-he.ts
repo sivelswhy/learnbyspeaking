@@ -106,6 +106,32 @@ const readDay = (id: string, title: string, introFr: string, words: Line[], phra
     fill(phrase, blank[0], blank[1]),
   ], "un ami qui t'écrit des mots au tableau", "Lire des mots à voix haute", L(g("קרא את המילה הזאת: קפה", "קראי את המילה הזאת: קפה"), g("Kra et ha-mila ha-zot: kafe", "Kri et ha-mila ha-zot: kafe"), "Lis ce mot : café"));
 
+/** Un verbe en six phrases : je (présent), il (présent), je / il / elle (passé), nous (futur) ; plus une transformation (il → elle) et un trou. */
+type VerbSpec = {
+  obj: [string, string]; // complément hébreu et translittération
+  presM: [string, string]; presF: [string, string]; past1: [string, string]; past3m: [string, string]; past3f: [string, string]; fut1p: [string, string];
+  fr: [string, string, string, string, string, string]; // je (présent), il (présent), elle (passé), je (passé), il (passé), nous (futur)
+};
+const verbSteps = (v: VerbSpec): Step[] => {
+  const [o, ot] = v.obj;
+  const ani = L(g(`אני ${v.presM[0]} ${o}`, `אני ${v.presF[0]} ${o}`), g(`Ani ${v.presM[1]} ${ot}`, `Ani ${v.presF[1]} ${ot}`), v.fr[0]);
+  const hu = L(`הוא ${v.presM[0]} ${o}`, `Hu ${v.presM[1]} ${ot}`, v.fr[1]);
+  const hiPres = L(`היא ${v.presF[0]} ${o}`, `Hi ${v.presF[1]} ${ot}`, v.fr[1].replace(/^il /, "elle ").replace(/^Il /, "Elle "));
+  const hiPast = L(`היא ${v.past3f[0]} ${o}`, `Hi ${v.past3f[1]} ${ot}`, v.fr[2]);
+  const aniPast = L(`${v.past1[0]} ${o}`, `${v.past1[1]} ${ot}`, v.fr[3]);
+  const huPast = L(`הוא ${v.past3m[0]} ${o}`, `Hu ${v.past3m[1]} ${ot}`, v.fr[4]);
+  const we = L(`אנחנו ${v.fut1p[0]} ${o}`, `Anakhnu ${v.fut1p[1]} ${ot}`, v.fr[5]);
+  return [rep(ani), rep(hu), rep(hiPast), rep(aniPast), rep(huPast), rep(we),
+    swap("Parle d'elle au lieu de parler de lui.", hu, hiPres),
+    fill(huPast, v.past3m[0], v.past3m[1]),
+    listen(hiPast, "Qui a fait l'action, et quand ?", "Elle, dans le passé", "Lui, dans le passé", "Moi, dans le passé", "Nous, dans le futur")];
+};
+const verbDay = (id: string, title: string, intro1: string, verbs: VerbSpec[], key: Line): Day =>
+  day(id, title, key, [
+    intro(intro1),
+    ...verbs.flatMap(verbSteps),
+  ], "un ami qui te demande ce que font les gens autour de toi", "Parler de ce que font les autres : il, elle, nous", L("מה עשיתם אתמול?", "Ma asitem etmol?", "Qu'est-ce que vous avez fait hier ?"));
+
 export const COURSE: CourseLevel[] = [
   {
     id: "beg1", title: "Débutant 1", cefr: "A1",
@@ -624,6 +650,17 @@ export const COURSE: CourseLevel[] = [
             fill(L("זה ממש טוב", "Ze mamash tov", "C'est vraiment bien"), "ממש", "mamash"),
             ask(L("איך היה הסרט?", "Eikh haya ha-seret?", "Il était comment, le film ?"), L("ממש טוב!", "Mamash tov!", "Vraiment bien !")),
           ], "un ami qui sort du cinéma", "Réagir avec naturel", L("נו, איך היה הסרט?", "Nu, eikh haya ha-seret?", "Alors, il était comment le film ?")),
+        ],
+      },
+      {
+        id: "u16", title: "Il, elle, nous : les verbes essentiels",
+        days: [
+          verbDay("u16d1", "Écrire et lire (il, elle, nous)", "Jusqu'ici tu parlais de toi. Pour parler des autres, il te faut : hu (il), hi (elle), anakhnu (nous), hem (ils). Au présent, le verbe ne change que selon le genre : kotev pour lui, kotevet pour elle. Au passé, la fin du verbe donne la personne : -ti pour moi (katavti), rien pour lui (katav), -a pour elle (katva). Au futur, nous commence par un « n » : nikhtov.", [{ obj: ["הודעה", "hoda'a"], presM: ["כותב", "kotev"], presF: ["כותבת", "kotevet"], past1: ["כתבתי", "Katavti"], past3m: ["כתב", "katav"], past3f: ["כתבה", "katva"], fut1p: ["נכתוב", "nikhtov"], fr: ["J'écris un message", "Il écrit un message", "Elle a écrit un message", "J'ai écrit un message", "Il a écrit un message", "Nous écrirons un message"] }, { obj: ["ספר", "sefer"], presM: ["קורא", "kore"], presF: ["קוראת", "kor'et"], past1: ["קראתי", "Karati"], past3m: ["קרא", "kara"], past3f: ["קראה", "kar'a"], fut1p: ["נקרא", "nikra"], fr: ["Je lis un livre", "Il lit un livre", "Elle a lu un livre", "J'ai lu un livre", "Il a lu un livre", "Nous lirons un livre"] }], L("הוא כותב, היא כותבת", "Hu kotev, hi kotevet", "Il écrit, elle écrit")),
+          verbDay("u16d2", "Entendre et regarder", "Deux autres verbes avec la même méthode. Retiens les trois formes du passé : -ti (moi), rien (lui), -a (elle). Écoute bien la différence entre « il » et « elle ».", [{ obj: ["מוזיקה", "muzika"], presM: ["שומע", "shome'a"], presF: ["שומעת", "shoma'at"], past1: ["שמעתי", "Shamati"], past3m: ["שמע", "shama"], past3f: ["שמעה", "shim'a"], fut1p: ["נשמע", "nishma"], fr: ["J'écoute de la musique", "Il écoute de la musique", "Elle a écouté de la musique", "J'ai écouté de la musique", "Il a écouté de la musique", "Nous écouterons de la musique"] }, { obj: ["סרט", "seret"], presM: ["רואה", "ro'e"], presF: ["רואה", "ro'a"], past1: ["ראיתי", "Ra'iti"], past3m: ["ראה", "ra'a"], past3f: ["ראתה", "ra'ata"], fut1p: ["נראה", "nir'e"], fr: ["Je regarde un film", "Il regarde un film", "Elle a regardé un film", "J'ai regardé un film", "Il a regardé un film", "Nous regarderons un film"] }], L("הוא קורא, היא קוראת", "Hu kore, hi kor'et", "Il lit, elle lit")),
+          verbDay("u16d3", "Prendre et rentrer", "Encore deux verbes très utiles pour raconter ce qui s'est passé. Au passé, « il » est la forme de base ; « elle » ajoute un « a » à la fin ; « moi » ajoute « ti ».", [{ obj: ["מונית", "monit"], presM: ["לוקח", "loke'akh"], presF: ["לוקחת", "lokakhat"], past1: ["לקחתי", "Lakakhti"], past3m: ["לקח", "lakakh"], past3f: ["לקחה", "lakekha"], fut1p: ["נקח", "nikakh"], fr: ["Je prends un taxi", "Il prend un taxi", "Elle a pris un taxi", "J'ai pris un taxi", "Il a pris un taxi", "Nous prendrons un taxi"] }, { obj: ["הביתה", "ha-baita"], presM: ["בא", "ba"], presF: ["באה", "ba'a"], past1: ["באתי", "Bati"], past3m: ["בא", "ba"], past3f: ["באה", "ba'a"], fut1p: ["נבוא", "navo"], fr: ["Je rentre à la maison", "Il rentre à la maison", "Elle est rentrée à la maison", "Je suis rentré(e) à la maison", "Il est rentré à la maison", "Nous rentrerons à la maison"] }], L("הוא לקח, היא לקחה", "Hu lakakh, hi lakekha", "Il a pris, elle a pris")),
+          verbDay("u16d4", "Aller et faire", "Deux verbes de déplacement. « Halakh » veut dire aller à pied, « ba » veut dire venir ou rentrer. Pour « nous », le futur prend un « n » devant : nelekh, navo.", [{ obj: ["לים", "la-yam"], presM: ["הולך", "holekh"], presF: ["הולכת", "holekhet"], past1: ["הלכתי", "Halakhti"], past3m: ["הלך", "halakh"], past3f: ["הלכה", "halkha"], fut1p: ["נלך", "nelekh"], fr: ["Je vais à la plage", "Il va à la plage", "Elle est allée à la plage", "Je suis allé(e) à la plage", "Il est allé à la plage", "Nous irons à la plage"] }, { obj: ["ארוחה", "arukha"], presM: ["עושה", "ose"], presF: ["עושה", "osa"], past1: ["עשיתי", "Asiti"], past3m: ["עשה", "asa"], past3f: ["עשתה", "asta"], fut1p: ["נעשה", "na'ase"], fr: ["Je prépare un repas", "Il prépare un repas", "Elle a préparé un repas", "J'ai préparé un repas", "Il a préparé un repas", "Nous préparerons un repas"] }], L("הוא הלך, היא הלכה", "Hu halakh, hi halkha", "Il est allé, elle est allée")),
+          verbDay("u16d5", "Manger et parler", "Deux verbes du quotidien : faire et manger. Comme toujours : -ti pour moi, rien pour lui, -a pour elle.", [{ obj: ["פלאפל", "falafel"], presM: ["אוכל", "okhel"], presF: ["אוכלת", "okhelet"], past1: ["אכלתי", "Akhalti"], past3m: ["אכל", "akhal"], past3f: ["אכלה", "akhla"], fut1p: ["נאכל", "nokhal"], fr: ["Je mange un falafel", "Il mange un falafel", "Elle a mangé un falafel", "J'ai mangé un falafel", "Il a mangé un falafel", "Nous mangerons un falafel"] }, { obj: ["עברית", "ivrit"], presM: ["מדבר", "medaber"], presF: ["מדברת", "medaberet"], past1: ["דיברתי", "Dibarti"], past3m: ["דיבר", "diber"], past3f: ["דיברה", "dibra"], fut1p: ["נדבר", "nedaber"], fr: ["Je parle hébreu", "Il parle hébreu", "Elle a parlé hébreu", "J'ai parlé hébreu", "Il a parlé hébreu", "Nous parlerons hébreu"] }], L("הוא אכל, היא אכלה", "Hu akhal, hi akhla", "Il a mangé, elle a mangé")),
+          verbDay("u16d6", "Étudier et travailler", "Pour finir, trois verbes pour parler de toi et des autres : parler, étudier, travailler. Bravo, tu sais maintenant parler de toi, de lui, d'elle et de nous.", [{ obj: ["מתמטיקה", "matematika"], presM: ["לומד", "lomed"], presF: ["לומדת", "lomedet"], past1: ["למדתי", "Lamadti"], past3m: ["למד", "lamad"], past3f: ["למדה", "lamda"], fut1p: ["נלמד", "nilmad"], fr: ["J'étudie les maths", "Il étudie les maths", "Elle a étudié les maths", "J'ai étudié les maths", "Il a étudié les maths", "Nous étudierons les maths"] }, { obj: ["במשרד", "ba-misrad"], presM: ["עובד", "oved"], presF: ["עובדת", "ovedet"], past1: ["עבדתי", "Avadti"], past3m: ["עבד", "avad"], past3f: ["עבדה", "avda"], fut1p: ["נעבוד", "na'avod"], fr: ["Je travaille au bureau", "Il travaille au bureau", "Elle a travaillé au bureau", "J'ai travaillé au bureau", "Il a travaillé au bureau", "Nous travaillerons au bureau"] }], L("הוא עבד, היא עבדה", "Hu avad, hi avda", "Il a travaillé, elle a travaillé")),
         ],
       },
       {
