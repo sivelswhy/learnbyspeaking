@@ -108,7 +108,16 @@ final class Piper {
         if ph.trimmed.isEmpty { return nil }
         // Phrase courte (3 mots ou moins) : débit lent (1,5) et réglages stables, sinon les syllabes sont mâchées (« אני רעב »).
         let short = sentence.split(whereSeparator: { $0.isWhitespace }).filter { $0.unicodeScalars.contains { (0x5D0...0x5EA).contains($0.value) } }.count <= 3
-        return short ? synthesize(ph, lengthScale: max(lengthScale, 1.5), noise: 0.1, noiseW: 0.3) : synthesize(ph, lengthScale: lengthScale)
+        guard short else { return synthesize(ph, lengthScale: lengthScale) }
+        let ls = max(lengthScale, 1.5)
+        guard let first = synthesize(ph, lengthScale: ls, noise: 0.1, noiseW: 0.3) else { return nil }
+        // Un mot isolé est écrasé par le modèle (« הייתי » en 0,46 s : les syllabes ne s'entendent plus) : on exige au moins 0,27 s par
+        // syllabe (voyelle des phonèmes) et on refait la synthèse plus lentement si besoin.
+        let syllables = ph.filter { "aeiou".contains($0) }.count
+        let seconds = Double(first.count) / sampleRate
+        let wanted = 0.27 * Double(syllables)
+        guard syllables > 0, seconds < wanted else { return first }
+        return synthesize(ph, lengthScale: Float(min(2.8, Double(ls) * wanted / seconds)), noise: 0.1, noiseW: 0.3) ?? first
     }
 }
 
@@ -195,7 +204,17 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     /// Sortie audio à format fixe : toutes les voix (Piper 22 050 Hz, Phonon 24 000 Hz) sont ramenées à 24 000 Hz. Reconnecter le lecteur
     /// à un autre format entre deux voix (français puis hébreu) déformait le son (un souffle au lieu du mot).
     private static let outRate = 24_000.0
-    private var connected = false
+    /// Volume homogène : la voix hébraïque (Piper) sort ~3 fois moins fort que la voix française (Phonon), ce qui la rendait
+    /// quasi inaudible dans une consigne. On remonte chaque extrait au volume cible (jamais de baisse, pic limité à 0,95).
+    private static let targetRMS: Float = 0.07
+    static func leveled(_ d: [Float]) -> [Float] {
+        guard !d.isEmpty else { return d }
+        let rms = (d.reduce(0) { $0 + $1 * $1 } / Float(d.count)).squareRoot()
+        let peak = d.reduce(0) { max($0, abs($1)) }
+        guard rms > 1e-5, peak > 1e-5 else { return d }
+        let gain = min(max(targetRMS / rms, 1), 0.95 / peak)
+        return gain == 1 ? d : d.map { $0 * gain }
+    }
 
     private func resample(_ samples: [Float], from rate: Double) -> [Float] {
         guard abs(rate - Voice.outRate) > 1,
@@ -217,7 +236,7 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     }
 
     private func play(_ samples: [Float], rate: Double, gen: Int) async {
-        let data = resample(samples, from: rate)
+        let data = Voice.leveled(resample(samples, from: rate))
         guard let fmt = AVAudioFormat(standardFormatWithSampleRate: Voice.outRate, channels: 1),
               let buf = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: AVAudioFrameCount(data.count)) else { return }
         buf.frameLength = AVAudioFrameCount(data.count)

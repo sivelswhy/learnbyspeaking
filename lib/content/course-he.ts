@@ -915,12 +915,21 @@ const HE_OF = new Map<string, G>();
   for (const w of [...THEMES.flatMap((t) => t.words), ...PHRASES]) put(w.tr.split(" / ")[0], w.he.split(" / ")[0], w.he.split(" / ").pop() ?? w.he);
 }
 /** Hébreu d'un morceau « translittération » d'une consigne, ou undefined si on ne le connaît pas (il reste alors en français). */
+/** Mots d'une syllabe : seuls, la voix les avale (« אם » dure 0,46 s et ne s'entend pas). On les fait dire dans une courte phrase d'exemple. */
+const CARRIER: Record<string, G> = {
+  im: { m: "אם הייתי עשיר", f: "אם הייתי עשירה" }, ki: { m: "כי יש לי משפחה", f: "כי יש לי משפחה" }, o: { m: "קפה או תה", f: "קפה או תה" },
+  lo: { m: "לא, תודה", f: "לא, תודה" }, ein: { m: "אין בעיה", f: "אין בעיה" }, yesh: { m: "יש קפה", f: "יש קפה" },
+  at: { m: "את רעבה", f: "את רעבה" }, et: { m: "את החשבון", f: "את החשבון" }, li: { m: "יש לי זמן", f: "יש לי זמן" },
+  ze: { m: "זה יקר", f: "זה יקר" }, nu: { m: "נו, תגיד", f: "נו, תגידי" }, dai: { m: "די טוב", f: "די טוב" }, ken: { m: "כן, בטח", f: "כן, בטח" },
+  ani: { m: "אני גר בפריז", f: "אני גרה בפריז" }, ata: { m: "אתה גר בפריז", f: "אתה גר בפריז" },
+};
 /** Fragments de mots (préfixes collés) : isolés, ils seraient lus comme d'autres mots (« ba » = בא), on les laisse en français. */
 const FRAGMENTS = new Set(["ba", "la", "be", "le", "ha", "ti", "ni", "mi", "me", "she", "ve", "ke", "ni-"]);
 function hebrewOf(chunk: string): G | undefined {
   if (FRAGMENTS.has(trKey(chunk).replace(/-$/, ""))) return undefined;
   const alts = chunk.split("/").map((a) => trKey(a.replace(/\+.*$/, "")).replace(/\s+she-?$/, "").replace(/-$/, "").trim()).filter(Boolean);
   if (!alts.length) return undefined;
+  if (alts.length === 1 && CARRIER[alts[0]]) return CARRIER[alts[0]];
   const found = alts.map((a) => HE_OF.get(a) ?? HE_OF.get(a.replace(/-/g, " ")));
   if (found.some((x) => !x)) return undefined;
   return { m: found.map((x) => x!.m).join(", "), f: found.map((x) => x!.f).join(", ") };
@@ -945,7 +954,8 @@ function splitPlain(text: string): IntroPart[] {
     if (from > at) out.push({ t: text.slice(at, from) });
     // Même séparateur qu'à l'écrit : une virgule donne une pause, une espace non.
     const join = (pick: (x: G) => string) => toks.slice(k, e + 1).map((x, n, a) => (n ? (/,/.test(text.slice(a[n - 1].i + a[n - 1].w.length, x.i)) ? ", " : " ") : "") + pick(x.he!)).join("");
-    out.push({ t: text.slice(from, to), he: { m: join((x) => x.m), f: join((x) => x.f) } });
+    const single = e === k ? CARRIER[trKey(toks[k].w)] : undefined; // un mot court seul : phrase d'exemple
+    out.push({ t: text.slice(from, to), he: single ?? { m: join((x) => x.m), f: join((x) => x.f) } });
     at = to;
     k = e;
   }
