@@ -1,4 +1,4 @@
-// Pré-génère la voix française des consignes du cours (Phonon, voix Lucien) : un fichier m4a par texte,
+// Pré-génère la voix française des consignes du cours (Phonon, voix Arnaud) : un fichier m4a par texte,
 // nommé d'après le SHA-1 du texte (mac/native/Voice.swift lit le même nom). Les textes déjà générés sont sautés.
 // Usage : HF_TOKEN=… npx jiti scripts/render-french.ts   (modèle dans ~/learnbyspeaking-models/phonon, `brew install gradium-ai/tap/ptts`)
 import { createHash } from "node:crypto";
@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { COURSE } from "../lib/content/course-he";
 
 const MODEL = process.env.PHONON_DIR ?? join(homedir(), "learnbyspeaking-models/phonon");
-const VOICE = process.env.PHONON_VOICE ?? "Lucien";
+const VOICE = process.env.PHONON_VOICE ?? "Arnaud";
 const OUT = new URL("../mac/native/Resources/fr/", import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 
