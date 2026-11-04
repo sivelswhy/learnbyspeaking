@@ -547,6 +547,54 @@ export const COURSE: CourseLevel[] = [
       },
     ],
   },
+  {
+    id: "adv1", title: "Avancé 1", cefr: "C1",
+    units: [
+      {
+        id: "u10", title: "Débattre et nuancer",
+        days: [
+          day("u10d1", "Les relatives avec « she- »", L("הספר שקראתי היה מרתק", "Ha-sefer she-karati haya martek", "Le livre que j'ai lu était passionnant"), [
+            intro("« She- » relie une phrase à un nom : ha-sefer she-karati, le livre que j'ai lu. Quand le nom est complément d'une préposition, on ajoute un pronom : ha-nose she-alav, le sujet dont (sur lequel) on parle."),
+            rep(L("הספר שקראתי היה מרתק", "Ha-sefer she-karati haya martek", "Le livre que j'ai lu était passionnant")),
+            rep(L("הנושא שעליו אנחנו מדברים חשוב", "Ha-nose she-alav anakhnu medabrim khashuv", "Le sujet dont nous parlons est important")),
+            rep(L("מי שרוצה להצליח צריך להתאמץ", "Mi she-rotse lehatslia tsarikh lehit'ame'ets", "Celui qui veut réussir doit faire des efforts")),
+            listen(L("הספר שקראתי היה מרתק", "Ha-sefer she-karati haya martek", "Le livre que j'ai lu était passionnant"), "De quoi parle-t-on ?", "D'un livre qu'on a lu", "D'un film qu'on va voir", "D'un restaurant fermé", "D'un voyage annulé"),
+            swap("Fais une phrase avec « she- » : le film que j'ai vu.", L("ראיתי סרט", "Ra'iti seret", "J'ai vu un film"), L("הסרט שראיתי היה טוב", "Ha-seret she-ra'iti haya tov", "Le film que j'ai vu était bien")),
+            fill(L("הספר שקראתי היה מרתק", "Ha-sefer she-karati haya martek", "Le livre que j'ai lu était passionnant"), "שקראתי", "she-karati"),
+            ask(L("איזה ספר אהבת?", g("Eize sefer ahavta?", "Eize sefer ahavt?"), "Quel livre as-tu aimé ?"), L("הספר שקראתי בקיץ היה מרתק", "Ha-sefer she-karati ba-kaitz haya martek", "Le livre que j'ai lu cet été était passionnant")),
+          ], "un ami qui cherche un livre à lire", "Recommander et décrire avec des relatives", L(g("איזה ספר היית ממליץ לי?", "איזה ספר היית ממליצה לי?"), g("Eize sefer hayita mamlits li?", "Eize sefer hayit mamlitsa li?"), "Quel livre me recommanderais-tu ?")),
+          day("u10d2", "Sans dire qui l'a fait", L("הפגישה נדחתה", "Ha-pgisha nidkheta", "La réunion a été reportée"), [
+            intro("Pour dire qu'une chose a changé sans dire qui l'a faite, l'hébreu utilise souvent la forme en « ni- » (nif'al) : ha-delet niftekha, la porte s'est ouverte ; ha-pgisha nidkheta, la réunion a été reportée."),
+            rep(L("הפגישה נדחתה", "Ha-pgisha nidkheta", "La réunion a été reportée")),
+            rep(L("הדלת נפתחה", "Ha-delet niftekha", "La porte s'est ouverte")),
+            rep(L("המסעדה נסגרה", "Ha-mis'ada nisgera", "Le restaurant a fermé")),
+            listen(L("הפגישה נדחתה", "Ha-pgisha nidkheta", "La réunion a été reportée"), "Que s'est-il passé ?", "La réunion a été reportée", "La réunion a lieu demain", "La réunion a été annulée", "La réunion est terminée"),
+            swap("Retire la personne : « ils ont reporté la réunion » devient « la réunion a été reportée ».", L("דחו את הפגישה", "Dakhu et ha-pgisha", "Ils ont reporté la réunion"), L("הפגישה נדחתה", "Ha-pgisha nidkheta", "La réunion a été reportée")),
+            ask(L("מה קרה לפגישה?", "Ma kara la-pgisha?", "Qu'est-il arrivé à la réunion ?"), L("היא נדחתה לשבוע הבא", "Hi nidkheta la-shavua ha-ba", "Elle a été reportée à la semaine prochaine")),
+          ], "une collègue qui annonce des changements", "Annoncer ce qui a changé sans dire qui l'a fait", L("יש שינויים: הפגישה נדחתה והמשרד נסגר מוקדם.", "Yesh shinuyim: ha-pgisha nidkheta ve-ha-misrad nisgar mukdam.", "Il y a des changements : la réunion est reportée et le bureau ferme tôt.")),
+          day("u10d3", "Concéder et objecter", L(g("אני מסכים עד גבול מסוים, אבל…", "אני מסכימה עד גבול מסוים, אבל…"), g("Ani maskim ad gvul mesuyam, aval…", "Ani maskima ad gvul mesuyam, aval…"), "Je suis d'accord jusqu'à un certain point, mais…"), [
+            intro("Un bon débat commence par reconnaître un point : « ani maskim ad gvul mesuyam, aval… ». Pour appuyer : « i efshar lehit'alem me-ha-uvda she… » (on ne peut pas ignorer que…)."),
+            rep(L(g("אני מסכים עד גבול מסוים, אבל…", "אני מסכימה עד גבול מסוים, אבל…"), g("Ani maskim ad gvul mesuyam, aval…", "Ani maskima ad gvul mesuyam, aval…"), "Je suis d'accord jusqu'à un certain point, mais…")),
+            rep(L("אי אפשר להתעלם מהעובדה שהמחירים עלו", "I efshar lehit'alem me-ha-uvda she-ha-mekhirim alu", "On ne peut pas ignorer que les prix ont augmenté")),
+            rep(L("לא בטוח שזה כך", "Lo batu'akh she-ze kakh", "Pas sûr que ce soit le cas")),
+            listen(L("אי אפשר להתעלם מהעובדה שהמחירים עלו", "I efshar lehit'alem me-ha-uvda she-ha-mekhirim alu", "On ne peut pas ignorer que les prix ont augmenté"), "Quel est l'argument ?", "Les prix ont augmenté et il faut le prendre en compte", "Les prix ont baissé", "Il faut ignorer les prix", "Les prix sont stables"),
+            ask(L("מה דעתך על עבודה מהבית?", g("Ma da'atkha al avoda me-ha-bayit?", "Ma da'atekh al avoda me-ha-bayit?"), "Que penses-tu du travail à la maison ?"), L(g("אני מסכים עד גבול מסוים, אבל חסר לי קשר עם אנשים", "אני מסכימה עד גבול מסוים, אבל חסר לי קשר עם אנשים"), g("Ani maskim ad gvul mesuyam, aval khasar li kesher im anashim", "Ani maskima ad gvul mesuyam, aval khasar li kesher im anashim"), "Je suis d'accord jusqu'à un certain point, mais le contact avec les gens me manque")),
+            fill(L("לא בטוח שזה כך", "Lo batu'akh she-ze kakh", "Pas sûr que ce soit le cas"), "בטוח", "batu'akh"),
+          ], "un collègue qui défend l'idée opposée", "Concéder un point puis objecter poliment", L(g("לדעתי כל אחד צריך לעבוד מהבית ארבעה ימים בשבוע. מה דעתך?", "לדעתי כל אחד צריך לעבוד מהבית ארבעה ימים בשבוע. מה דעתך?"), g("Le-da'ati kol ekhad tsarikh la'avod me-ha-bayit arba'a yamim ba-shavua. Ma da'atkha?", "Le-da'ati kol ekhad tsarikh la'avod me-ha-bayit arba'a yamim ba-shavua. Ma da'atekh?"), "À mon avis, chacun devrait travailler de chez soi quatre jours par semaine. Qu'en penses-tu ?")),
+          day("u10d4", "Reformuler", L("במילים אחרות", "Be-milim akherot", "En d'autres termes"), [
+            intro("Quand on ne te comprend pas, reformule : « be-milim akherot » (en d'autres termes), « klomar » (c'est-à-dire), « ha-kavana hi she… » (l'idée est que…)."),
+            rep(L("במילים אחרות, זה יקר מדי", "Be-milim akherot, ze yakar midai", "En d'autres termes, c'est trop cher")),
+            rep(L("כלומר, אין לנו זמן", "Klomar, ein lanu zman", "C'est-à-dire que nous n'avons pas le temps")),
+            rep(L("הכוונה היא שצריך להחליט היום", "Ha-kavana hi she-tsarikh lehakhlit ha-yom", "L'idée est qu'il faut décider aujourd'hui")),
+            rep(L("אפשר לנסח את זה אחרת?", "Efshar lenased et ze akheret?", "On peut le formuler autrement ?")),
+            listen(L("כלומר", "Klomar", "C'est-à-dire"), "Quel mot entends-tu ?", "C'est-à-dire", "Pourtant", "Donc", "Par exemple"),
+            ask(L("לא הבנתי למה התכוונת", g("Lo hevanti le-ma kavanta", "Lo hevanti le-ma kavant"), "Je n'ai pas compris ce que tu voulais dire"), L(g("במילים אחרות, אני חושב שזה יקר מדי", "במילים אחרות, אני חושבת שזה יקר מדי"), g("Be-milim akherot, ani khoshev she-ze yakar midai", "Be-milim akherot, ani khoshevet she-ze yakar midai"), "En d'autres termes, je pense que c'est trop cher")),
+            fill(L("כלומר, אין לנו זמן", "Klomar, ein lanu zman", "C'est-à-dire que nous n'avons pas le temps"), "כלומר", "klomar"),
+          ], "un client qui n'a pas compris ton offre", "Reformuler pour te faire comprendre", L("סליחה, לא הבנתי את ההצעה. אפשר להסביר שוב?", "Slikha, lo hevanti et ha-hatsa'a. Efshar lehasbir shuv?", "Pardon, je n'ai pas compris l'offre. Tu peux réexpliquer ?")),
+        ],
+      },
+    ],
+  },
 ];
 
 export const ALL_DAYS = COURSE.flatMap((l) => l.units.flatMap((u) => u.days.map((d) => ({ level: l, unit: u, day: d }))));
