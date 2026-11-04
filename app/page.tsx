@@ -245,7 +245,7 @@ export default function Page() {
         </button>
       )}
       {tab === "parler" && (
-        <Parler profile={profile} sessions={st.sessions} progress={st.course} ai={ai} vocab={st.vocab}
+        <Parler profile={profile} sessions={st.sessions} progress={st.course} ai={ai} vocab={st.vocab} placement={st.placement}
           go={(to) => {
             if (to === "review") setScreen({ t: "review" });
             else if (to === "setup") setScreen({ t: "setup" });
@@ -255,10 +255,10 @@ export default function Page() {
             else if (to === "placement") setScreen({ t: "placement" });
             else if (to === "translate" || to === "define") setScreen({ t: "tool", mode: to });
             else if (to === "course") { setCoursTab(undefined); setTab("cours"); }
-            else setScreen({ t: "day", day: nextDay(st.course, profile.level).day });
+            else setScreen({ t: "day", day: nextDay(st.course, profile, st.placement).day });
           }} />
       )}
-      {tab === "cours" && <div className="pb-10"><Cours key={coursTab ?? "path"} profile={profile} progress={st.course} openDay={(d) => setScreen({ t: "day", day: d })} addWords={st.addWords} startTab={coursTab} /></div>}
+      {tab === "cours" && <div className="pb-10"><Cours key={coursTab ?? "path"} profile={profile} placement={st.placement} progress={st.course} openDay={(d) => setScreen({ t: "day", day: d })} addWords={st.addWords} startTab={coursTab} /></div>}
       {tab === "bilan" && <div className="-mx-4"><Progress profile={profile} sessions={st.sessions} rtl={rtl} /></div>}
       {tab === "moi" && (
         <div className="-mx-4 space-y-2">

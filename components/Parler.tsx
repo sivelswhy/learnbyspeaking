@@ -1,24 +1,23 @@
 "use client";
 import { RiArrowRightSLine, RiCalendarCheckLine, RiCheckLine, RiFlashlightFill, RiLineChartLine, RiMicFill, RiQuestionAnswerLine, RiSearchLine, RiSpeedUpLine, RiTimeLine, RiTranslate2 } from "react-icons/ri";
 import type { IconType } from "react-icons";
-import { ALL_DAYS, courseLevelFor } from "@/lib/content/course-he";
+import { nextPlanDay, planCourse } from "@/lib/plan";
 import { SCENARIOS } from "@/lib/languages";
 import { streakInfo, todaySeconds } from "@/lib/streak";
-import type { CourseProgress, Profile, SessionRecord, VocabCard } from "@/lib/types";
+import type { CourseProgress, PlacementResult, Profile, SessionRecord, VocabCard } from "@/lib/types";
 import { dueCards } from "@/lib/srs";
 import { Avatar } from "./Avatar";
 import type { AiStatus } from "./LlmSetup";
 import { ScenarioIcon } from "./icons";
 import { Header } from "./ui";
 
-export function nextDay(progress: CourseProgress, level: string) {
-  const lvl = courseLevelFor(level);
-  const list = ALL_DAYS.filter((x) => x.level.id === lvl.id);
-  return list.find((x) => !(progress[x.day.id]?.speaking && progress[x.day.id]?.scenario)) ?? list[list.length - 1];
+/** Prochain jour du plan de l'apprenant (calculé selon son niveau, son objectif et son test de niveau) ; le dernier si tout est fait. */
+export function nextDay(progress: CourseProgress, profile: Pick<Profile, "level" | "targetLevel" | "dailyMinutes">, placement?: PlacementResult | null) {
+  return nextPlanDay(planCourse(profile, placement, progress), (id) => !!(progress[id]?.speaking && progress[id]?.scenario));
 }
 
-export function Parler({ profile, sessions, progress, go: goRaw, ai = "ready", vocab = [] }: {
-  profile: Profile; sessions: SessionRecord[]; progress: CourseProgress; vocab?: VocabCard[];
+export function Parler({ profile, sessions, progress, go: goRaw, ai = "ready", vocab = [], placement }: {
+  profile: Profile; sessions: SessionRecord[]; progress: CourseProgress; vocab?: VocabCard[]; placement?: PlacementResult | null;
   /** missing / downloading : l'IA n'est pas sur l'appareil, les fonctions sont grisées et mènent au téléchargement. loading : chargement depuis l'appareil, on patiente. */
   ai?: AiStatus;
   go: (to: "review" | "setup" | "hub" | "talk" | "scenarios" | "placement" | "translate" | "define" | "course" | "next") => void;
@@ -28,10 +27,12 @@ export function Parler({ profile, sessions, progress, go: goRaw, ai = "ready", v
     if (ai !== "loading") goRaw("setup"); // en chargement : rien à faire, ça arrive
   };
   const off = ai === "ready" ? "" : ai === "loading" ? "opacity-60 cursor-progress" : "grayscale opacity-50";
-  const nd = nextDay(progress, profile.level);
+  const plan = planCourse(profile, placement, progress);
+  const path = plan.days;
+  const nd = nextDay(progress, profile, placement);
   const dueCount = dueCards(vocab).length;
-  const doneAll = ALL_DAYS.filter((x) => progress[x.day.id]?.speaking && progress[x.day.id]?.scenario).length;
-  const pct = Math.round((doneAll / ALL_DAYS.length) * 100);
+  const doneAll = path.filter((x) => progress[x.day.id]?.speaking && progress[x.day.id]?.scenario).length;
+  const pct = Math.round((doneAll / path.length) * 100);
   const minutes = Math.floor(todaySeconds(sessions) / 60);
   const chips: [IconType, string, string][] = [
     [RiCalendarCheckLine, `${streakInfo(sessions).days}`, streakInfo(sessions).atRisk ? "Jours d'affilée : pratique aujourd'hui pour garder ta série" : "Jours d'affilée"],
@@ -68,7 +69,7 @@ export function Parler({ profile, sessions, progress, go: goRaw, ai = "ready", v
 
       <div className={`relative rounded-3xl bg-accent p-5 pt-6 text-accent-ink ${off} ${dueCount > 0 ? "mt-8" : ""}`}>
         <div className="pointer-events-none absolute -top-7 end-2"><Avatar size={104} mood="wink" /></div>
-        <h2 className="max-w-[68%] text-xl font-bold leading-snug">Parle hébreu en {ALL_DAYS.length} jours</h2>
+        <h2 className="max-w-[68%] text-xl font-bold leading-snug">{plan.doneCount === 0 ? `Parle hébreu en ${path.length} jours` : plan.remaining.length ? `Il te reste ${plan.remaining.length} jour${plan.remaining.length > 1 ? "s" : ""}` : "Parcours terminé, bravo !"}</h2>
         <div className="relative mt-4 h-1 max-w-[74%] rounded-full bg-white/30">
           <div className="h-full rounded-full bg-white" style={{ width: `${pct}%` }} />
           <span className="absolute top-1/2 grid size-5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white text-accent rtl:translate-x-1/2" style={{ insetInlineStart: `${pct}%` }}>
@@ -76,6 +77,7 @@ export function Parler({ profile, sessions, progress, go: goRaw, ai = "ready", v
           </span>
         </div>
         <p className="mt-3 text-[15px] opacity-90">Prochaine leçon : {nd.day.title}</p>
+        <p className="mt-1 text-sm opacity-80">≈ {plan.remainingSessions} séance{plan.remainingSessions > 1 ? "s" : ""} de {profile.dailyMinutes} min{plan.skipped > 0 ? ` · ${plan.skipped} jours évités grâce à ton niveau` : ""}</p>
         <button onClick={() => go("course")} className="mt-3 flex min-h-8 items-center gap-0.5 rounded-full border border-white/70 ps-3 pe-2 text-xs font-bold">
           Vue du cours <RiArrowRightSLine aria-hidden className="size-4" />
         </button>

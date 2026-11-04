@@ -1480,6 +1480,14 @@ export const ALL_DAYS = COURSE.flatMap((l) => l.units.flatMap((u) => u.days.map(
 
 const CEFR = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
+/** Parcours d'un apprenant : les jours de son niveau jusqu'au niveau qu'il vise. Un B1 qui vise le B2 n'a ni l'alphabet ni les bases du A1 à refaire. */
+export function pathFor(level: string, target?: string): typeof ALL_DAYS {
+  const startLevel = courseLevelFor(level);
+  const start = COURSE.indexOf(startLevel);
+  const cap = Math.max(CEFR.indexOf(target ?? level), CEFR.indexOf(startLevel.cefr));
+  return ALL_DAYS.filter((x) => COURSE.indexOf(x.level) >= start && CEFR.indexOf(x.level.cefr) <= cap);
+}
+
 /** Le niveau du parcours pour un apprenant : le sien, ou le plus haut déjà écrit en dessous (un B2 commence au B1). */
 export function courseLevelFor(level: string): CourseLevel {
   const ready = COURSE.filter((l) => l.units.length && CEFR.indexOf(l.cefr) <= Math.max(0, CEFR.indexOf(level)));

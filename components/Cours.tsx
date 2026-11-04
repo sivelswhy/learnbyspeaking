@@ -2,10 +2,11 @@
 import { useState } from "react";
 import { RiArrowDownSLine, RiArrowUpSLine, RiBookOpenFill, RiCheckLine, RiLockLine, RiPlayFill, RiRobot2Line, RiVolumeUpLine } from "react-icons/ri";
 import { COURSE, courseLevelFor, type Day, type Unit } from "@/lib/content/course-he";
+import { planCourse, type UnitStatus } from "@/lib/plan";
 import { ALPHABET, GRAMMAR, PHRASES, THEMES, type Word } from "@/lib/content/resources-he";
 import { LANGUAGES } from "@/lib/languages";
 import { speak } from "@/lib/speech";
-import type { CourseProgress, NewWord, Profile } from "@/lib/types";
+import type { CourseProgress, NewWord, PlacementResult, Profile } from "@/lib/types";
 import { Avatar } from "./Avatar";
 import type { AiStatus } from "./LlmSetup";
 import { BackButton } from "./ui";
@@ -14,14 +15,18 @@ const dayDone = (p: CourseProgress, id: string) => !!(p[id]?.speaking && p[id]?.
 
 export type ResourceTab = "alpha" | "vocab" | "phrases" | "grammar";
 
-export function Cours({ profile, progress, openDay, addWords, startTab }: {
-  profile: Profile; progress: CourseProgress; openDay: (d: Day) => void; addWords: (w: NewWord[]) => void;
+export function Cours({ profile, placement, progress, openDay, addWords, startTab }: {
+  profile: Profile; placement?: PlacementResult | null; progress: CourseProgress; openDay: (d: Day) => void; addWords: (w: NewWord[]) => void;
   /** Ouvre directement une rubrique des ressources (ex. la grammaire depuis le hub). */
   startTab?: ResourceTab;
 }) {
   const [seg, setSeg] = useState<"path" | "res">(startTab ? "res" : "path");
   const current = courseLevelFor(profile.level);
   const [open, setOpen] = useState<string | null>(current.id);
+  const plan = planCourse(profile, placement, progress);
+  const inPath = new Set(plan.units.map((u) => u.level.id));
+  const status = new Map<string, UnitStatus>(plan.units.map((u) => [u.unit.id, u.status]));
+  const startIdx = COURSE.indexOf(current);
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-1 rounded-full bg-line/60 p-1" role="tablist">
@@ -42,14 +47,14 @@ export function Cours({ profile, progress, openDay, addWords, startTab }: {
               <Avatar size={56} />
               <span className="flex-1">
                 <span className="block text-lg font-bold">{lvl.title}</span>
-                <span className="block text-muted">{lvl.cefr} · {lvl.units.length ? `${done}/${days.length} jours` : "Bientôt disponible"}</span>
+                <span className="block text-muted">{lvl.cefr} · {lvl.units.length ? `${done}/${days.length} jours` : "Bientôt disponible"}{lvl.units.length && !inPath.has(lvl.id) ? (n < startIdx ? " · déjà acquis" : " · au-delà de ton objectif") : ""}</span>
                 {isOpen && n === 0 && <span className="block text-muted">Démarrage rapide</span>}
               </span>
               <span className="grid size-10 place-items-center rounded-full bg-soft text-accent">
                 {!lvl.units.length ? <RiLockLine aria-hidden /> : isOpen ? <RiArrowUpSLine aria-hidden className="size-5" /> : <RiArrowDownSLine aria-hidden className="size-5" />}
               </span>
             </button>
-            {isOpen && lvl.units.map((u, k) => <UnitPath key={u.id} unit={u} index={k + 1} progress={progress} openDay={openDay} />)}
+            {isOpen && lvl.units.map((u, k) => <UnitPath key={u.id} unit={u} index={k + 1} progress={progress} openDay={openDay} status={status.get(u.id)} />)}
           </div>
         );
       })}
@@ -57,7 +62,7 @@ export function Cours({ profile, progress, openDay, addWords, startTab }: {
   );
 }
 
-function UnitPath({ unit, index, progress, openDay }: { unit: Unit; index: number; progress: CourseProgress; openDay: (d: Day) => void }) {
+function UnitPath({ unit, index, progress, openDay, status }: { unit: Unit; index: number; progress: CourseProgress; openDay: (d: Day) => void; status?: UnitStatus }) {
   const done = unit.days.filter((d) => dayDone(progress, d.id)).length;
   const firstOpen = unit.days.findIndex((d) => !dayDone(progress, d.id));
   return (
@@ -68,6 +73,7 @@ function UnitPath({ unit, index, progress, openDay }: { unit: Unit; index: numbe
           <span className="block font-bold">Unité {index} · {unit.title}</span>
           <span className="mt-2 block h-1 overflow-hidden rounded-full bg-line"><span className="block h-full bg-accent" style={{ width: `${(done / unit.days.length) * 100}%` }} /></span>
           <span className="mt-2 inline-block rounded-full bg-accent/10 px-2.5 py-0.5 text-sm font-semibold text-accent">{done}/{unit.days.length}</span>
+          {status && status !== "complet" && <span className="ms-2 mt-2 inline-block rounded-full bg-good/15 px-2.5 py-0.5 text-sm font-semibold text-good">{status === "acquis" ? "Déjà acquise" : "Accélérée"}</span>}
         </span>
       </div>
       <ol className="relative py-3">
