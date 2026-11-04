@@ -19,7 +19,16 @@ def clean(t):
     return re.sub(r"[^א-ת]", "", re.sub(r"[֑-ׇ]", "", t)).translate(FIN)
 
 
+NUMWORDS = {"אפס", "אחת", "אחד", "שתיים", "שניים", "שלוש", "ארבע", "חמש", "שש", "שבע", "שמונה", "תשע", "עשר", "עשרים", "שלושים", "ארבעים", "חמישים", "שישים", "שבעים", "שמונים", "תשעים", "מאה"}
+
+
 def ok(target, heard_raw):
+    # Whisper écrit souvent les nombres en chiffres : on retire les mots-nombres de la cible et les chiffres de l'entendu.
+    if re.search(r"\d", heard_raw):
+        words = [w for w in re.sub(r"[^א-ת ]", " ", target).split() if w.lstrip("ו") not in NUMWORDS]
+        heard_words = re.sub(r"[\d\-:,.%]+", " ", heard_raw)
+        a, b = clean("".join(words)), clean(heard_words)
+        return (not a and not b) or a == b or difflib.SequenceMatcher(None, a, b).ratio() >= 0.8
     a, b = clean(target), clean(heard_raw)
     if a == b or difflib.SequenceMatcher(None, a, b).ratio() >= 0.85:
         return True
@@ -28,16 +37,28 @@ def ok(target, heard_raw):
     return any(a in s and b in s for s in SAME)
 
 
-def check(job):
-    key, slow, text = job
-    wav = f"{B}/he_wav/{key}{'_slow' if slow else ''}.wav"
-    if not os.path.exists(wav):
-        return job, None
+ALT_NORMAL, ALT_SLOW = ["0.8", "1.0", "0.85"], ["0.65", "0.6", "0.78"]
+
+
+def hear(wav):
     with tempfile.TemporaryDirectory() as d:
         w16 = d + "/w.wav"
         subprocess.run(["afconvert", "-f", "WAVE", "-d", "LEI16@16000", "-c", "1", wav, w16], check=True, capture_output=True)
-        heard = subprocess.run(["whisper-cli", "-m", M, "-l", "he", "-f", w16, "-nt", "-np"], capture_output=True, text=True).stdout
-    return job, (ok(text, heard), heard.strip())
+        return subprocess.run(["whisper-cli", "-m", M, "-l", "he", "-f", w16, "-nt", "-np"], capture_output=True, text=True).stdout
+
+
+def check(job):
+    key, slow, text = job
+    candidates = [f"{B}/he_wav/{key}{'_slow' if slow else ''}.wav"] + [f"{B}/he_wav_alt/{sp}/{key}.wav" for sp in (ALT_SLOW if slow else ALT_NORMAL)]
+    candidates = [c for c in candidates if os.path.exists(c)]
+    if not candidates:
+        return job, None
+    last = ""
+    for wav in candidates:
+        last = hear(wav)
+        if ok(text, last):
+            return job, (True, last.strip(), wav)
+    return job, (False, last.strip(), None)
 
 
 os.makedirs(OUT, exist_ok=True)
@@ -50,7 +71,7 @@ with ThreadPoolExecutor(4) as ex:
         if res is None:
             continue
         if res[0]:
-            wav = f"{B}/he_wav/{key}{'_slow' if slow else ''}.wav"
+            wav = res[2]
             subprocess.run(["afconvert", "-f", "m4af", "-d", "aac", "-b", "64000", wav, f"{OUT}/{key}{'_slow' if slow else ''}.m4a"], check=True, capture_output=True)
             good += 1
         else:
