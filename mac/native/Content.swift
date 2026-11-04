@@ -83,12 +83,14 @@ struct PlacementQuestion: Codable, Hashable {
     let tip: String
 }
 
+/// Morceau d'une consigne : texte français (voix du système) ou mot hébreu (voix hébraïque).
+struct IntroPart: Codable, Hashable { let t: String; let he: G? }
 struct ListenOption: Codable, Hashable { let fr: String; let ok: Bool? }
 struct Blank: Codable, Hashable { let he: G; let tr: G }
 
 /// Étapes d'une journée d'entraînement (voir lib/content/course-he.ts).
 enum Step: Codable, Hashable {
-    case intro(fr: String)
+    case intro(fr: String, parts: [IntroPart]?)
     case repeatLine(Line)
     case answer(q: Line, a: Line)
     case listen(say: Line, ask: String, options: [ListenOption])
@@ -97,12 +99,12 @@ enum Step: Codable, Hashable {
     case swap(instr: String, from: Line, to: Line)
     case other(kind: String)
 
-    private enum K: String, CodingKey { case kind, fr, line, q, a, say, ask, options, blank, example, instr, from, to }
+    private enum K: String, CodingKey { case kind, fr, parts, line, q, a, say, ask, options, blank, example, instr, from, to }
     init(from d: Decoder) throws {
         let c = try d.container(keyedBy: K.self)
         let kind = try c.decode(String.self, forKey: .kind)
         switch kind {
-        case "intro": self = .intro(fr: try c.decode(String.self, forKey: .fr))
+        case "intro": self = .intro(fr: try c.decode(String.self, forKey: .fr), parts: try c.decodeIfPresent([IntroPart].self, forKey: .parts))
         case "repeat": self = .repeatLine(try c.decode(Line.self, forKey: .line))
         case "answer": self = .answer(q: try c.decode(Line.self, forKey: .q), a: try c.decode(Line.self, forKey: .a))
         case "listen": self = .listen(say: try c.decode(Line.self, forKey: .say), ask: try c.decode(String.self, forKey: .ask), options: try c.decode([ListenOption].self, forKey: .options))

@@ -114,7 +114,17 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: {
     const still = () => stepRef.current === at;
     const rate = LEVEL_RATE[profile.level] ?? 0.85;
     if (step.kind === "intro") {
-      say(step.fr, "fr-FR", 1, () => {
+      // Le français est lu par la voix du système, les mots hébreux entre « » par la voix hébraïque.
+      const parts = step.parts?.some((p) => p.he) ? step.parts : [{ t: step.fr }];
+      const sayPart = (k: number, done: () => void) => {
+        if (!still()) return;
+        if (k >= parts.length) return done();
+        const p = parts[k];
+        if (!p.t.trim()) return sayPart(k + 1, done);
+        if (p.he) say(p.he[gnd], lang.speech, rate, () => sayPart(k + 1, done));
+        else say(p.t, "fr-FR", 1, () => sayPart(k + 1, done));
+      };
+      sayPart(0, () => {
         if (!still()) return;
         let n = 3;
         setCountdown(n);
@@ -125,6 +135,7 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: {
         }, 1000);
       });
     } else if (step.kind === "listen") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Shuli parle à l'arrivée sur l'étape (état « talking » de l'avatar)
       say(step.say.he[gnd], lang.speech, rate);
     } else if (inf?.say) {
       say(inf.say, lang.speech, rate, () => still() && voice.start());

@@ -1,4 +1,5 @@
 import type { Gender, Level, Starter } from "../languages";
+import { PHRASES, THEMES } from "./resources-he";
 
 /** Parcours de cours en hébreu. Contenu écrit à la main. Formes m/f = genre de l'apprenant. */
 type G = Record<Gender, string>;
@@ -6,6 +7,9 @@ const s = (v: string): G => ({ m: v, f: v });
 const g = (m: string, f: string): G => ({ m, f });
 
 export interface Line { he: G; tr: G; fr: string }
+/** Morceau d'une consigne : texte français (voix du système) ou mot hébreu (voix hébraïque, `he` au genre de l'apprenant). */
+export interface IntroPart { t: string; he?: G }
+
 /** Étapes d'une journée d'entraînement.
  *  - intro : Shuli explique (français).
  *  - repeat : écoute puis répète.
@@ -15,7 +19,7 @@ export interface Line { he: G; tr: G; fr: string }
  *  - free : question ouverte, l'apprenant répond avec ses vraies infos (l'exemple n'est qu'une aide).
  *  - swap : transformer une phrase (changer de genre, de mot) et la dire. */
 export type Step =
-  | { kind: "intro"; fr: string }
+  | { kind: "intro"; fr: string; parts?: IntroPart[] }
   | { kind: "repeat"; line: Line }
   | { kind: "answer"; q: Line; a: Line }
   | { kind: "listen"; say: Line; ask: string; options: { fr: string; ok?: boolean }[] }
@@ -878,6 +882,59 @@ for (const lvl of COURSE) {
     }
     const sc = last.scenario;
     unit.days.push(day(`${unit.id}r`, "Révision", unit.days[0].key, steps, sc.role, sc.goal, { he: sc.starter.text, tr: sc.starter.transliteration, fr: sc.starter.translation.fr ?? "" }));
+  }
+}
+
+// Consignes : les mots hébreux écrits en translittération entre « » sont lus par la voix hébraïque, pas par la voix française
+// du système (qui les prononce mal). On retrouve l'hébreu dans les phrases du cours, puis dans ces compléments.
+const EXTRA_HE: Record<string, string> = {
+  sherutim: "שירותים", "kafe ekhad": "קפה אחד", "shtei ugot": "שתי עוגות", "efshar et ha-kheshbon": "אפשר את החשבון", "ani esa": "אני אסע",
+  "ko'ev li": "כואב לי", "ko'evet li": "כואבת לי", kheder: "חדר", "skhar dira": "שכר דירה", "efshar ledaber im": "אפשר לדבר עם",
+  "eifo ani yakhol limtso": "איפה אני יכול למצוא", "eifo ani yekhola limtso": "איפה אני יכולה למצוא", "makhar ani nose'a": "מחר אני נוסע",
+  "mi-tsad ekhad": "מצד אחד", "mi-tsad sheni": "מצד שני", lamrot: "למרות", "be-sakh ha-kol": "בסך הכול", khaval: "חבל",
+  "ani mitsta'er": "אני מצטער", "mitsta'eret": "מצטערת", "akhar kakh": "אחר כך", tkhum: "תחום", tsevet: "צוות", "ani matsi'a": "אני מציע",
+  karati: "קראתי", shamati: "שמעתי", "le-marbe ha-tsa'ar": "למרבה הצער", "hayiti rotse": "הייתי רוצה", "hayiti rotsa": "הייתי רוצה",
+  "i efshar lehit'alem me-ha-uvda": "אי אפשר להתעלם מהעובדה", "ha-kavana hi": "הכוונה היא", "ba li": "בא לי", medavkhim: "מדווחים",
+  "li-dvarav": "לדברי", "orer bikoret": "עורר ביקורת", "ani khoshev": "אני חושב", khoshevet: "חושבת", "ya'ni": "יעני", "lo ikhpat li": "לא אכפת לי",
+  "ein ma la'asot": "אין מה לעשות", "lo nora": "לא נורא", "be'erekh": "בערך", dai: "די", ktsat: "קצת", "kim'at": "כמעט", "be-vrakha": "בברכה", "shalom rav": "שלום רב",
+};
+const trKey = (t: string) => t.toLowerCase().replace(/[?!.,…:;()]/g, "").replace(/\s+/g, " ").trim();
+const HE_OF = new Map<string, G>();
+{
+  const put = (tr: string, m: string, f: string) => { const k = trKey(tr); if (k && !HE_OF.has(k)) HE_OF.set(k, { m: m.replace(/[?!.,…:;]/g, "").trim(), f: f.replace(/[?!.,…:;]/g, "").trim() }); };
+  const words = (t: string) => t.replace(/[?!.,…]/g, "").split(/\s+/).filter(Boolean);
+  for (const lvl of COURSE) for (const u of lvl.units) for (const d of u.days) for (const l of [d.key, ...d.steps.flatMap(linesOf)]) {
+    put(l.tr.m, l.he.m, l.he.f);
+    for (const g of ["m", "f"] as const) {
+      const h = words(l.he[g]), t = words(l.tr[g]);
+      if (h.length === t.length) h.forEach((x, i) => put(t[i], x, x));
+    }
+  }
+  for (const w of [...THEMES.flatMap((t) => t.words), ...PHRASES]) put(w.tr.split(" / ")[0], w.he.split(" / ")[0], w.he.split(" / ").pop() ?? w.he);
+  for (const [tr, he] of Object.entries(EXTRA_HE)) put(tr, he, he);
+}
+/** Hébreu d'un morceau « translittération » d'une consigne, ou undefined si on ne le connaît pas (il reste alors en français). */
+function hebrewOf(chunk: string): G | undefined {
+  const alts = chunk.split("/").map((a) => trKey(a.replace(/\+.*$/, "")).replace(/\s+she-?$/, "").replace(/-$/, "").trim()).filter(Boolean);
+  if (!alts.length) return undefined;
+  const found = alts.map((a) => HE_OF.get(a) ?? HE_OF.get(a.replace(/-/g, " ")));
+  if (found.some((x) => !x)) return undefined;
+  return { m: found.map((x) => x!.m).join(", "), f: found.map((x) => x!.f).join(", ") };
+}
+for (const lvl of COURSE) for (const u of lvl.units) for (const d of u.days) for (const st of d.steps) {
+  if (st.kind !== "intro") continue;
+  const parts: IntroPart[] = [];
+  let at = 0;
+  for (const m of st.fr.matchAll(/«\s*([^»]+?)\s*»/g)) {
+    const he = hebrewOf(m[1]);
+    if (!he) continue;
+    if (m.index > at) parts.push({ t: st.fr.slice(at, m.index) });
+    parts.push({ t: m[1], he });
+    at = m.index + m[0].length;
+  }
+  if (parts.some((p) => p.he)) {
+    if (at < st.fr.length) parts.push({ t: st.fr.slice(at) });
+    st.parts = parts;
   }
 }
 

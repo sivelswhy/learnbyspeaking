@@ -72,7 +72,7 @@ private struct PracticeBody: View {
             Spacer()
             Column {
                 Group {
-                    if case .intro(let fr) = step {
+                    if case .intro(let fr, _) = step {
                         Button(action: next) {
                             ZStack(alignment: .bottom) {
                                 VStack { Avatar(speaking: voice.speaking, size: 200) }.padding(.horizontal, 24).padding(.top, 40).padding(.bottom, 64)
@@ -230,9 +230,9 @@ private struct PracticeBody: View {
         guard !finished else { return }
         let at = i
         let step = day.steps[i]
-        if case .intro(let fr) = step {
+        if case .intro(let fr, let parts) = step {
             Task {
-                await app.voice.sayFrench(fr)
+                await app.voice.sayIntro(parts, fr: fr, g: g, rate: 0.85)
                 guard i == at else { return }
                 countdown = 3
                 timer?.invalidate()

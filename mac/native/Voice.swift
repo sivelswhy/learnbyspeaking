@@ -220,6 +220,17 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
         await MainActor.run { speaking = false }
     }
 
+    /// Consigne d'un cours : le français est lu par la voix du système, les mots hébreux par la voix hébraïque.
+    func sayIntro(_ parts: [IntroPart]?, fr: String, g: Gender, rate: Double) async {
+        guard let parts, parts.contains(where: { $0.he != nil }) else { await sayFrench(fr); return }
+        var expected = generation
+        for part in parts where !part.t.trimmed.isEmpty {
+            if generation != expected { return }   // un arrêt (étape suivante) est passé entre deux morceaux
+            if let he = part.he { await say(he(g), rate: rate) } else { await sayFrench(part.t) }
+            expected = generation
+        }
+    }
+
     func stop() {
         generation += 1
         if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
