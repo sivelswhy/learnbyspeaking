@@ -40,6 +40,8 @@ for f in "$APP/Contents/MacOS/LearnBySpeaking" "$FW"/*.dylib; do otool -L "$f" |
 # Menus système en français (Édition, Fenêtre…) : langue de développement fr.
 sed -e 's#<key>CFBundlePackageType</key>#<key>CFBundleDevelopmentRegion</key><string>fr</string>\n  <key>CFBundleLocalizations</key><array><string>fr</string></array>\n  &#' mac/Info.plist > "$APP/Contents/Info.plist"
 mkdir -p "$APP/Contents/Resources/fr.lproj"
+mkdir -p "$APP/Contents/Resources/fr"
+cp mac/native/Resources/fr/*.m4a "$APP/Contents/Resources/fr/" 2>/dev/null || true
 cp mac/native/Resources/content.json mac/native/Resources/dict-fr-he.json mac/native/Resources/Nunito-*.ttf mac/native/Resources/phonikud-vocab.json "$APP/Contents/Resources/"
 
 LLAMA=${LLAMA_DIR:-$HOME/learnbyspeaking-models/llamacpp/llama-b11732}

@@ -1,4 +1,5 @@
 import AVFoundation
+import CryptoKit
 
 // Voix de Shuli : Phonikud vocalise le texte, Piper (VITS) le prononce (lib/voice.worker.ts), via onnxruntime en natif.
 // Modèles dans ~/Library/Application Support/LearnBySpeaking/models/voice/ (Phonikud : MIT ; voix « shaul » de Phonikud TTS : CC BY-NC (la voix « michael » a été retirée de l'app le 04/11/2026) ; réglages noise 0,3 / noise_w 0,6).
@@ -211,14 +212,32 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     }
 
     /// Consigne en français (étapes « intro » de l'entraînement) : voix du système.
+    /// Voix française des consignes : fichier pré-généré (Phonon, voix Lucien : scripts/render-french.ts, nommé d'après le SHA-1
+    /// du texte) ; la voix du système sert de secours pour un texte sans fichier.
+    static func clipKey(_ text: String) -> String {
+        Insecure.SHA1.hash(data: Data(text.trimmingCharacters(in: .whitespacesAndNewlines).utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
+    }
+    private func frenchClip(_ text: String) -> (samples: [Float], rate: Double)? {
+        guard let url = Bundle.main.url(forResource: Voice.clipKey(text), withExtension: "m4a", subdirectory: "fr"),
+              let f = try? AVAudioFile(forReading: url),
+              let buf = AVAudioPCMBuffer(pcmFormat: f.processingFormat, frameCapacity: AVAudioFrameCount(f.length)),
+              (try? f.read(into: buf)) != nil, let ch = buf.floatChannelData?[0] else { return nil }
+        return (Array(UnsafeBufferPointer(start: ch, count: Int(buf.frameLength))), f.processingFormat.sampleRate)
+    }
+
     func sayFrench(_ text: String) async {
         stop()
         generation += 1
-        let u = AVSpeechUtterance(string: text)
-        u.voice = AVSpeechSynthesisVoice(language: "fr-FR")
+        let gen = generation
         await MainActor.run { speaking = true }
-        await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in done = c; synth.speak(u) }
-        await MainActor.run { speaking = false }
+        if let clip = frenchClip(text) {
+            await play(clip.samples + [Float](repeating: 0, count: Int(clip.rate * 0.15)), rate: clip.rate, gen: gen)
+        } else {
+            let u = AVSpeechUtterance(string: text)
+            u.voice = AVSpeechSynthesisVoice(language: "fr-FR")
+            await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in done = c; synth.speak(u) }
+        }
+        if gen == generation { await MainActor.run { speaking = false } }
     }
 
     /// Consigne d'un cours : le français est lu par la voix du système, les mots hébreux par la voix hébraïque.
