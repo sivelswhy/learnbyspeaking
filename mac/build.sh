@@ -42,6 +42,8 @@ sed -e 's#<key>CFBundlePackageType</key>#<key>CFBundleDevelopmentRegion</key><st
 mkdir -p "$APP/Contents/Resources/fr.lproj"
 mkdir -p "$APP/Contents/Resources/fr"
 cp mac/native/Resources/fr/*.m4a "$APP/Contents/Resources/fr/" 2>/dev/null || true
+mkdir -p "$APP/Contents/Resources/he"
+cp mac/native/Resources/he/*.m4a "$APP/Contents/Resources/he/" 2>/dev/null || true
 cp mac/native/Resources/content.json mac/native/Resources/dict-fr-he.json mac/native/Resources/Nunito-*.ttf mac/native/Resources/phonikud-vocab.json "$APP/Contents/Resources/"
 
 LLAMA=${LLAMA_DIR:-$HOME/learnbyspeaking-models/llamacpp/llama-b11732}

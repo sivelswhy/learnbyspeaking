@@ -261,8 +261,10 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     static func clipKey(_ text: String) -> String {
         Insecure.SHA1.hash(data: Data(text.trimmingCharacters(in: .whitespacesAndNewlines).utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
     }
-    private func frenchClip(_ text: String) -> (samples: [Float], rate: Double)? {
-        guard let url = Bundle.main.url(forResource: Voice.clipKey(text), withExtension: "m4a", subdirectory: "fr"),
+    private func frenchClip(_ text: String) -> (samples: [Float], rate: Double)? { clip(text, in: "fr") }
+    /// Extrait pré-généré (m4a nommé d'après le SHA-1 du texte) : « fr » = voix française des consignes (Phonon), « he » = hébreu des consignes (BlueTTS, voix adam).
+    private func clip(_ text: String, in dir: String) -> (samples: [Float], rate: Double)? {
+        guard let url = Bundle.main.url(forResource: Voice.clipKey(text), withExtension: "m4a", subdirectory: dir),
               let f = try? AVAudioFile(forReading: url),
               let buf = AVAudioPCMBuffer(pcmFormat: f.processingFormat, frameCapacity: AVAudioFrameCount(f.length)),
               (try? f.read(into: buf)) != nil, let ch = buf.floatChannelData?[0] else { return nil }
@@ -284,13 +286,24 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
         if gen == generation { await MainActor.run { speaking = false } }
     }
 
+    /// Hébreu d'une consigne : fichier pré-généré s'il existe (BlueTTS, voix adam : scripts/export-hebrew-parts.ts), sinon la voix Shuli.
+    func sayHebrewClip(_ text: String, rate: Double) async {
+        guard let c = clip(text, in: "he") else { await say(text, rate: rate); return }
+        stop()
+        generation += 1
+        let gen = generation
+        await MainActor.run { speaking = true }
+        await play(c.samples + [Float](repeating: 0, count: Int(c.rate * 0.15)), rate: c.rate, gen: gen)
+        if gen == generation { await MainActor.run { speaking = false } }
+    }
+
     /// Consigne d'un cours : le français est lu par la voix du système, les mots hébreux par la voix hébraïque.
     func sayIntro(_ parts: [IntroPart]?, fr: String, g: Gender, rate: Double) async {
         guard let parts, parts.contains(where: { $0.he != nil }) else { await sayFrench(fr); return }
         var expected = generation
         for part in parts where !part.t.trimmed.isEmpty {
             if generation != expected { return }   // un arrêt (étape suivante) est passé entre deux morceaux
-            if let he = part.he { await say(he(g), rate: rate) } else { await sayFrench(part.t) }
+            if let he = part.he { await sayHebrewClip(he(g), rate: rate) } else { await sayFrench(part.t) }
             expected = generation
         }
     }
