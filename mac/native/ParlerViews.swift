@@ -26,9 +26,10 @@ struct ParlerView: View {
     var body: some View {
         let p = (store.profile ?? NEW_PROFILE)
         let off = app.ai == .ready ? 1.0 : 0.55
-        let nd = nextDay(store.course, p.level)
+        let plan = planCourse(p, placement: store.placement, progress: store.course)
+        let nd = nextDay(store.course, p, placement: store.placement)
         let due = dueCards(store.vocab).count
-        let all = Content.allDays
+        let all = plan.days
         let pct = Double(all.filter { dayDone(store.course, $0.day.id) }.count) / Double(all.count)
         let st = streakInfo(store.sessions)
         VStack(alignment: .leading, spacing: 24) {
@@ -63,7 +64,7 @@ struct ParlerView: View {
 
             // Carte du parcours
             VStack(alignment: .leading, spacing: 0) {
-                Text("Parle hébreu en \(all.count) jours").font(.app(20, .bold)).frame(maxWidth: .infinity, alignment: .leading).padding(.trailing, 140)
+                Text(plan.doneCount == 0 ? "Parle hébreu en \(all.count) jours" : plan.remaining.isEmpty ? "Parcours terminé, bravo !" : "Il te reste \(plan.remaining.count) jour\(plan.remaining.count > 1 ? "s" : "")").font(.app(20, .bold)).frame(maxWidth: .infinity, alignment: .leading).padding(.trailing, 140)
                 GeometryReader { g in
                     let w = g.size.width * 0.74
                     ZStack(alignment: .leading) {
@@ -75,6 +76,7 @@ struct ParlerView: View {
                     }.frame(height: 20)
                 }.frame(height: 20).padding(.top, 14)
                 Text("Prochaine leçon : \(nd.day.title)").font(.app(15)).opacity(0.9).padding(.top, 10)
+                Text("≈ \(plan.remainingSessions) séance\(plan.remainingSessions > 1 ? "s" : "") de \(p.dailyMinutes) min\(plan.skipped > 0 ? " · \(plan.skipped) jours évités grâce à ton niveau" : "")").font(.app(13)).opacity(0.8)
                 Button { nav.tab = .cours; nav.coursTab = nil } label: {
                     HStack(spacing: 2) { Text("Vue du cours"); Image(systemName: "chevron.right").font(.system(size: 11, weight: .bold)) }
                         .font(.app(12, .bold)).padding(.leading, 12).padding(.trailing, 8).frame(minHeight: 32)

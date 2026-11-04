@@ -28,13 +28,16 @@ struct CoursView: View {
                     let days = lvl.units.flatMap(\.days)
                     let done = days.filter { dayDone(store.course, $0.id) }.count
                     let isOpen = (open ?? courseLevelFor(p.level).id) == lvl.id
+                    let plan = planCourse(p, placement: store.placement, progress: store.course)
+                    let inPath = Set(plan.units.map(\.level.id))
+                    let startIdx = C.course.firstIndex { $0.id == courseLevelFor(p.level).id } ?? 0
                     VStack(spacing: 16) {
                         Button { open = isOpen ? "-" : lvl.id } label: {
                             HStack(spacing: 16) {
                                 Avatar(size: 56)
                                 VStack(alignment: .leading, spacing: 0) {
                                     Text(lvl.title).font(.app(18, .bold))
-                                    Text("\(lvl.cefr) · \(lvl.units.isEmpty ? "Bientôt disponible" : "\(done)/\(days.count) jours")").foregroundStyle(Palette.muted)
+                                    Text("\(lvl.cefr) · \(lvl.units.isEmpty ? "Bientôt disponible" : "\(done)/\(days.count) jours")\(!lvl.units.isEmpty && !inPath.contains(lvl.id) ? (n < startIdx ? " · déjà acquis" : " · au-delà de ton objectif") : "")").foregroundStyle(Palette.muted)
                                     if isOpen && n == 0 { Text("Démarrage rapide").foregroundStyle(Palette.muted) }
                                 }
                                 Spacer()
@@ -45,7 +48,7 @@ struct CoursView: View {
                             .overlay(RoundedRectangle(cornerRadius: 16).stroke(Palette.soft)).cardShadow()
                         }.buttonStyle(PressStyle()).disabled(lvl.units.isEmpty).opacity(lvl.units.isEmpty ? 0.6 : 1)
                         if isOpen {
-                            ForEach(Array(lvl.units.enumerated()), id: \.element.id) { k, u in UnitPath(unit: u, index: k + 1) }
+                            ForEach(Array(lvl.units.enumerated()), id: \.element.id) { k, u in UnitPath(unit: u, index: k + 1, status: plan.units.first { $0.unit.id == u.id }?.status) }
                         }
                     }
                 }
@@ -58,6 +61,7 @@ struct CoursView: View {
 private struct UnitPath: View {
     let unit: Unit
     let index: Int
+    var status: UnitStatus? = nil
     @EnvironmentObject var store: Store
     @EnvironmentObject var nav: Nav
     var body: some View {
@@ -71,8 +75,14 @@ private struct UnitPath: View {
                     GeometryReader { g in
                         ZStack(alignment: .leading) { Capsule().fill(Palette.line); Capsule().fill(Palette.accent).frame(width: g.size.width * Double(done) / Double(unit.days.count)) }
                     }.frame(height: 4)
-                    Text("\(done)/\(unit.days.count)").font(.app(14, .semibold)).foregroundStyle(Palette.accent)
-                        .padding(.horizontal, 10).padding(.vertical, 2).background(Palette.accent.opacity(0.1), in: Capsule())
+                    HStack(spacing: 8) {
+                        Text("\(done)/\(unit.days.count)").font(.app(14, .semibold)).foregroundStyle(Palette.accent)
+                            .padding(.horizontal, 10).padding(.vertical, 2).background(Palette.accent.opacity(0.1), in: Capsule())
+                        if let status, status != .complet {
+                            Text(status == .acquis ? "Déjà acquise" : "Accélérée").font(.app(14, .semibold)).foregroundStyle(Palette.good)
+                                .padding(.horizontal, 10).padding(.vertical, 2).background(Palette.good.opacity(0.15), in: Capsule())
+                        }
+                    }
                 }
             }
             .padding(16).background(Palette.soft, in: RoundedRectangle(cornerRadius: 16))

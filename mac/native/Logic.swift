@@ -84,10 +84,15 @@ func courseLevelFor(_ level: String) -> CourseLevel {
     return C.course.filter { !$0.units.isEmpty && (CEFR.firstIndex(of: $0.cefr) ?? 0) <= lv }.last ?? C.course[0]
 }
 typealias DayRef = (level: CourseLevel, unit: Unit, day: Day)
-func nextDay(_ progress: [String: DayProgress], _ level: String) -> DayRef {
-    let lvl = courseLevelFor(level)
-    let list = Content.allDays.filter { $0.level.id == lvl.id }
-    return list.first { !(progress[$0.day.id]?.speaking != nil && progress[$0.day.id]?.scenario != nil) } ?? list.last!
+/// Parcours d'un apprenant : les jours de son niveau jusqu'au niveau qu'il vise (un B1 n'a ni l'alphabet ni les bases du A1 à refaire).
+func pathFor(_ level: String, _ target: String) -> [DayRef] {
+    let startLevel = courseLevelFor(level)
+    let start = C.course.firstIndex { $0.id == startLevel.id } ?? 0
+    let cap = max(CEFR.firstIndex(of: target) ?? 0, CEFR.firstIndex(of: startLevel.cefr) ?? 0)
+    return Content.allDays.filter { ref in
+        let i = C.course.firstIndex { $0.id == ref.level.id } ?? 0
+        return i >= start && (CEFR.firstIndex(of: ref.level.cefr) ?? 0) <= cap
+    }
 }
 func dayDone(_ p: [String: DayProgress], _ id: String) -> Bool { p[id]?.speaking != nil && p[id]?.scenario != nil }
 
