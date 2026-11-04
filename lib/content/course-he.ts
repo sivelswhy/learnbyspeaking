@@ -915,13 +915,10 @@ const HE_OF = new Map<string, G>();
   for (const w of [...THEMES.flatMap((t) => t.words), ...PHRASES]) put(w.tr.split(" / ")[0], w.he.split(" / ")[0], w.he.split(" / ").pop() ?? w.he);
 }
 /** Hébreu d'un morceau « translittération » d'une consigne, ou undefined si on ne le connaît pas (il reste alors en français). */
-/** Mots d'une syllabe : seuls, la voix les avale (« אם » dure 0,46 s et ne s'entend pas). On les fait dire dans une courte phrase d'exemple. */
+/** Mots que la voix ne sait pas dire seuls (« או », « את », « גר » : aucune variante testée n'est reconnue) : on les fait dire dans une courte phrase d'exemple. Les autres petits mots passent seuls. */
 const CARRIER: Record<string, G> = {
-  im: { m: "אם הייתי עשיר", f: "אם הייתי עשירה" }, ki: { m: "כי יש לי משפחה", f: "כי יש לי משפחה" }, o: { m: "קפה או תה", f: "קפה או תה" },
-  lo: { m: "לא, תודה", f: "לא, תודה" }, ein: { m: "אין בעיה", f: "אין בעיה" }, yesh: { m: "יש קפה", f: "יש קפה" },
-  at: { m: "את רעבה", f: "את רעבה" }, et: { m: "את החשבון", f: "את החשבון" }, li: { m: "יש לי זמן", f: "יש לי זמן" },
-  ze: { m: "זה יקר", f: "זה יקר" }, nu: { m: "נו, תגיד", f: "נו, תגידי" }, dai: { m: "די טוב", f: "די טוב" }, ken: { m: "כן, בטח", f: "כן, בטח" },
-  ani: { m: "אני גר בפריז", f: "אני גרה בפריז" }, ata: { m: "אתה גר בפריז", f: "אתה גר בפריז" },
+  o: { m: "קפה או תה", f: "קפה או תה" }, at: { m: "את רעבה", f: "את רעבה" }, et: { m: "את החשבון", f: "את החשבון" },
+  gar: { m: "אני גר בפריז", f: "אני גר בפריז" }, gara: { m: "אני גרה בפריז", f: "אני גרה בפריז" },
 };
 /** Fragments de mots (préfixes collés) : isolés, ils seraient lus comme d'autres mots (« ba » = בא), on les laisse en français. */
 const FRAGMENTS = new Set(["ba", "la", "be", "le", "ha", "ti", "ni", "mi", "me", "she", "ve", "ke", "ni-"]);

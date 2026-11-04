@@ -87,9 +87,9 @@ final class Piper {
     }
 
     /// Comme piper_onnx : ^ au début, _ après chaque phonème connu, $ à la fin.
-    func synthesize(_ phonemes: String, lengthScale: Float, noise: Float? = nil, noiseW: Float? = nil) -> [Float]? {
+    func synthesize(_ phonemes: String, lengthScale: Float, noise: Float? = nil, noiseW: Float? = nil, tail: String? = nil) -> [Float]? {
         var ids: [Int64] = []
-        for p in ["^"] + (phonemes + tail).unicodeScalars.map(String.init) {
+        for p in ["^"] + (phonemes + (tail ?? self.tail)).unicodeScalars.map(String.init) {
             guard let v = idMap[p] else { continue }
             ids += v + (idMap["_"] ?? [])
         }
@@ -110,14 +110,15 @@ final class Piper {
         let short = sentence.split(whereSeparator: { $0.isWhitespace }).filter { $0.unicodeScalars.contains { (0x5D0...0x5EA).contains($0.value) } }.count <= 3
         guard short else { return synthesize(ph, lengthScale: lengthScale) }
         let ls = max(lengthScale, 1.5)
-        guard let first = synthesize(ph, lengthScale: ls, noise: 0.1, noiseW: 0.3) else { return nil }
+        // Phrase courte : pas de « ... » final (ils font dire autre chose à un mot isolé : « אם » devenait « אין »).
+        guard let first = synthesize(ph, lengthScale: ls, noise: 0.1, noiseW: 0.3, tail: "") else { return nil }
         // Un mot isolé est écrasé par le modèle (« הייתי » en 0,46 s : les syllabes ne s'entendent plus) : on exige au moins 0,27 s par
         // syllabe (voyelle des phonèmes) et on refait la synthèse plus lentement si besoin.
         let syllables = ph.filter { "aeiou".contains($0) }.count
         let seconds = Double(first.count) / sampleRate
         let wanted = 0.27 * Double(syllables)
         guard syllables > 0, seconds < wanted else { return first }
-        return synthesize(ph, lengthScale: Float(min(2.8, Double(ls) * wanted / seconds)), noise: 0.1, noiseW: 0.3) ?? first
+        return synthesize(ph, lengthScale: Float(min(2.8, Double(ls) * wanted / seconds)), noise: 0.1, noiseW: 0.3, tail: "") ?? first
     }
 }
 
