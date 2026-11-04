@@ -811,6 +811,23 @@ export const COURSE: CourseLevel[] = [
   },
 ];
 
+// Fin d'unité : un jour « Révision » construit à partir des jours de l'unité (phrases clés, une écoute par jour),
+// puis un jeu de rôle qui reprend le dernier scénario.
+for (const lvl of COURSE) {
+  for (const unit of lvl.units) {
+    if (unit.days.length < 3) continue;
+    const last = unit.days[unit.days.length - 1];
+    const steps: Step[] = [intro(`Révision de l'unité « ${unit.title} ». Je te refais dire les phrases clés de chaque jour, puis tu les utilises en conversation.`)];
+    for (const d of unit.days) {
+      steps.push(rep(d.key));
+      const hear = d.steps.find((x) => x.kind === "listen");
+      if (hear) steps.push(hear);
+    }
+    const sc = last.scenario;
+    unit.days.push(day(`${unit.id}r`, "Révision", unit.days[0].key, steps, sc.role, sc.goal, { he: sc.starter.text, tr: sc.starter.transliteration, fr: sc.starter.translation.fr ?? "" }));
+  }
+}
+
 export const ALL_DAYS = COURSE.flatMap((l) => l.units.flatMap((u) => u.days.map((d) => ({ level: l, unit: u, day: d }))));
 
 const CEFR = ["A1", "A2", "B1", "B2", "C1", "C2"];
