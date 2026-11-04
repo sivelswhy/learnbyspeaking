@@ -192,13 +192,37 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
         if gen == generation { await MainActor.run { speaking = false } }
     }
 
+    /// Sortie audio à format fixe : toutes les voix (Piper 22 050 Hz, Phonon 24 000 Hz) sont ramenées à 24 000 Hz. Reconnecter le lecteur
+    /// à un autre format entre deux voix (français puis hébreu) déformait le son (un souffle au lieu du mot).
+    private static let outRate = 24_000.0
+    private var connected = false
+
+    private func resample(_ samples: [Float], from rate: Double) -> [Float] {
+        guard abs(rate - Voice.outRate) > 1,
+              let src = AVAudioFormat(standardFormatWithSampleRate: rate, channels: 1),
+              let dst = AVAudioFormat(standardFormatWithSampleRate: Voice.outRate, channels: 1),
+              let conv = AVAudioConverter(from: src, to: dst),
+              let inBuf = AVAudioPCMBuffer(pcmFormat: src, frameCapacity: AVAudioFrameCount(samples.count)),
+              let outBuf = AVAudioPCMBuffer(pcmFormat: dst, frameCapacity: AVAudioFrameCount(Double(samples.count) * Voice.outRate / rate) + 1024) else { return samples }
+        inBuf.frameLength = AVAudioFrameCount(samples.count)
+        samples.withUnsafeBufferPointer { inBuf.floatChannelData![0].update(from: $0.baseAddress!, count: samples.count) }
+        var fed = false
+        var err: NSError?
+        conv.convert(to: outBuf, error: &err) { _, status in
+            if fed { status.pointee = .endOfStream; return nil }
+            fed = true; status.pointee = .haveData; return inBuf
+        }
+        guard err == nil, outBuf.frameLength > 0 else { return samples }
+        return Array(UnsafeBufferPointer(start: outBuf.floatChannelData![0], count: Int(outBuf.frameLength)))
+    }
+
     private func play(_ samples: [Float], rate: Double, gen: Int) async {
-        guard let fmt = AVAudioFormat(standardFormatWithSampleRate: rate, channels: 1),
-              let buf = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: AVAudioFrameCount(samples.count)) else { return }
-        buf.frameLength = AVAudioFrameCount(samples.count)
-        samples.withUnsafeBufferPointer { buf.floatChannelData![0].update(from: $0.baseAddress!, count: samples.count) }
-        engine.disconnectNodeOutput(player)
-        engine.connect(player, to: engine.mainMixerNode, format: fmt)
+        let data = resample(samples, from: rate)
+        guard let fmt = AVAudioFormat(standardFormatWithSampleRate: Voice.outRate, channels: 1),
+              let buf = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: AVAudioFrameCount(data.count)) else { return }
+        buf.frameLength = AVAudioFrameCount(data.count)
+        data.withUnsafeBufferPointer { buf.floatChannelData![0].update(from: $0.baseAddress!, count: data.count) }
+        if !connected { engine.connect(player, to: engine.mainMixerNode, format: fmt); connected = true }
         if !engine.isRunning { try? engine.start() }
         await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
             done = c
@@ -211,8 +235,7 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
         }
     }
 
-    /// Consigne en français (étapes « intro » de l'entraînement) : voix du système.
-    /// Voix française des consignes : fichier pré-généré (Phonon, voix Lucien : scripts/render-french.ts, nommé d'après le SHA-1
+    /// Voix française des consignes : fichier pré-généré (Phonon, voix Arnaud : scripts/render-french.ts, nommé d'après le SHA-1
     /// du texte) ; la voix du système sert de secours pour un texte sans fichier.
     static func clipKey(_ text: String) -> String {
         Insecure.SHA1.hash(data: Data(text.trimmingCharacters(in: .whitespacesAndNewlines).utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()

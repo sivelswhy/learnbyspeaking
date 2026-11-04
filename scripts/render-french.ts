@@ -3,7 +3,7 @@
 // Usage : HF_TOKEN=… npx jiti scripts/render-french.ts   (modèle dans ~/learnbyspeaking-models/phonon, `brew install gradium-ai/tap/ptts`)
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { COURSE } from "../lib/content/course-he";
@@ -21,6 +21,9 @@ for (const lvl of COURSE) for (const u of lvl.units) for (const d of u.days) for
   if (st.parts?.some((p) => p.he)) for (const p of st.parts) { if (!p.he && p.t.trim()) texts.add(p.t.trim()); }
   else texts.add(st.fr.trim());
 }
+// Fichiers devenus inutiles (texte modifié depuis) : supprimés.
+const wanted = new Set([...texts].map((t) => clipKey(t) + ".m4a"));
+for (const f of readdirSync(OUT)) if (f.endsWith(".m4a") && !wanted.has(f)) rmSync(join(OUT, f));
 let done = 0, skipped = 0, failed = 0;
 const tmp = join(tmpdir(), "render-french.wav");
 for (const t of texts) {

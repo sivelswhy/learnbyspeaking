@@ -888,7 +888,7 @@ for (const lvl of COURSE) {
 // Consignes : les mots hébreux écrits en translittération entre « » sont lus par la voix hébraïque, pas par la voix française
 // du système (qui les prononce mal). On retrouve l'hébreu dans les phrases du cours, puis dans ces compléments.
 const EXTRA_HE: Record<string, string> = {
-  sherutim: "שירותים", "kafe ekhad": "קפה אחד", "shtei ugot": "שתי עוגות", "efshar et ha-kheshbon": "אפשר את החשבון", "ani esa": "אני אסע",
+  im: "אם", "hayiti nose'a": "הייתי נוסע | הייתי נוסעת", sherutim: "שירותים", "kafe ekhad": "קפה אחד", "shtei ugot": "שתי עוגות", "efshar et ha-kheshbon": "אפשר את החשבון", "ani esa": "אני אסע",
   "ko'ev li": "כואב לי", "ko'evet li": "כואבת לי", kheder: "חדר", "skhar dira": "שכר דירה", "efshar ledaber im": "אפשר לדבר עם",
   "eifo ani yakhol limtso": "איפה אני יכול למצוא", "eifo ani yekhola limtso": "איפה אני יכולה למצוא", "makhar ani nose'a": "מחר אני נוסע",
   "mi-tsad ekhad": "מצד אחד", "mi-tsad sheni": "מצד שני", lamrot: "למרות", "be-sakh ha-kol": "בסך הכול", khaval: "חבל",
@@ -903,6 +903,8 @@ const HE_OF = new Map<string, G>();
 {
   const put = (tr: string, m: string, f: string) => { const k = trKey(tr); if (k && !HE_OF.has(k)) HE_OF.set(k, { m: m.replace(/[?!.,…:;]/g, "").trim(), f: f.replace(/[?!.,…:;]/g, "").trim() }); };
   const words = (t: string) => t.replace(/[?!.,…]/g, "").split(/\s+/).filter(Boolean);
+  // Les compléments passent en premier : ils lèvent les ambiguïtés (« im » = si, pas « avec »).
+  for (const [tr, he] of Object.entries(EXTRA_HE)) { const [m, f] = he.split("|").map((x) => x.trim()); put(tr, m, f ?? m); }
   for (const lvl of COURSE) for (const u of lvl.units) for (const d of u.days) for (const l of [d.key, ...d.steps.flatMap(linesOf)]) {
     put(l.tr.m, l.he.m, l.he.f);
     for (const g of ["m", "f"] as const) {
@@ -911,31 +913,59 @@ const HE_OF = new Map<string, G>();
     }
   }
   for (const w of [...THEMES.flatMap((t) => t.words), ...PHRASES]) put(w.tr.split(" / ")[0], w.he.split(" / ")[0], w.he.split(" / ").pop() ?? w.he);
-  for (const [tr, he] of Object.entries(EXTRA_HE)) put(tr, he, he);
 }
 /** Hébreu d'un morceau « translittération » d'une consigne, ou undefined si on ne le connaît pas (il reste alors en français). */
+/** Fragments de mots (préfixes collés) : isolés, ils seraient lus comme d'autres mots (« ba » = בא), on les laisse en français. */
+const FRAGMENTS = new Set(["ba", "la", "be", "le", "ha", "ti", "ni", "mi", "me", "she", "ve", "ke", "ni-"]);
 function hebrewOf(chunk: string): G | undefined {
+  if (FRAGMENTS.has(trKey(chunk).replace(/-$/, ""))) return undefined;
   const alts = chunk.split("/").map((a) => trKey(a.replace(/\+.*$/, "")).replace(/\s+she-?$/, "").replace(/-$/, "").trim()).filter(Boolean);
   if (!alts.length) return undefined;
   const found = alts.map((a) => HE_OF.get(a) ?? HE_OF.get(a.replace(/-/g, " ")));
   if (found.some((x) => !x)) return undefined;
   return { m: found.map((x) => x!.m).join(", "), f: found.map((x) => x!.f).join(", ") };
 }
+/** Mots courts toujours pris pour de l'hébreu translittéré hors « » (les autres doivent avoir une apostrophe, un trait d'union ou 4 lettres). */
+const SHORT_TR = new Set(["ani", "ata", "yesh", "ein", "ken", "kam", "gar", "kama", "gara", "akhat", "shtayim", "shalosh"]);
+/** Découpe un morceau de français : les mots hébreux translittérés (même sans « ») deviennent des morceaux `he`. */
+function splitPlain(text: string): IntroPart[] {
+  const out: IntroPart[] = [];
+  const toks = [...text.matchAll(/[A-Za-z][A-Za-z'’-]*/g)].map((m) => ({ w: m[0], i: m.index, he: undefined as G | undefined }));
+  for (const t of toks) {
+    const ok = SHORT_TR.has(t.w.toLowerCase()) || /['’-]/.test(t.w.replace(/^[A-Za-z]'/, "")) || t.w.length >= 4;
+    t.he = ok && !/^[A-Z]/.test(t.w.slice(1)) ? HE_OF.get(trKey(t.w)) : undefined;
+  }
+  let at = 0;
+  for (let k = 0; k < toks.length; k++) {
+    if (!toks[k].he) continue;
+    // Mots hébreux voisins séparés par une virgule ou une espace : un seul morceau (« akhat, shtayim, shalosh », « hayiti nose'a »).
+    let e = k;
+    while (e + 1 < toks.length && toks[e + 1].he && /^[,\s]+$/.test(text.slice(toks[e].i + toks[e].w.length, toks[e + 1].i))) e++;
+    const from = toks[k].i, to = toks[e].i + toks[e].w.length;
+    if (from > at) out.push({ t: text.slice(at, from) });
+    // Même séparateur qu'à l'écrit : une virgule donne une pause, une espace non.
+    const join = (pick: (x: G) => string) => toks.slice(k, e + 1).map((x, n, a) => (n ? (/,/.test(text.slice(a[n - 1].i + a[n - 1].w.length, x.i)) ? ", " : " ") : "") + pick(x.he!)).join("");
+    out.push({ t: text.slice(from, to), he: { m: join((x) => x.m), f: join((x) => x.f) } });
+    at = to;
+    k = e;
+  }
+  if (at < text.length) out.push({ t: text.slice(at) });
+  return out;
+}
 for (const lvl of COURSE) for (const u of lvl.units) for (const d of u.days) for (const st of d.steps) {
   if (st.kind !== "intro") continue;
   const parts: IntroPart[] = [];
   let at = 0;
+  const plain = (a: number, b: number) => { if (b > a) parts.push(...splitPlain(st.fr.slice(a, b))); };
   for (const m of st.fr.matchAll(/«\s*([^»]+?)\s*»/g)) {
     const he = hebrewOf(m[1]);
     if (!he) continue;
-    if (m.index > at) parts.push({ t: st.fr.slice(at, m.index) });
+    plain(at, m.index);
     parts.push({ t: m[1], he });
     at = m.index + m[0].length;
   }
-  if (parts.some((p) => p.he)) {
-    if (at < st.fr.length) parts.push({ t: st.fr.slice(at) });
-    st.parts = parts;
-  }
+  plain(at, st.fr.length);
+  if (parts.some((p) => p.he)) st.parts = parts;
 }
 
 export const ALL_DAYS = COURSE.flatMap((l) => l.units.flatMap((u) => u.days.map((d) => ({ level: l, unit: u, day: d }))));
