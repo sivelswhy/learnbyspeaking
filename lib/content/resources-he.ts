@@ -214,7 +214,7 @@ export const THEMES: Theme[] = [
       { he: "לקנות", tr: "liknot", fr: "acheter" }, { he: "לשלם", tr: "leshalem", fr: "payer" }, { he: "לפגוש", tr: "lifgosh", fr: "rencontrer" },
       { he: "לחכות", tr: "lekhakot", fr: "attendre" }, { he: "לנסוע", tr: "linso'a", fr: "voyager, partir (en véhicule)" }, { he: "לישון", tr: "lishon", fr: "dormir" },
       { he: "לחזור", tr: "lakhzor", fr: "revenir, rentrer" }, { he: "לצאת", tr: "latset", fr: "sortir" }, { he: "לעזור", tr: "la'azor", fr: "aider" },
-      { he: "לפתוח", tr: "liftoakh", fr: "ouvrir" }, { he: "לסגור", tr: "lisgor", fr: "fermer" }, { he: "להתקשר", tr: "lehitkasher", fr: "appeler (au téléphone)" },
+      { he: "לפתוח", tr: "lifto'akh", fr: "ouvrir" }, { he: "לסגור", tr: "lisgor", fr: "fermer" }, { he: "להתקשר", tr: "lehitkasher", fr: "appeler (au téléphone)" },
       { he: "לשלוח", tr: "lishlo'akh", fr: "envoyer" }, { he: "לשכוח", tr: "lishkoakh", fr: "oublier" }, { he: "לזכור", tr: "lizkor", fr: "se souvenir" },
     ],
   },
