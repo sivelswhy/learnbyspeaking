@@ -53,6 +53,7 @@ private struct PracticeBody: View {
             Button("Continuer") {
                 let s = summary ?? (nil, 30, 0, 0)
                 store.completeActivity(day.id, "speaking", fluency: s.fluency.map(Double.init))
+                store.addWords(day.cards(g))
                 store.addSession(SessionRecord(id: "p-\(Int(Date().timeIntervalSince1970 * 1000))", date: nowISO(), scenarioId: "daily", title: "Entraînement · \(day.title)", seconds: max(30, s.seconds), turns: s.turns))
                 nav.open(.day(day.id))
             }.buttonStyle(Btn(full: true)).frame(maxWidth: 384)

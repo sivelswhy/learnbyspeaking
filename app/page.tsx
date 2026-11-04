@@ -16,7 +16,7 @@ import { ToolChat } from "@/components/ToolChat";
 import { TutorHub } from "@/components/TutorHub";
 import { Vocab } from "@/components/Vocab";
 import { useLoadState } from "@/components/LlmSetup";
-import { ALL_DAYS, type Day } from "@/lib/content/course-he";
+import { ALL_DAYS, dayCards, type Day } from "@/lib/content/course-he";
 import { LANGUAGES, SCENARIOS, TARGET_LANGS, type Scenario } from "@/lib/languages";
 import { hasWebGPU, warmIfCached } from "@/lib/llm";
 import { setVoiceEnabled } from "@/lib/voice";
@@ -185,6 +185,8 @@ export default function Page() {
         <SpeakingPractice day={screen.day} profile={profile} llm={st.llm} onExit={() => setScreen({ t: "day", day: screen.day })}
           onDone={(r) => {
             st.completeActivity(screen.day.id, "speaking", r.fluency);
+            // Les phrases du jour entrent dans les cartes de révision espacée.
+            st.addWords(dayCards(screen.day).map((l) => ({ word: l.he[profile.gender ?? "m"], transliteration: l.tr[profile.gender ?? "m"], meaning: l.fr })));
             // L'entraînement compte dans le temps de pratique et la série (séance sans note).
             st.addSession({ id: `p-${Date.now()}`, date: new Date().toISOString(), scenarioId: "daily", title: `Entraînement · ${screen.day.title}`, seconds: Math.max(30, r.seconds), turns: r.turns, corrections: [], words: [] });
             setScreen({ t: "day", day: screen.day });

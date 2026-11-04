@@ -35,6 +35,18 @@ export function linesOf(s: Step): Line[] {
   }
 }
 
+/** Phrases à retenir d'un jour (clé, phrases répétées, trous, réponses modèles) : elles entrent dans les cartes de révision espacée. */
+export function dayCards(day: Day): Line[] {
+  const out: Line[] = [day.key];
+  for (const s of day.steps) {
+    if (s.kind === "repeat" || s.kind === "fill") out.push(s.line);
+    else if (s.kind === "answer") out.push(s.a);
+    else if (s.kind === "swap") out.push(s.to);
+  }
+  const seen = new Set<string>();
+  return out.filter((l) => (seen.has(l.fr) ? false : (seen.add(l.fr), true)));
+}
+
 /** Phrase à trou : le mot caché devient « ___ » (hébreu et translittération). */
 export function blanked(line: Line, blank: { he: G; tr: G }, gender: Gender): { he: string; tr: string } {
   const cut = (text: string, word: string) => (word && text.includes(word) ? text.replace(word, "___") : text);

@@ -135,6 +135,24 @@ struct Day: Codable, Hashable, Identifiable {
     let steps: [Step]
     let scenario: DayScenario
 }
+extension Day {
+    /// Phrases à retenir (clé, phrases répétées, trous, réponses modèles) : elles entrent dans les cartes de révision espacée.
+    func cards(_ g: Gender) -> [NewWord] {
+        var out: [Line] = [key]
+        for s in steps {
+            switch s {
+            case .repeatLine(let l), .fill(let l, _): out.append(l)
+            case .answer(_, let a): out.append(a)
+            case .swap(_, _, let t): out.append(t)
+            default: break
+            }
+        }
+        var seen = Set<String>()
+        return out.filter { seen.insert($0.fr).inserted }.map { NewWord(word: $0.he(g), transliteration: $0.tr(g), meaning: $0.fr) }
+    }
+}
+
+
 struct Unit: Codable, Hashable, Identifiable { let id: String; let title: String; let days: [Day] }
 struct CourseLevel: Codable, Hashable, Identifiable { let id: String; let title: String; let cefr: String; let units: [Unit] }
 
