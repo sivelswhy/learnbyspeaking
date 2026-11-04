@@ -57,7 +57,7 @@ private struct PracticeBody: View {
                 store.addWords(day.cards(g))
                 store.addSession(SessionRecord(id: "p-\(Int(Date().timeIntervalSince1970 * 1000))", date: nowISO(), scenarioId: "daily", title: "Entraînement · \(day.title)", seconds: max(30, s.seconds), turns: s.turns))
                 nav.open(.day(day.id))
-            }.buttonStyle(Btn(full: true)).frame(maxWidth: 384)
+            }.buttonStyle(Btn(full: true)).keyboardShortcut(.defaultAction).frame(maxWidth: 384)
         }.padding(24).frame(maxWidth: 768).frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -93,10 +93,10 @@ private struct PracticeBody: View {
                     if case .intro = step {
                         Text("TOUCHE POUR CONTINUER\(countdown.map { " · SUITE DANS \($0)…" } ?? "")").font(.app(14)).tracking(0.6).foregroundStyle(Palette.muted)
                     } else if case .listen = step {
-                        if solved { Button("Continuer", action: next).buttonStyle(Btn(full: true, height: 48)) }
+                        if solved { Button("Continuer", action: next).buttonStyle(Btn(full: true, height: 48)).keyboardShortcut(.defaultAction) }
                         else { Button("PASSER", action: next).buttonStyle(.plain).font(.app(14)).tracking(0.6).foregroundStyle(Palette.muted).frame(maxWidth: .infinity, minHeight: 48) }
                     } else if heard != nil {
-                        Button("Continuer", action: next).buttonStyle(Btn(full: true, height: 48))
+                        Button("Continuer", action: next).buttonStyle(Btn(full: true, height: 48)).keyboardShortcut(.defaultAction)
                     } else {
                         Button("PASSER", action: next).buttonStyle(.plain).font(.app(14)).tracking(0.6).foregroundStyle(Palette.muted).frame(maxWidth: .infinity, minHeight: 48)
                     }
