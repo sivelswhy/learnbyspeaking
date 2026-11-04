@@ -837,6 +837,23 @@ export const COURSE: CourseLevel[] = [
         ],
       },
       {
+        id: "u20", title: "Lire dans la vraie vie",
+        days: [
+          readDay("u20d1", "Panneaux et affiches", "Dans la rue, les panneaux s'écrivent sans voyelles et en lettres simples. Voici ceux que tu croiseras tous les jours : l'entrée, la sortie, ouvert, fermé, pousser, tirer. Lis chaque mot, écoute-le et répète.",
+            [L("כניסה", "knisa", "entrée"), L("יציאה", "yetsi'a", "sortie"), L("פתוח", "patu'akh", "ouvert"), L("סגור", "sagur", "fermé"), L("זהירות", "zehirut", "attention")],
+            L("אסור לעשן", "Asur le'ashen", "Interdit de fumer"), ["אסור", "asur"],
+            [{ say: L("כניסה", "knisa", "entrée"), bad: ["יציאה", "פתוח", "סגור"] }, { say: L("סגור", "sagur", "fermé"), bad: ["פתוח", "יציאה", "זהירות"] }, { say: L("זהירות", "zehirut", "attention"), bad: ["יציאה", "כניסה", "סגור"] }]),
+          readDay("u20d2", "Lire un menu", "Un menu israélien est écrit sans voyelles. Les mots à connaître : mana rishona (entrée), mana ikarit (plat principal), kinuakh (dessert), shtiya (boisson). Lis, écoute et répète.",
+            [L("מנה ראשונה", "mana rishona", "entrée"), L("מנה עיקרית", "mana ikarit", "plat principal"), L("קינוח", "kinuakh", "dessert"), L("שתייה", "shtiya", "boisson"), L("חומוס", "khumus", "houmous")],
+            L("מנה עיקרית ושתייה", "Mana ikarit ve-shtiya", "Un plat principal et une boisson"), ["ושתייה", "ve-shtiya"],
+            [{ say: L("קינוח", "kinuakh", "dessert"), bad: ["שתייה", "חומוס", "מנה עיקרית"] }, { say: L("שתייה", "shtiya", "boisson"), bad: ["קינוח", "חומוס", "מנה ראשונה"] }, { say: L("מנה עיקרית", "mana ikarit", "plat principal"), bad: ["מנה ראשונה", "קינוח", "שתייה"] }]),
+          readDay("u20d3", "Messages et tickets", "Les messages de tous les jours sont courts et sans voyelles : « ani ba-derekh » (je suis en route), « matai ata magia ? » (tu arrives quand ?). Sur un ticket, cherche le prix et le total : « mekhir », « sakh ha-kol ».",
+            [L("אני בדרך", "ani ba-derekh", "je suis en route"), L("מחיר", "mekhir", "prix"), L("סך הכול", "sakh ha-kol", "total"), L("קבלה", "kabala", "reçu"), L("תאריך", "ta'arikh", "date")],
+            L("מתי אתה מגיע?", "Matai ata magia?", "Tu arrives quand ?"), ["מתי", "matai"],
+            [{ say: L("אני בדרך", "ani ba-derekh", "je suis en route"), bad: ["מחיר", "קבלה", "תאריך"] }, { say: L("סך הכול", "sakh ha-kol", "total"), bad: ["מחיר", "קבלה", "תאריך"] }, { say: L("קבלה", "kabala", "reçu"), bad: ["מחיר", "סך הכול", "אני בדרך"] }]),
+        ],
+      },
+      {
         id: "u13", title: "Voyager",
         days: [
           day("u13d1", "À l'hôtel", L("יש לכם חדר פנוי?", "Yesh lakhem kheder panui?", "Vous avez une chambre libre ?"), [
