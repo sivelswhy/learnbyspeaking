@@ -27,6 +27,7 @@ private struct PracticeBody: View {
     // Étape « écoute » : mauvaises réponses déjà essayées, bonne réponse trouvée.
     @State private var tried: [Int] = []
     @State private var solved = false
+    @State private var replayed = false
 
     var g: Gender { (store.profile ?? NEW_PROFILE).g }
     var level: String { (store.profile ?? NEW_PROFILE).level }
@@ -272,13 +273,18 @@ private struct PracticeBody: View {
         heard = r.text
         metrics = analyzeSpeech(r.audio, words: hebrewWordCount(r.text))
         fluencies.append(fluencyScore(metrics, words: hebrewWordCount(r.text), level: level)?.score)
+        // Comme un professeur : si on est loin du modèle, on le redit lentement (une fois par étape), puis on laisse réessayer.
+        if i < day.steps.count, let t = info(day.steps[i])?.target, !t.isEmpty, wordMatch(t, r.text) < 60, !replayed {
+            replayed = true
+            await app.voice.say(t, rate: 0.7)
+        }
     }
 
     private func next() {
         timer?.invalidate(); timer = nil; countdown = nil
         app.voice.stop()
         if ear.listening { ear.stop() }
-        heard = nil; metrics = nil; hint = false; tried = []; solved = false
+        heard = nil; metrics = nil; hint = false; tried = []; solved = false; replayed = false
         if i + 1 >= day.steps.count {
             let turns = day.steps.filter { switch $0 { case .intro, .listen: return false; default: return true } }.count
             summary = (avgFluency(fluencies), Int(Date().timeIntervalSince(t0)), turns, fluencies.compactMap { $0 }.count)

@@ -82,9 +82,29 @@ const free = (q: Line, example: Line): Step => ({ kind: "free", q, example });
 const swap = (instr: string, from: Line, to: Line): Step => ({ kind: "swap", instr, from, to });
 const st = (l: Line): Starter => ({ text: l.he, transliteration: l.tr, translation: { fr: l.fr } });
 
+/** Fin de jour : un récapitulatif de ce qu'on sait dire (sens en français des phrases répétées), puis le jeu de rôle. */
+const recap = (key: Line, steps: Step[]): Step => {
+  const said: string[] = [];
+  for (const x of [key, ...steps.flatMap((s) => (s.kind === "repeat" ? [s.line] : []))]) {
+    const f = x.fr.replace(/\s*\([^)]*\)/g, "").replace(/[?!.…]+$/, "").trim();
+    if (f && !said.includes(f) && said.length < 3) said.push(f);
+  }
+  return intro(`Bravo ! Aujourd'hui tu sais dire : ${said.map((f) => f.charAt(0).toLowerCase() + f.slice(1)).join(" ; ")}. Passe au jeu de rôle pour les utiliser en vraie conversation.`);
+};
+
 const day = (id: string, title: string, key: Line, steps: Step[], role: string, goal: string, starter: Line): Day => ({
-  id, title, key, steps: [...steps, intro("Bravo ! Passe au jeu de rôle pour l'utiliser en vraie conversation.")], scenario: { role, goal, starter: st(starter) },
+  id, title, key, steps: [...steps, recap(key, steps)], scenario: { role, goal, starter: st(starter) },
 });
+
+/** Jour de lecture : mots à voir, entendre et répéter, une phrase de lecture, des écoutes où l'on choisit le mot écrit. */
+const readDay = (id: string, title: string, introFr: string, words: Line[], phrase: Line, blank: [string, string], hear: { say: Line; bad: string[] }[]): Day =>
+  day(id, title, words[0], [
+    intro(introFr),
+    ...words.map(rep),
+    rep(phrase),
+    ...hear.map((h) => listen(h.say, "Quel mot est écrit ? Écoute et choisis.", h.say.he.m, ...h.bad)),
+    fill(phrase, blank[0], blank[1]),
+  ], "un ami qui t'écrit des mots au tableau", "Lire des mots à voix haute", L(g("קרא את המילה הזאת: קפה", "קראי את המילה הזאת: קפה"), g("Kra et ha-mila ha-zot: kafe", "Kri et ha-mila ha-zot: kafe"), "Lis ce mot : café"));
 
 export const COURSE: CourseLevel[] = [
   {
@@ -121,6 +141,47 @@ export const COURSE: CourseLevel[] = [
             ask(L("אפשר לעזור?", "Efshar la'azor?", "Je peux vous aider ?"), L("כן, איפה השירותים?", "Ken, eifo ha-sherutim?", "Oui, où sont les toilettes ?")),
             fill(L(g("אני צריך עזרה", "אני צריכה עזרה"), g("Ani tsarikh ezra", "Ani tsrikha ezra"), "J'ai besoin d'aide"), "עזרה", "ezra"),
           ], "une employée à l'accueil d'un centre commercial", "Demander les toilettes et de l'aide", L("שלום וברוכים הבאים! במה אפשר לעזור?", "Shalom u-vruchim ha-ba'im! Ba-me efshar la'azor?", "Bonjour et bienvenue ! En quoi puis-je vous aider ?")),
+        ],
+      },
+      {
+        id: "u00", title: "Lire l'hébreu",
+        days: [
+          readDay("u00d1", "Les lettres : א ב ג ד ה", "Bienvenue dans l'alphabet. L'hébreu s'écrit et se lit de droite à gauche, sans voyelles. Aujourd'hui, cinq lettres : alef, une lettre muette qui porte une voyelle ; bet, qui fait « b » ; guimel, « g » ; dalet, « d » ; et hé, « h ». Dans ce cours, la translittération en lettres latines t'aide à prononcer : « kh » est un son raclé du fond de la gorge, et « ts » se dit comme dans « tsar ».",
+            [L("אבא", "aba", "papa"), L("בית", "bayit", "maison"), L("גדול", "gadol", "grand"), L("דג", "dag", "poisson"), L("הר", "har", "montagne")],
+            L("הדג גדול", "Ha-dag gadol", "Le poisson est grand"), ["גדול", "gadol"],
+            [{ say: L("דג", "dag", "poisson"), bad: ["גדול", "בית", "הר"] }, { say: L("הר", "har", "montagne"), bad: ["דג", "גדול", "בית"] }, { say: L("בית", "bayit", "maison"), bad: ["אבא", "דג", "הר"] }]),
+          readDay("u00d2", "Les lettres : ו ז ח ט י", "Cinq nouvelles lettres : vav, qui fait « v » ; zayin, « z » ; het, un « kh » raclé du fond de la gorge ; tet, « t » ; et yod, « y ». Attention : vav et yod servent aussi de voyelles, on le verra au jour 7.",
+            [L("ורד", "vered", "rose"), L("זמן", "zman", "temps"), L("חלב", "khalav", "lait"), L("טוב", "tov", "bon"), L("ים", "yam", "mer")],
+            L("הדג טוב", "Ha-dag tov", "Le poisson est bon"), ["טוב", "tov"],
+            [{ say: L("חלב", "khalav", "lait"), bad: ["זמן", "טוב", "ים"] }, { say: L("ים", "yam", "mer"), bad: ["ורד", "חלב", "זמן"] }, { say: L("טוב", "tov", "bon"), bad: ["ורד", "חלב", "גדול"] }]),
+          readDay("u00d3", "Les lettres : כ ל מ נ ס", "Cinq lettres de plus : kaf, qui fait « k » ; lamed, « l » ; mem, « m » ; noun, « n » ; et samekh, « s ». Cinq lettres de l'alphabet ont une forme spéciale en fin de mot : on les verra au jour 6.",
+            [L("כלב", "kelev", "chien"), L("לחם", "lekhem", "pain"), L("מים", "mayim", "eau"), L("נר", "ner", "bougie"), L("ספר", "sefer", "livre")],
+            L("הכלב גדול", "Ha-kelev gadol", "Le chien est grand"), ["כלב", "kelev"],
+            [{ say: L("כלב", "kelev", "chien"), bad: ["לחם", "ספר", "נר"] }, { say: L("מים", "mayim", "eau"), bad: ["ים", "כלב", "לחם"] }, { say: L("ספר", "sefer", "livre"), bad: ["כלב", "נר", "לחם"] }]),
+          readDay("u00d4", "Les lettres : ע פ צ ק ר", "Cinq lettres : ayin, muette en hébreu moderne comme alef ; pé, « p » ; tsadi, « ts » ; qof, « k » comme kaf ; et resh, « r ».",
+            [L("עיר", "ir", "ville"), L("פרח", "perakh", "fleur"), L("צבע", "tseva", "couleur"), L("קפה", "kafe", "café"), L("רחוב", "rekhov", "rue")],
+            L("הקפה חם", "Ha-kafe kham", "Le café est chaud"), ["חם", "kham"],
+            [{ say: L("עיר", "ir", "ville"), bad: ["ים", "רחוב", "קפה"] }, { say: L("קפה", "kafe", "café"), bad: ["פרח", "כלב", "צבע"] }, { say: L("רחוב", "rekhov", "rue"), bad: ["רחוק", "פרח", "צבע"] }]),
+          readDay("u00d5", "Les lettres : ש ת", "Les deux dernières lettres : shin, qui fait « ch » (avec un point à gauche, c'est sin et ça fait « s »), et tav, « t ». Tu connais maintenant les vingt-deux lettres !",
+            [L("שמש", "shemesh", "soleil"), L("תפוח", "tapuakh", "pomme"), L("שלום", "shalom", "bonjour"), L("תודה", "toda", "merci"), L("שבת", "shabat", "samedi")],
+            L("שלום, תודה", "Shalom, toda", "Bonjour, merci"), ["תודה", "toda"],
+            [{ say: L("שלום", "shalom", "bonjour"), bad: ["שמש", "שבת", "תודה"] }, { say: L("תודה", "toda", "merci"), bad: ["תפוח", "שלום", "שמש"] }, { say: L("שבת", "shabat", "samedi"), bad: ["שמש", "שלום", "בית"] }]),
+          readDay("u00d6", "Les cinq lettres finales", "Cinq lettres changent de forme à la fin d'un mot : ך pour kaf, ם pour mem, ן pour noun, ף pour pé et ץ pour tsadi. Le son ne change pas : seule la forme change.",
+            [L("לך", "lekha", "à toi"), L("שלום", "shalom", "bonjour"), L("גן", "gan", "jardin"), L("כסף", "kesef", "argent"), L("עץ", "ets", "arbre")],
+            L("הגן גדול", "Ha-gan gadol", "Le jardin est grand"), ["הגן", "ha-gan"],
+            [{ say: L("גן", "gan", "jardin"), bad: ["דג", "ים", "עץ"] }, { say: L("עץ", "ets", "arbre"), bad: ["עיר", "גן", "צבע"] }, { say: L("כסף", "kesef", "argent"), bad: ["ספר", "כלב", "לך"] }]),
+          readDay("u00d7", "Les voyelles (nikud)", "Les voyelles sont de petits signes sous ou à côté des lettres : le nikud. Il y a cinq sons : a, e, i, o et ou. Les livres d'enfants et les dictionnaires les écrivent. Les journaux et les messages ne les écrivent pas : on les devine. Les lettres vav et yod aident : vav indique o ou ou, et yod indique i.",
+            [L("אַבָּא", "aba", "papa"), L("סֵפֶר", "sefer", "livre"), L("מִים", "mayim", "eau"), L("שָׁלוֹם", "shalom", "bonjour"), L("תּוּת", "tut", "fraise")],
+            L("בּוֹקֶר טוֹב", "Boker tov", "Bonjour (le matin)"), ["טוֹב", "tov"],
+            [{ say: L("סֵפֶר", "sefer", "livre"), bad: ["מִים", "תּוּת", "אַבָּא"] }, { say: L("תּוּת", "tut", "fraise"), bad: ["סֵפֶר", "שָׁלוֹם", "מִים"] }, { say: L("שָׁלוֹם", "shalom", "bonjour"), bad: ["אַבָּא", "תּוּת", "סֵפֶר"] }]),
+          readDay("u00d8", "Les sons difficiles", "Quatre pièges pour un francophone. Un : « kh », la lettre het, se prononce du fond de la gorge, comme la jota espagnole. Deux : alef et ayin sont muets, on entend seulement leur voyelle. Trois : le resh est proche d'un r français. Quatre : l'accent tonique tombe presque toujours sur la dernière syllabe, comme dans toda et shalom.",
+            [L("חלב", "khalav", "lait"), L("כלב", "kelev", "chien"), L("חם", "kham", "chaud"), L("שלום", "shalom", "bonjour"), L("תודה", "toda", "merci")],
+            L("החלב חם", "Ha-khalav kham", "Le lait est chaud"), ["החלב", "ha-khalav"],
+            [{ say: L("חלב", "khalav", "lait"), bad: ["כלב", "חם", "לחם"] }, { say: L("כלב", "kelev", "chien"), bad: ["חלב", "כסף", "כן"] }, { say: L("חם", "kham", "chaud"), bad: ["חלב", "כן", "כלב"] }]),
+          readDay("u00d9", "Lire sans voyelles", "Maintenant tu lis comme un Israélien : sans voyelles. Voici les mots les plus utiles pour parler. Lis chaque mot, écoute-le, et répète.",
+            [L("בבקשה", "bevakasha", "s'il vous plaît"), L("סליחה", "slikha", "pardon"), L("תודה רבה", "toda raba", "merci beaucoup"), L("בוקר טוב", "boker tov", "bonjour (le matin)"), L("להתראות", "lehitra'ot", "au revoir")],
+            L("אני רוצה קפה, בבקשה", "Ani rotse kafe, bevakasha", "Je voudrais un café, s'il vous plaît"), ["בבקשה", "bevakasha"],
+            [{ say: L("בבקשה", "bevakasha", "s'il vous plaît"), bad: ["סליחה", "שלום", "תודה"] }, { say: L("סליחה", "slikha", "pardon"), bad: ["בבקשה", "שלום", "להתראות"] }, { say: L("להתראות", "lehitra'ot", "au revoir"), bad: ["בוקר טוב", "שלום", "תודה"] }]),
         ],
       },
       {
@@ -346,6 +407,58 @@ export const COURSE: CourseLevel[] = [
           ], "un ami qui organise un rendez-vous", "Fixer une heure", L("נפגשים מחר? באיזו שעה נוח לך?", g("Nifgashim makhar? Be-eizo sha'a no'akh lekha?", "Nifgashim makhar? Be-eizo sha'a no'akh lakh?"), "On se voit demain ? À quelle heure ça t'arrange ?")),
         ],
       },
+      {
+        id: "u12", title: "Famille, âge et jours",
+        days: [
+          day("u12d1", "Ma famille", L("יש לי אח ואחות", "Yesh li akh ve-akhot", "J'ai un frère et une sœur"), [
+            intro("Pour parler de ta famille, tu as déjà « yesh li » (j'ai). Ajoute « sheli » (à moi) après le nom : aba sheli, mon père ; ima sheli, ma mère."),
+            rep(L("יש לי שני ילדים", "Yesh li shnei yeladim", "J'ai deux enfants")),
+            rep(L("אבא שלי עובד בבנק", "Aba sheli oved ba-bank", "Mon père travaille dans une banque")),
+            rep(L("אמא שלי גרה בליון", "Ima sheli gara be-Lyon", "Ma mère habite à Lyon")),
+            rep(L(g("אני נשוי", "אני נשואה"), g("Ani nasui", "Ani nesu'a"), "Je suis marié(e)")),
+            rep(L(g("אני רווק", "אני רווקה"), g("Ani ravak", "Ani revaka"), "Je suis célibataire")),
+            listen(L("יש לה שתי אחיות", "Yesh la shtei akhayot", "Elle a deux sœurs"), "Qui a deux sœurs ?", "Elle", "Moi", "Lui", "Toi"),
+            swap("Parle de ta mère au lieu de ton père.", L("אבא שלי עובד בבנק", "Aba sheli oved ba-bank", "Mon père travaille dans une banque"), L("אמא שלי עובדת בבנק", "Ima sheli ovedet ba-bank", "Ma mère travaille dans une banque")),
+            fill(L("אמא שלי גרה בליון", "Ima sheli gara be-Lyon", "Ma mère habite à Lyon"), "גרה", "gara"),
+            ask(L("יש לך ילדים?", g("Yesh lekha yeladim?", "Yesh lakh yeladim?"), "Tu as des enfants ?"), L("כן, יש לי שני ילדים", "Ken, yesh li shnei yeladim", "Oui, j'ai deux enfants")),
+            free(L(g("ספר לי על המשפחה שלך", "ספרי לי על המשפחה שלך"), g("Saper li al ha-mishpakha shelkha", "Sapri li al ha-mishpakha shelakh"), "Parle-moi de ta famille"), L("יש לי אח ואחות. אבא שלי עובד בבנק", "Yesh li akh ve-akhot. Aba sheli oved ba-bank", "J'ai un frère et une sœur. Mon père travaille dans une banque")),
+          ], "un collègue qui veut mieux te connaître", "Parler de ta famille", L(g("ספר לי על המשפחה שלך", "ספרי לי על המשפחה שלך"), g("Saper li al ha-mishpakha shelkha", "Sapri li al ha-mishpakha shelakh"), "Parle-moi de ta famille")),
+          day("u12d2", "L'âge", L(g("אני בן שלושים", "אני בת שלושים"), g("Ani ben shloshim", "Ani bat shloshim"), "J'ai trente ans"), [
+            intro("En hébreu, on ne « a » pas un âge : on est « fils de » ou « fille de » tant d'années. Un homme dit « ben », une femme dit « bat » : ani ben shloshim, ani bat shloshim."),
+            rep(L(g("בן כמה אתה?", "בת כמה את?"), g("Ben kama ata?", "Bat kama at?"), "Tu as quel âge ?")),
+            rep(L(g("אני בן שלושים", "אני בת שלושים"), g("Ani ben shloshim", "Ani bat shloshim"), "J'ai trente ans")),
+            rep(L("הבת שלי בת שבע", "Ha-bat sheli bat sheva", "Ma fille a sept ans")),
+            rep(L("הוא בן ארבעים וחמש", "Hu ben arba'im ve-khamesh", "Il a quarante-cinq ans")),
+            listen(L("אני בת עשרים ושמונה", "Ani bat esrim ve-shmone", "J'ai vingt-huit ans"), "Quel âge a-t-elle ?", "Vingt-huit ans", "Dix-huit ans", "Trente-huit ans", "Quatre-vingt-deux ans"),
+            swap("Dis vingt-cinq ans au lieu de trente.", L(g("אני בן שלושים", "אני בת שלושים"), g("Ani ben shloshim", "Ani bat shloshim"), "J'ai trente ans"), L(g("אני בן עשרים וחמש", "אני בת עשרים וחמש"), g("Ani ben esrim ve-khamesh", "Ani bat esrim ve-khamesh"), "J'ai vingt-cinq ans")),
+            fill(L("הוא בן ארבעים וחמש", "Hu ben arba'im ve-khamesh", "Il a quarante-cinq ans"), "ארבעים", "arba'im"),
+            free(L(g("בן כמה אתה?", "בת כמה את?"), g("Ben kama ata?", "Bat kama at?"), "Tu as quel âge ?"), L(g("אני בן שלושים", "אני בת שלושים"), g("Ani ben shloshim", "Ani bat shloshim"), "J'ai trente ans")),
+          ], "un médecin qui remplit ta fiche", "Donner ton âge et celui de ta famille", L(g("בן כמה אתה?", "בת כמה את?"), g("Ben kama ata?", "Bat kama at?"), "Tu as quel âge ?")),
+          day("u12d3", "Les jours de la semaine", L("היום יום שלישי", "Ha-yom yom shlishi", "Aujourd'hui, c'est mardi"), [
+            intro("La semaine commence le dimanche : yom rishon (premier jour), yom sheni, yom shlishi, yom revi'i, yom khamishi, yom shishi, puis shabat, le samedi."),
+            rep(L("היום יום שלישי", "Ha-yom yom shlishi", "Aujourd'hui, c'est mardi")),
+            rep(L("מחר יום רביעי", "Makhar yom revi'i", "Demain, c'est mercredi")),
+            rep(L(g("ביום ראשון אני עובד", "ביום ראשון אני עובדת"), g("Be-yom rishon ani oved", "Be-yom rishon ani ovedet"), "Le dimanche, je travaille")),
+            rep(L(g("אני לא עובד בשבת", "אני לא עובדת בשבת"), g("Ani lo oved ba-shabat", "Ani lo ovedet ba-shabat"), "Je ne travaille pas le samedi")),
+            rep(L(g("אני פנוי ביום חמישי", "אני פנויה ביום חמישי"), g("Ani panui be-yom khamishi", "Ani pnuya be-yom khamishi"), "Je suis libre jeudi")),
+            listen(L("מחר יום שישי", "Makhar yom shishi", "Demain, c'est vendredi"), "Quel jour est demain ?", "Vendredi", "Jeudi", "Dimanche", "Samedi"),
+            swap("Dis demain mercredi au lieu d'aujourd'hui mardi.", L("היום יום שלישי", "Ha-yom yom shlishi", "Aujourd'hui, c'est mardi"), L("מחר יום רביעי", "Makhar yom revi'i", "Demain, c'est mercredi")),
+            fill(L("מחר יום רביעי", "Makhar yom revi'i", "Demain, c'est mercredi"), "רביעי", "revi'i"),
+            ask(L("איזה יום היום?", "Eize yom ha-yom?", "On est quel jour ?"), L("היום יום שלישי", "Ha-yom yom shlishi", "On est mardi")),
+          ], "un ami qui cherche un jour pour se voir", "Dire quel jour tu es libre", L(g("מתי אתה פנוי השבוע?", "מתי את פנויה השבוע?"), g("Matai ata panui ha-shavua?", "Matai at pnuya ha-shavua?"), "Quand es-tu libre cette semaine ?")),
+          day("u12d4", "Le numéro de téléphone", L("מה המספר שלך?", g("Ma ha-mispar shelkha?", "Ma ha-mispar shelakh?"), "C'est quoi ton numéro ?"), [
+            intro("Pour donner un numéro, on dit les chiffres un par un avec la forme féminine : efes (zéro), akhat, shtayim, shalosh… Pour proposer de rester en contact : « titkasher elai » (appelle-moi) ou un message sur WhatsApp."),
+            rep(L(g("מה המספר שלך?", "מה המספר שלך?"), g("Ma ha-mispar shelkha?", "Ma ha-mispar shelakh?"), "C'est quoi ton numéro ?")),
+            rep(L("המספר שלי אפס חמש אפס", "Ha-mispar sheli efes khamesh efes", "Mon numéro, c'est zéro cinq zéro")),
+            rep(L(g("אפשר את המספר שלך?", "אפשר את המספר שלך?"), g("Efshar et ha-mispar shelkha?", "Efshar et ha-mispar shelakh?"), "Je peux avoir ton numéro ?")),
+            rep(L(g("תתקשר אליי", "תתקשרי אליי"), g("Titkasher elai", "Titkashri elai"), "Appelle-moi")),
+            listen(L("המספר שלי אפס חמש אפס", "Ha-mispar sheli efes khamesh efes", "Mon numéro, c'est zéro cinq zéro"), "Quels sont les premiers chiffres ?", "Zéro, cinq, zéro", "Zéro, quatre, zéro", "Cinq, zéro, cinq", "Zéro, cinq, cinq"),
+            swap("Demande le numéro au lieu de l'adresse.", L("מה הכתובת שלך?", g("Ma ha-ktovet shelkha?", "Ma ha-ktovet shelakh?"), "C'est quoi ton adresse ?"), L("מה המספר שלך?", g("Ma ha-mispar shelkha?", "Ma ha-mispar shelakh?"), "C'est quoi ton numéro ?")),
+            fill(L("המספר שלי אפס חמש אפס", "Ha-mispar sheli efes khamesh efes", "Mon numéro, c'est zéro cinq zéro"), "חמש", "khamesh"),
+            free(L(g("מה המספר שלך?", "מה המספר שלך?"), g("Ma ha-mispar shelkha?", "Ma ha-mispar shelakh?"), "C'est quoi ton numéro ?"), L("המספר שלי אפס חמש אפס, שתיים שלוש ארבע", "Ha-mispar sheli efes khamesh efes, shtayim shalosh arba", "Mon numéro, c'est zéro cinq zéro, deux trois quatre")),
+          ], "une nouvelle connaissance qui veut rester en contact", "Échanger vos numéros", L(g("היה כיף! אפשר את המספר שלך?", "היה כיף! אפשר את המספר שלך?"), g("Haya kef! Efshar et ha-mispar shelkha?", "Haya kef! Efshar et ha-mispar shelakh?"), "C'était sympa ! Je peux avoir ton numéro ?")),
+        ],
+      },
     ],
   },
   {
@@ -513,6 +626,112 @@ export const COURSE: CourseLevel[] = [
           ], "un ami qui sort du cinéma", "Réagir avec naturel", L("נו, איך היה הסרט?", "Nu, eikh haya ha-seret?", "Alors, il était comment le film ?")),
         ],
       },
+      {
+        id: "u13", title: "Voyager",
+        days: [
+          day("u13d1", "À l'hôtel", L("יש לכם חדר פנוי?", "Yesh lakhem kheder panui?", "Vous avez une chambre libre ?"), [
+            intro("À la réception, tu peux commencer par « yesh lakhem » (vous avez) : yesh lakhem kheder panui, une chambre libre. Une réservation se dit « hazmana »."),
+            rep(L("יש לכם חדר פנוי?", "Yesh lakhem kheder panui?", "Vous avez une chambre libre ?")),
+            rep(L("הזמנתי חדר על שם כהן", "Hizmanti kheder al shem Cohen", "J'ai réservé une chambre au nom de Cohen")),
+            rep(L("כמה עולה לילה?", "Kama ole layla?", "Combien coûte une nuit ?")),
+            rep(L("ארוחת הבוקר כלולה?", "Arukhat ha-boker kelula?", "Le petit-déjeuner est compris ?")),
+            rep(L("מה הסיסמה של הוויפי?", "Ma ha-sisma shel ha-wifi?", "C'est quoi le mot de passe du wifi ?")),
+            listen(L("ארוחת הבוקר כלולה", "Arukhat ha-boker kelula", "Le petit-déjeuner est compris"), "Que dit le réceptionniste ?", "Le petit-déjeuner est compris", "Le petit-déjeuner est payant", "La chambre est occupée", "Le wifi est en panne"),
+            swap("Demande deux nuits au lieu de trois.", L("שלושה לילות, בבקשה", "Shlosha leilot, bevakasha", "Trois nuits, s'il vous plaît"), L("שני לילות, בבקשה", "Shnei leilot, bevakasha", "Deux nuits, s'il vous plaît")),
+            fill(L("יש לכם חדר פנוי?", "Yesh lakhem kheder panui?", "Vous avez une chambre libre ?"), "פנוי", "panui"),
+            ask(L("כמה לילות?", "Kama leilot?", "Combien de nuits ?"), L("שלושה לילות, בבקשה", "Shlosha leilot, bevakasha", "Trois nuits, s'il vous plaît")),
+          ], "un réceptionniste d'hôtel", "Réserver une chambre et poser des questions pratiques", L(g("שלום, ברוך הבא! יש לך הזמנה?", "שלום, ברוכה הבאה! יש לך הזמנה?"), g("Shalom, baruch ha-ba! Yesh lekha hazmana?", "Shalom, brukha ha-ba'a! Yesh lakh hazmana?"), "Bonjour, bienvenue ! Vous avez une réservation ?")),
+          day("u13d2", "Les transports", L("כרטיס אחד לירושלים, בבקשה", "Kartis ekhad li-Yerushalayim, bevakasha", "Un billet pour Jérusalem, s'il vous plaît"), [
+            intro("À la gare ou à l'arrêt : « kartis » (billet), « kav » (ligne), « rakevet » (train), « otobus » (bus). Un aller-retour se dit « halokh vekhazor »."),
+            rep(L("כרטיס אחד לירושלים, בבקשה", "Kartis ekhad li-Yerushalayim, bevakasha", "Un billet pour Jérusalem, s'il vous plaît")),
+            rep(L("מאיפה יוצא האוטובוס?", "Me'eifo yotse ha-otobus?", "D'où part le bus ?")),
+            rep(L("מתי יוצאת הרכבת הבאה?", "Matai yotset ha-rakevet ha-ba'a?", "Quand part le prochain train ?")),
+            rep(L("זה הקו הנכון?", "Ze ha-kav ha-nakhon?", "C'est la bonne ligne ?")),
+            rep(L("הרכבת מאחרת", "Ha-rakevet me'akheret", "Le train est en retard")),
+            listen(L("הרכבת מאחרת", "Ha-rakevet me'akheret", "Le train est en retard"), "Quel est le problème ?", "Le train est en retard", "Le train est complet", "Le train est annulé", "Le train est en avance"),
+            ask(L("כרטיס לכיוון אחד או הלוך וחזור?", "Kartis le-kivun ekhad o halokh vekhazor?", "Un aller simple ou un aller-retour ?"), L("הלוך וחזור, בבקשה", "Halokh vekhazor, bevakasha", "Un aller-retour, s'il vous plaît")),
+            swap("Demande un aller simple.", L("כרטיס הלוך וחזור, בבקשה", "Kartis halokh vekhazor, bevakasha", "Un aller-retour, s'il vous plaît"), L("כרטיס לכיוון אחד, בבקשה", "Kartis le-kivun ekhad, bevakasha", "Un aller simple, s'il vous plaît")),
+            fill(L("זה הקו הנכון?", "Ze ha-kav ha-nakhon?", "C'est la bonne ligne ?"), "הנכון", "ha-nakhon"),
+          ], "un employé à la gare", "Acheter un billet et te renseigner sur les horaires", L("שלום, במה אפשר לעזור?", "Shalom, ba-ma efshar la'azor?", "Bonjour, en quoi puis-je vous aider ?")),
+          day("u13d3", "Le temps qu'il fait", L("חם היום", "Kham ha-yom", "Il fait chaud aujourd'hui"), [
+            intro("Pour parler du temps : « kham » (chaud), « kar » (froid), « yored geshem » (il pleut). Pour demain, ajoute « yihye » : yihye shimshi, il fera beau."),
+            rep(L("חם היום", "Kham ha-yom", "Il fait chaud aujourd'hui")),
+            rep(L("קר מאוד", "Kar me'od", "Il fait très froid")),
+            rep(L("יורד גשם", "Yored geshem", "Il pleut")),
+            rep(L("מה מזג האוויר מחר?", "Ma mezeg ha-avir makhar?", "Quel temps fera-t-il demain ?")),
+            rep(L("מחר יהיה שמשי", "Makhar yihye shimshi", "Demain, il fera beau")),
+            listen(L("יורד גשם", "Yored geshem", "Il pleut"), "Quel temps fait-il ?", "Il pleut", "Il fait chaud", "Il y a du soleil", "Il neige"),
+            swap("Dis qu'il fait froid au lieu de chaud.", L("חם היום", "Kham ha-yom", "Il fait chaud aujourd'hui"), L("קר היום", "Kar ha-yom", "Il fait froid aujourd'hui")),
+            fill(L("יורד גשם", "Yored geshem", "Il pleut"), "גשם", "geshem"),
+            ask(L("איך מזג האוויר?", "Eikh mezeg ha-avir?", "Il fait quel temps ?"), L("חם מאוד היום", "Kham me'od ha-yom", "Il fait très chaud aujourd'hui")),
+            free(L("מה מזג האוויר בעיר שלך?", "Ma mezeg ha-avir ba-ir shelkha?", "Quel temps fait-il dans ta ville ?"), L("בעיר שלי קר בחורף", "Ba-ir sheli kar ba-khoref", "Dans ma ville, il fait froid en hiver")),
+          ], "un voisin qui parle de la météo", "Parler du temps qu'il fait", L("איזה יום חם, נכון?", "Eize yom kham, nakhon?", "Quelle chaleur aujourd'hui, non ?")),
+          day("u13d4", "Vêtements et couleurs", L(g("אני מחפש חולצה כחולה", "אני מחפשת חולצה כחולה"), g("Ani mekhapes khultsa kekhula", "Ani mekhapeset khultsa kekhula"), "Je cherche une chemise bleue"), [
+            intro("Les couleurs : adom (rouge), kakhol (bleu), yarok (vert), shakhor (noir), lavan (blanc), tsahov (jaune). Elles s'accordent : khultsa kekhula, une chemise bleue ; mikhnasayim shkhorim, un pantalon noir."),
+            rep(L(g("אני מחפש חולצה כחולה", "אני מחפשת חולצה כחולה"), g("Ani mekhapes khultsa kekhula", "Ani mekhapeset khultsa kekhula"), "Je cherche une chemise bleue")),
+            rep(L("יש לכם מכנסיים שחורים?", "Yesh lakhem mikhnasayim shkhorim?", "Vous avez un pantalon noir ?")),
+            rep(L("אפשר למדוד?", "Efshar limdod?", "Je peux essayer ?")),
+            rep(L("זה מתאים לי", "Ze mat'im li", "Ça me va")),
+            rep(L("אני אקח את זה", "Ani ekakh et ze", "Je prends ça")),
+            listen(L("אפשר למדוד?", "Efshar limdod?", "Je peux essayer ?"), "Que demande le client ?", "S'il peut essayer", "S'il peut payer", "S'il y a une promo", "S'il y a une autre couleur"),
+            swap("Demande une chemise rouge.", L("חולצה כחולה", "Khultsa kekhula", "Une chemise bleue"), L("חולצה אדומה", "Khultsa aduma", "Une chemise rouge")),
+            fill(L("זה מתאים לי", "Ze mat'im li", "Ça me va"), "מתאים", "mat'im"),
+            ask(L("איזו מידה?", "Eize mida?", "Quelle taille ?"), L("מידה בינונית", "Mida beinonit", "Taille moyenne")),
+          ], "une vendeuse dans un magasin de vêtements", "Chercher un vêtement, l'essayer et l'acheter", L("שלום! מחפשים משהו מיוחד?", "Shalom! Mekhapsim mashehu meyukhad?", "Bonjour ! Vous cherchez quelque chose de particulier ?")),
+        ],
+      },
+      {
+        id: "u14", title: "Au restaurant",
+        days: [
+          day("u14d1", "Choisir un plat", L("אפשר תפריט, בבקשה?", "Efshar tafrit, bevakasha?", "Je peux avoir le menu, s'il vous plaît ?"), [
+            intro("Pour commencer : « efshar tafrit ? ». Pour choisir, dis « ani ekakh » (je prends) plus le plat, ou demande conseil avec « ma atem mamlitsim ? »."),
+            rep(L("אפשר תפריט, בבקשה?", "Efshar tafrit, bevakasha?", "Je peux avoir le menu, s'il vous plaît ?")),
+            rep(L("מה אתם ממליצים?", "Ma atem mamlitsim?", "Qu'est-ce que vous recommandez ?")),
+            rep(L("מה המנה היומית?", "Ma ha-mana ha-yomit?", "C'est quoi le plat du jour ?")),
+            rep(L("אני אתחיל עם מרק", "Ani atkhil im marak", "Je commence par une soupe")),
+            rep(L("אני אקח את הסלט", "Ani ekakh et ha-salat", "Je prends la salade")),
+            listen(L("מה המנה היומית?", "Ma ha-mana ha-yomit?", "C'est quoi le plat du jour ?"), "Que demande le client ?", "Le plat du jour", "L'addition", "Le prix", "La carte des vins"),
+            swap("Prends la soupe au lieu de la salade.", L("אני אקח את הסלט", "Ani ekakh et ha-salat", "Je prends la salade"), L("אני אקח את המרק", "Ani ekakh et ha-marak", "Je prends la soupe")),
+            fill(L("אפשר תפריט, בבקשה?", "Efshar tafrit, bevakasha?", "Je peux avoir le menu, s'il vous plaît ?"), "תפריט", "tafrit"),
+            ask(L(g("מה תרצה לאכול?", "מה תרצי לאכול?"), g("Ma tirtse le'ekhol?", "Ma tirtsi le'ekhol?"), "Qu'est-ce que vous voulez manger ?"), L("אני אקח את הסלט, בבקשה", "Ani ekakh et ha-salat, bevakasha", "Je prends la salade, s'il vous plaît")),
+          ], "un serveur dans un restaurant de Tel-Aviv", "Demander la carte, te faire conseiller et commander", L("ערב טוב! הנה התפריט.", "Erev tov! Hine ha-tafrit.", "Bonsoir ! Voici le menu.")),
+          day("u14d2", "Allergies et régimes", L(g("אני צמחוני", "אני צמחונית"), g("Ani tsimkhoni", "Ani tsimkhonit"), "Je suis végétarien(ne)"), [
+            intro("Pour dire ce que tu ne manges pas : « ani » plus ton régime, ou « bli » (sans) plus l'ingrédient : bli batsal, sans oignon. Une allergie : « ani alergi le- » (je suis allergique à)."),
+            rep(L(g("אני צמחוני", "אני צמחונית"), g("Ani tsimkhoni", "Ani tsimkhonit"), "Je suis végétarien(ne)")),
+            rep(L(g("אני אלרגי לאגוזים", "אני אלרגית לאגוזים"), g("Ani alergi le-egozim", "Ani alergit le-egozim"), "Je suis allergique aux noix")),
+            rep(L("יש בזה בשר?", "Yesh be-ze basar?", "Il y a de la viande dedans ?")),
+            rep(L("אפשר בלי בצל?", "Efshar bli batsal?", "Je peux avoir ça sans oignon ?")),
+            rep(L("בלי גלוטן, בבקשה", "Bli gluten, bevakasha", "Sans gluten, s'il vous plaît")),
+            listen(L("יש בזה בשר?", "Yesh be-ze basar?", "Il y a de la viande dedans ?"), "Que demande le client ?", "S'il y a de la viande", "S'il y a du poisson", "S'il y a du fromage", "S'il y a du pain"),
+            swap("Demande sans ail au lieu de sans oignon.", L("אפשר בלי בצל?", "Efshar bli batsal?", "Je peux avoir ça sans oignon ?"), L("אפשר בלי שום?", "Efshar bli shum?", "Je peux avoir ça sans ail ?")),
+            fill(L(g("אני אלרגי לאגוזים", "אני אלרגית לאגוזים"), g("Ani alergi le-egozim", "Ani alergit le-egozim"), "Je suis allergique aux noix"), "לאגוזים", "le-egozim"),
+            ask(L(g("יש משהו שאתה לא אוכל?", "יש משהו שאת לא אוכלת?"), g("Yesh mashehu she-ata lo okhel?", "Yesh mashehu she-at lo okhelet?"), "Il y a quelque chose que tu ne manges pas ?"), L(g("אני צמחוני", "אני צמחונית"), g("Ani tsimkhoni", "Ani tsimkhonit"), "Je suis végétarien(ne)")),
+          ], "un serveur attentif", "Expliquer ton régime ou ton allergie", L(g("יש משהו שאתה לא אוכל?", "יש משהו שאת לא אוכלת?"), g("Yesh mashehu she-ata lo okhel?", "Yesh mashehu she-at lo okhelet?"), "Il y a quelque chose que tu ne manges pas ?")),
+          day("u14d3", "Faire une remarque", L("המרק קר", "Ha-marak kar", "La soupe est froide"), [
+            intro("Pour signaler un problème poliment : décris-le simplement (« ha-marak kar ») puis demande une solution : « efshar lehakhlif ? » (on peut changer ?)."),
+            rep(L("המרק קר", "Ha-marak kar", "La soupe est froide")),
+            rep(L("יש טעות בחשבון", "Yesh ta'ut ba-kheshbon", "Il y a une erreur dans l'addition")),
+            rep(L("לא הזמנו את זה", "Lo hizmanu et ze", "Nous n'avons pas commandé ça")),
+            rep(L("אפשר להחליף?", "Efshar lehakhlif?", "On peut changer ?")),
+            rep(L("הכול היה טעים, תודה", "Ha-kol haya ta'im, toda", "Tout était bon, merci")),
+            listen(L("יש טעות בחשבון", "Yesh ta'ut ba-kheshbon", "Il y a une erreur dans l'addition"), "Quel est le problème ?", "Une erreur dans l'addition", "Un plat froid", "Un plat manquant", "Un verre cassé"),
+            swap("Dis que le plat est froid, pas la soupe.", L("המרק קר", "Ha-marak kar", "La soupe est froide"), L("המנה קרה", "Ha-mana kara", "Le plat est froid")),
+            fill(L("אפשר להחליף?", "Efshar lehakhlif?", "On peut changer ?"), "להחליף", "lehakhlif"),
+            ask(L("משהו לא בסדר?", "Mashehu lo beseder?", "Quelque chose ne va pas ?"), L("המרק קר, אפשר להחליף?", "Ha-marak kar, efshar lehakhlif?", "La soupe est froide, on peut changer ?")),
+          ], "un serveur qui vient prendre ton avis", "Signaler un problème avec politesse", L("הכול בסדר? אפשר לעזור במשהו?", "Ha-kol beseder? Efshar la'azor be-mashehu?", "Tout va bien ? Je peux vous aider en quelque chose ?")),
+          day("u14d4", "Payer et partir", L("אפשר לחלק את החשבון?", "Efshar lekhalek et ha-kheshbon?", "On peut partager l'addition ?"), [
+            intro("Pour payer à plusieurs : « efshar lekhalek ? » (on peut partager ?). Pour demander si le service est compris : « ha-sherut kalul ? ». En partant, on remercie : « toda, erev metsuyan »."),
+            rep(L("אפשר לחלק את החשבון?", "Efshar lekhalek et ha-kheshbon?", "On peut partager l'addition ?")),
+            rep(L("השירות כלול?", "Ha-sherut kalul?", "Le service est compris ?")),
+            rep(L(g("אני משלם בכרטיס", "אני משלמת בכרטיס"), g("Ani meshalem be-kartis", "Ani meshalemet be-kartis"), "Je paie par carte")),
+            rep(L("תודה, ערב מצוין", "Toda, erev metsuyan", "Merci, excellente soirée")),
+            listen(L("השירות כלול?", "Ha-sherut kalul?", "Le service est compris ?"), "Que demande le client ?", "Si le service est compris", "Si on peut payer par carte", "Si on peut réserver", "Si la table est libre"),
+            swap("Dis que tu paies en espèces.", L(g("אני משלם בכרטיס", "אני משלמת בכרטיס"), g("Ani meshalem be-kartis", "Ani meshalemet be-kartis"), "Je paie par carte"), L(g("אני משלם במזומן", "אני משלמת במזומן"), g("Ani meshalem be-mezuman", "Ani meshalemet be-mezuman"), "Je paie en espèces")),
+            fill(L("תודה, ערב מצוין", "Toda, erev metsuyan", "Merci, excellente soirée"), "מצוין", "metsuyan"),
+            ask(L("איך תרצו לשלם?", "Eikh tirtsu leshalem?", "Comment voulez-vous payer ?"), L(g("אני משלם בכרטיס", "אני משלמת בכרטיס"), g("Ani meshalem be-kartis", "Ani meshalemet be-kartis"), "Je paie par carte")),
+          ], "un serveur à la fin du repas", "Régler l'addition à plusieurs", L("הנה החשבון.", "Hine ha-kheshbon.", "Voici l'addition.")),
+        ],
+      },
     ],
   },
   {
@@ -638,6 +857,59 @@ export const COURSE: CourseLevel[] = [
             ask(L("פה או לקחת?", "Po o lakakhat?", "Sur place ou à emporter ?"), L("לקחת, בבקשה", "Lakakhat, bevakasha", "À emporter, s'il vous plaît")),
             swap("Passe de « je veux » à la façon polie.", L("אני רוצה קפה", g("Ani rotse kafe", "Ani rotsa kafe"), "Je veux un café"), L("אפשר קפה?", "Efshar kafe?", "Je peux avoir un café ?")),
           ], "un barista dans un café de Tel-Aviv", "Commander naturellement et répondre à « sur place ou à emporter ? »", L("היי, מה אפשר להביא לך?", g("Hai, ma efshar lehavi lekha?", "Hai, ma efshar lehavi lakh?"), "Salut, qu'est-ce que je peux t'apporter ?")),
+        ],
+      },
+      {
+        id: "u15", title: "Vivre en Israël",
+        days: [
+          day("u15d1", "Shabbat et fêtes", L("שבת שלום", "Shabat shalom", "Bon Shabbat"), [
+            intro("Le shabbat commence le vendredi soir et finit le samedi soir. On se souhaite « shabat shalom », et pour une fête « khag sameakh ». Le vendredi soir, la famille mange ensemble."),
+            rep(L("שבת שלום", "Shabat shalom", "Bon Shabbat")),
+            rep(L("חג שמח", "Khag sameakh", "Bonne fête")),
+            rep(L("ארוחת שישי אצל המשפחה", "Arukhat shishi etsel ha-mishpakha", "Le repas du vendredi chez la famille")),
+            rep(L("הכול סגור בשבת", "Ha-kol sagur ba-shabat", "Tout est fermé le samedi")),
+            rep(L("אין תחבורה ציבורית בשבת", "Ein takhbura tsiburit ba-shabat", "Il n'y a pas de transports en commun le samedi")),
+            listen(L("הכול סגור בשבת", "Ha-kol sagur ba-shabat", "Tout est fermé le samedi"), "Que dit cette personne ?", "Tout est fermé le samedi", "Tout est ouvert le samedi", "Tout est cher le samedi", "Tout est gratuit le samedi"),
+            swap("Dis « bonne fête » au lieu de « bon Shabbat ».", L("שבת שלום", "Shabat shalom", "Bon Shabbat"), L("חג שמח", "Khag sameakh", "Bonne fête")),
+            fill(L("אין תחבורה ציבורית בשבת", "Ein takhbura tsiburit ba-shabat", "Il n'y a pas de transports en commun le samedi"), "בשבת", "ba-shabat"),
+            free(L(g("מה אתה עושה בשבת?", "מה את עושה בשבת?"), g("Ma ata ose ba-shabat?", "Ma at osa ba-shabat?"), "Tu fais quoi le samedi ?"), L(g("אני נח ופוגש חברים", "אני נחה ופוגשת חברים"), g("Ani nakh u-fogesh khaverim", "Ani nakha u-fogeshet khaverim"), "Je me repose et je vois des amis")),
+          ], "un voisin qui t'invite pour le vendredi soir", "Parler du shabbat et accepter une invitation", L(g("שבת שלום! רוצה לבוא לארוחת שישי?", "שבת שלום! רוצה לבוא לארוחת שישי?"), g("Shabat shalom! Rotse lavo le-arukhat shishi?", "Shabat shalom! Rotsa lavo le-arukhat shishi?"), "Shabbat shalom ! Tu veux venir au repas du vendredi ?")),
+          day("u15d2", "Au marché : négocier", L("זה יקר מדי בשבילי", "Ze yakar midai bishvili", "C'est trop cher pour moi"), [
+            intro("Au marché, on discute le prix : c'est normal et poli. On dit « ze yakar midai » (trop cher), on demande une réduction avec « hanakha », et on propose un prix."),
+            rep(L("זה יקר מדי בשבילי", "Ze yakar midai bishvili", "C'est trop cher pour moi")),
+            rep(L(g("תן לי הנחה", "תני לי הנחה"), g("Ten li hanakha", "Teni li hanakha"), "Fais-moi une réduction")),
+            rep(L("מה המחיר הסופי?", "Ma ha-mekhir ha-sofi?", "C'est quoi le prix final ?")),
+            rep(L("אני אקח שלושה בעשרים שקל", "Ani ekakh shlosha be-esrim shekel", "Je prends trois pour vingt shekels")),
+            rep(L("אולי בפעם הבאה", "Ulai ba-pa'am ha-ba'a", "Peut-être la prochaine fois")),
+            listen(L("מה המחיר הסופי?", "Ma ha-mekhir ha-sofi?", "C'est quoi le prix final ?"), "Que demande le client ?", "Le prix final", "Le prix au kilo", "L'heure de fermeture", "Le nom du produit"),
+            swap("Dis « trop cher » au lieu de demander une réduction.", L(g("תן לי הנחה", "תני לי הנחה"), g("Ten li hanakha", "Teni li hanakha"), "Fais-moi une réduction"), L("זה יקר מדי", "Ze yakar midai", "C'est trop cher")),
+            fill(L("זה יקר מדי בשבילי", "Ze yakar midai bishvili", "C'est trop cher pour moi"), "בשבילי", "bishvili"),
+            ask(L(g("כמה אתה מוכן לשלם?", "כמה את מוכנה לשלם?"), g("Kama ata mukhan leshalem?", "Kama at mukhana leshalem?"), "Combien tu es prêt(e) à payer ?"), L(g("אני מוכן לשלם שלושים שקל", "אני מוכנה לשלם שלושים שקל"), g("Ani mukhan leshalem shloshim shekel", "Ani mukhana leshalem shloshim shekel"), "Je suis prêt(e) à payer trente shekels")),
+          ], "un vendeur au marché Carmel", "Discuter le prix et conclure", L("בוא, בוא! רק חמישים שקל, מחיר מיוחד!", "Bo, bo! Rak khamishim shekel, mekhir meyukhad!", "Viens, viens ! Seulement cinquante shekels, prix spécial !")),
+          day("u15d3", "Les démarches", L(g("אני צריך לקבוע תור", "אני צריכה לקבוע תור"), g("Ani tsarikh likbo'a tor", "Ani tsrikha likbo'a tor"), "Je dois prendre rendez-vous"), [
+            intro("Dans une administration, on prend un « tor » (rendez-vous, mais aussi file d'attente). Pour demander qui est le dernier : « mi akharon ba-tor ? »."),
+            rep(L(g("אני צריך לקבוע תור", "אני צריכה לקבוע תור"), g("Ani tsarikh likbo'a tor", "Ani tsrikha likbo'a tor"), "Je dois prendre rendez-vous")),
+            rep(L("מי אחרון בתור?", "Mi akharon ba-tor?", "Qui est le dernier dans la file ?")),
+            rep(L("איזה מסמכים צריך להביא?", "Eize mismakhim tsarikh lehavi?", "Quels documents faut-il apporter ?")),
+            rep(L("אפשר למלא את הטופס?", "Efshar lemale et ha-tofes?", "Je peux remplir le formulaire ?")),
+            rep(L("מתי אפשר לקבל תשובה?", "Matai efshar lekabel tshuva?", "Quand peut-on avoir une réponse ?")),
+            listen(L("מי אחרון בתור?", "Mi akharon ba-tor?", "Qui est le dernier dans la file ?"), "Que demande cette personne ?", "Qui est le dernier dans la file", "Quelle heure il est", "Où est le guichet", "Combien ça coûte"),
+            swap("Demande quand tu auras une réponse, pas quels documents.", L("איזה מסמכים צריך להביא?", "Eize mismakhim tsarikh lehavi?", "Quels documents faut-il apporter ?"), L("מתי אפשר לקבל תשובה?", "Matai efshar lekabel tshuva?", "Quand peut-on avoir une réponse ?")),
+            fill(L("אפשר למלא את הטופס?", "Efshar lemale et ha-tofes?", "Je peux remplir le formulaire ?"), "הטופס", "ha-tofes"),
+            ask(L("במה אפשר לעזור?", "Ba-ma efshar la'azor?", "En quoi puis-je vous aider ?"), L(g("אני צריך לקבוע תור", "אני צריכה לקבוע תור"), g("Ani tsarikh likbo'a tor", "Ani tsrikha likbo'a tor"), "Je dois prendre rendez-vous")),
+          ], "un employé d'une administration", "Prendre rendez-vous et te renseigner sur les documents", L("שלום, במה אפשר לעזור?", "Shalom, ba-ma efshar la'azor?", "Bonjour, en quoi puis-je vous aider ?")),
+          day("u15d4", "Avec les voisins", L(g("שלום, אני השכן החדש", "שלום, אני השכנה החדשה"), g("Shalom, ani ha-shakhen ha-khadash", "Shalom, ani ha-shkhena ha-khadasha"), "Bonjour, je suis le nouveau voisin"), [
+            intro("Avec les voisins, on se présente : « shakhen » (voisin) au masculin, « shkhena » au féminin. Pour signaler un problème avec tact : « ha-ra'ash mafri'a li » (le bruit me dérange), puis une demande polie."),
+            rep(L(g("שלום, אני השכן החדש", "שלום, אני השכנה החדשה"), g("Shalom, ani ha-shakhen ha-khadash", "Shalom, ani ha-shkhena ha-khadasha"), "Bonjour, je suis le nouveau voisin")),
+            rep(L("הרעש מפריע לי", "Ha-ra'ash mafri'a li", "Le bruit me dérange")),
+            rep(L("אפשר להנמיך את המוזיקה?", "Efshar lehanmikh et ha-muzika?", "Vous pouvez baisser la musique ?")),
+            rep(L(g("אפשר לשאול אותך משהו?", "אפשר לשאול אותך משהו?"), g("Efshar lish'ol otkha mashehu?", "Efshar lish'ol otakh mashehu?"), "Je peux te demander quelque chose ?")),
+            rep(L("תודה על העזרה", "Toda al ha-ezra", "Merci pour l'aide")),
+            listen(L("הרעש מפריע לי", "Ha-ra'ash mafri'a li", "Le bruit me dérange"), "Quel est le problème ?", "Le bruit", "L'odeur", "Le prix", "La poubelle"),
+            swap("Demande de baisser la musique poliment.", L("הרעש מפריע לי", "Ha-ra'ash mafri'a li", "Le bruit me dérange"), L("אפשר להנמיך את המוזיקה?", "Efshar lehanmikh et ha-muzika?", "Vous pouvez baisser la musique ?")),
+            fill(L("תודה על העזרה", "Toda al ha-ezra", "Merci pour l'aide"), "העזרה", "ha-ezra"),
+            free(L("יש לך בעיה עם הרעש?", g("Yesh lekha be'aya im ha-ra'ash?", "Yesh lakh be'aya im ha-ra'ash?"), "Tu as un problème avec le bruit ?"), L("כן, הרעש מפריע לי בלילה", "Ken, ha-ra'ash mafri'a li ba-layla", "Oui, le bruit me dérange la nuit")),
+          ], "un voisin qui sonne à ta porte", "Te présenter et régler un petit problème de voisinage", L("שלום! סליחה על ההפרעה. אפשר לדבר רגע?", "Shalom! Slikha al ha-hafra'a. Efshar ledaber rega?", "Bonjour ! Excusez-moi de vous déranger. On peut parler un instant ?")),
         ],
       },
     ],
@@ -879,6 +1151,8 @@ for (const lvl of COURSE) {
       steps.push(rep(d.key));
       const hear = d.steps.find((x) => x.kind === "listen");
       if (hear) steps.push(hear);
+      const produce = d.steps.find((x) => x.kind === "answer" || x.kind === "free") ?? d.steps.find((x) => x.kind === "fill" || x.kind === "swap");
+      if (produce) steps.push(produce);
     }
     const sc = last.scenario;
     unit.days.push(day(`${unit.id}r`, "Révision", unit.days[0].key, steps, sc.role, sc.goal, { he: sc.starter.text, tr: sc.starter.transliteration, fr: sc.starter.translation.fr ?? "" }));

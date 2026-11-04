@@ -178,6 +178,12 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
         generation += 1
         let gen = generation
         await MainActor.run { speaking = true }
+        // Phrase du cours déjà pré-générée (BlueTTS, voix adam) : on la joue, en version lente pour « réécouter ».
+        if let c = (rate < 0.8 ? clip(text, in: "he", slow: true) : nil) ?? clip(text, in: "he") {
+            await play(c.samples + [Float](repeating: 0, count: Int(c.rate * 0.15)), rate: c.rate, gen: gen)
+            if gen == generation { await MainActor.run { speaking = false } }
+            return
+        }
         // Toujours la voix du modèle : si Piper charge encore, on l'attend (jamais la voix du système).
         var waited = 0
         while piper == nil && waited < 600 && gen == generation { try? await Task.sleep(nanoseconds: 100_000_000); waited += 1 }
@@ -263,8 +269,8 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     }
     private func frenchClip(_ text: String) -> (samples: [Float], rate: Double)? { clip(text, in: "fr") }
     /// Extrait pré-généré (m4a nommé d'après le SHA-1 du texte) : « fr » = voix française des consignes (Phonon), « he » = hébreu des consignes (BlueTTS, voix adam).
-    private func clip(_ text: String, in dir: String) -> (samples: [Float], rate: Double)? {
-        guard let url = Bundle.main.url(forResource: Voice.clipKey(text), withExtension: "m4a", subdirectory: dir),
+    private func clip(_ text: String, in dir: String, slow: Bool = false) -> (samples: [Float], rate: Double)? {
+        guard let url = Bundle.main.url(forResource: Voice.clipKey(text) + (slow ? "_slow" : ""), withExtension: "m4a", subdirectory: dir),
               let f = try? AVAudioFile(forReading: url),
               let buf = AVAudioPCMBuffer(pcmFormat: f.processingFormat, frameCapacity: AVAudioFrameCount(f.length)),
               (try? f.read(into: buf)) != nil, let ch = buf.floatChannelData?[0] else { return nil }
@@ -286,16 +292,8 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
         if gen == generation { await MainActor.run { speaking = false } }
     }
 
-    /// Hébreu d'une consigne : fichier pré-généré s'il existe (BlueTTS, voix adam : scripts/export-hebrew-parts.ts), sinon la voix Shuli.
-    func sayHebrewClip(_ text: String, rate: Double) async {
-        guard let c = clip(text, in: "he") else { await say(text, rate: rate); return }
-        stop()
-        generation += 1
-        let gen = generation
-        await MainActor.run { speaking = true }
-        await play(c.samples + [Float](repeating: 0, count: Int(c.rate * 0.15)), rate: c.rate, gen: gen)
-        if gen == generation { await MainActor.run { speaking = false } }
-    }
+    /// Hébreu d'une consigne : `say` joue le fichier pré-généré s'il existe, sinon la voix Shuli.
+    func sayHebrewClip(_ text: String, rate: Double) async { await say(text, rate: rate) }
 
     /// Consigne d'un cours : le français est lu par la voix du système, les mots hébreux par la voix hébraïque.
     func sayIntro(_ parts: [IntroPart]?, fr: String, g: Gender, rate: Double) async {
