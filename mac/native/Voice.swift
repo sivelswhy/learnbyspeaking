@@ -1,13 +1,13 @@
 import AVFoundation
 
 // Voix de Shuli : Phonikud vocalise le texte, Piper (VITS) le prononce (lib/voice.worker.ts), via onnxruntime en natif.
-// Modèles dans ~/Library/Application Support/LearnBySpeaking/models/voice/ (Phonikud : MIT ; voix « michael » de Phonikud TTS : CC BY-NC ; mesurée sur 90 phrases avec Whisper : 97 % des mots retrouvés contre 92 % pour l'ancienne voix, réglages noise 0,3 / noise_w 0,6).
+// Modèles dans ~/Library/Application Support/LearnBySpeaking/models/voice/ (Phonikud : MIT ; voix « shaul » de Phonikud TTS : CC BY-NC (la voix « michael » a été retirée de l'app le 04/11/2026) ; réglages noise 0,3 / noise_w 0,6).
 // Pas de voix système en hébreu : les modèles de la voix sont requis (téléchargement au premier lancement).
 
 /// Fichiers de la voix, aux révisions figées du site (lib/voiceFiles.ts).
 let VOICE_FILES: [(name: String, url: String, bytes: Int64)] = [
     ("phonikud-1.0.int8.onnx", "https://huggingface.co/Phonikud/phonikud-onnx/resolve/b806189fe1fc0085b1012b7560ffb5e8ecfd72a2/phonikud-1.0.int8.onnx", 307_844_158),
-    ("michael.onnx", "https://huggingface.co/Phonikud/phonikud-tts-checkpoints/resolve/ff64ba389a3833c49a85c58fc51a7060a6984b87/michael.onnx", 63_516_050),
+    ("shaul.onnx", "https://huggingface.co/Phonikud/phonikud-tts-checkpoints/resolve/ff64ba389a3833c49a85c58fc51a7060a6984b87/shaul.onnx", 63_516_050),
     ("piper.config.json", "https://huggingface.co/Phonikud/phonikud-tts-checkpoints/resolve/ff64ba389a3833c49a85c58fc51a7060a6984b87/model.config.json", 7_073),
 ]
 let voiceDir = supportDir.appendingPathComponent("models/voice")
@@ -65,7 +65,7 @@ final class Piper {
     /// Fin de phrase : phonèmes ajoutés avant la fin, pour que le dernier « a » ne soit pas avalé.
     var tail = "..."
 
-    init?(model: String = "michael.onnx") {
+    init?(model: String = "shaul.onnx") {
         guard voiceFilesPresent,
               let n = OrtModel(voiceDir.appendingPathComponent("phonikud-1.0.int8.onnx").path),
               let p = OrtModel(voiceDir.appendingPathComponent(model).path),
@@ -123,9 +123,10 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     private var generation = 0
 
     /// Voix disponibles (menu Dev) et leurs réglages de synthèse.
-    static let models: [(file: String, label: String)] = [("michael.onnx", "michael (par défaut)"), ("shaul.onnx", "shaul")]
-    static let settings: [String: (noise: Float, noiseW: Float)] = ["michael.onnx": (0.3, 0.6), "shaul.onnx": (0.3, 0.6)]
-    @Published var model: String = UserDefaults.standard.string(forKey: "voiceModel") ?? "michael.onnx"
+    static let models: [(file: String, label: String)] = [("shaul.onnx", "shaul (par défaut)")]
+    static let settings: [String: (noise: Float, noiseW: Float)] = ["shaul.onnx": (0.3, 0.6)]
+    // Un ancien choix enregistré (voix retirée) retombe sur la voix par défaut.
+    @Published var model: String = { let m = UserDefaults.standard.string(forKey: "voiceModel"); return Voice.models.contains { $0.file == m } ? m! : "shaul.onnx" }()
 
     /// Change de voix : recharge le modèle choisi (s'il est sur le disque).
     func useModel(_ file: String) {

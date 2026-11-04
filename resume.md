@@ -8,6 +8,7 @@ Analyse de professeur puis plan en 9 étapes, tout exécuté sauf l'accent toniq
 - **Révision espacée** : à la fin d'un entraînement, `dayCards` envoie les phrases du jour dans les cartes (`app/page.tsx`, `PracticeView.swift`).
 - **Contrôle** : `npx jiti scripts/check-course.ts [--all]` (mots nouveaux par jour, étapes valides : une bonne réponse par écoute, mot caché présent, ids uniques).
 - **Voix** : phrases de 3 mots ou moins plus lentes (`lengthScale` 1,5, bruit 0,1 / 0,3 sur Mac) : `Voice.swift`, `lib/voice.ts`. Choisi à l'oreille par l'utilisateur (« אני רעב » mâché).
+- **Voix « michael » retirée de l'app Mac (04/11)** : la voix par défaut est maintenant « shaul » (`Voice.swift`, téléchargée au premier lancement à la place de michael ; le fichier `michael.onnx` peut être supprimé de `~/Library/Application Support/LearnBySpeaking/models/voice/`). Mesure du 03/11 : shaul 92 % de mots retrouvés par Whisper contre 97 % pour michael.
 - **Reste** : accent tonique dans les translittérations (non fait : risque de fautes, pas de convention pour les majuscules) ; relecture par un locuteur natif des jours d'hébreu parlé et des niveaux C1/C2 ; 5 jours B2 chargés en mots nouveaux ; exercices non joués à la main dans l'app.
 - `content.json` et `export-native.ts` portent aussi des changements d'une autre tâche (test de niveau) : pas commités avec le cours.
 
