@@ -1,5 +1,16 @@
 # Résumé — où on en est (02/11/2026, nuit)
 
+## Chantier du cours (04/11/2026) : fait, commité, non poussé
+
+Analyse de professeur puis plan en 9 étapes, tout exécuté sauf l'accent tonique.
+- **Nouveaux types d'étapes** (`lib/content/course-he.ts`, `Step`) : `listen` (compréhension à choix), `fill` (phrase à trou), `free` (réponse libre), `swap` (transformation). Écrans : `components/SpeakingPractice.tsx` et `mac/native/PracticeView.swift` ; décodage Swift dans `Content.swift` (`Step`, `Day.cards`).
+- **Contenu** : 71 jours (avant 36), A1 à C2. Unité 0 « Survie », jours Compter / Il y a / Dizaines / Dire non, unité « Les petits mots » (pronoms collés, smikhut, ba-/la-), un jour d'hébreu parlé par niveau (A1, A2, B1, B2), C1 et C2 (4 jours chacun), un jour « Révision » ajouté automatiquement à la fin de chaque unité (fin de `course-he.ts`).
+- **Révision espacée** : à la fin d'un entraînement, `dayCards` envoie les phrases du jour dans les cartes (`app/page.tsx`, `PracticeView.swift`).
+- **Contrôle** : `npx jiti scripts/check-course.ts [--all]` (mots nouveaux par jour, étapes valides : une bonne réponse par écoute, mot caché présent, ids uniques).
+- **Voix** : phrases de 3 mots ou moins plus lentes (`lengthScale` 1,5, bruit 0,1 / 0,3 sur Mac) : `Voice.swift`, `lib/voice.ts`. Choisi à l'oreille par l'utilisateur (« אני רעב » mâché).
+- **Reste** : accent tonique dans les translittérations (non fait : risque de fautes, pas de convention pour les majuscules) ; relecture par un locuteur natif des jours d'hébreu parlé et des niveaux C1/C2 ; 5 jours B2 chargés en mots nouveaux ; exercices non joués à la main dans l'app.
+- `content.json` et `export-native.ts` portent aussi des changements d'une autre tâche (test de niveau) : pas commités avec le cours.
+
 ## Reprise du 02/11 : en cours
 
 **Dernier push : `814714c` (03/11).** Ne pousser qu'après « push ».
