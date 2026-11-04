@@ -204,6 +204,7 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     /// Sortie audio à format fixe : toutes les voix (Piper 22 050 Hz, Phonon 24 000 Hz) sont ramenées à 24 000 Hz. Reconnecter le lecteur
     /// à un autre format entre deux voix (français puis hébreu) déformait le son (un souffle au lieu du mot).
     private static let outRate = 24_000.0
+    private var connected = false
     /// Volume homogène : la voix hébraïque (Piper) sort ~3 fois moins fort que la voix française (Phonon), ce qui la rendait
     /// quasi inaudible dans une consigne. On remonte chaque extrait au volume cible (jamais de baisse, pic limité à 0,95).
     private static let targetRMS: Float = 0.07
