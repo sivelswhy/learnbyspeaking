@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { RiSendPlaneFill, RiVolumeUpLine } from "react-icons/ri";
 import { LANGUAGES } from "@/lib/languages";
 import { complete, errorMessage, type LlmSettings, type Msg } from "@/lib/llm";
-import { ALL_DAYS, type Line } from "@/lib/content/course-he";
+import { ALL_DAYS, linesOf, type Line } from "@/lib/content/course-he";
 import { ALPHABET, GRAMMAR, PHRASES, THEMES, type Word } from "@/lib/content/resources-he";
 import { MODES, toolSystem, type ModeId } from "@/lib/modes";
 import { translateMessages } from "@/lib/prompts";
@@ -24,7 +24,7 @@ const strip = (w: string) => w.toLowerCase().normalize("NFD").replace(/[\u0300-\
 
 /** Phrases du cours, au genre de l'apprenant. */
 function courseWords(gender: "m" | "f"): Word[] {
-  const lines: Line[] = ALL_DAYS.flatMap(({ day }) => [day.key, ...day.steps.flatMap((s) => (s.kind === "repeat" ? [s.line] : s.kind === "answer" ? [s.q, s.a] : []))]);
+  const lines: Line[] = ALL_DAYS.flatMap(({ day }) => [day.key, ...day.steps.flatMap(linesOf)]);
   return lines.map((l) => ({ he: l.he[gender], tr: l.tr[gender], fr: l.fr }));
 }
 

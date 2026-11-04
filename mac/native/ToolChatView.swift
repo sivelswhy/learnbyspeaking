@@ -57,8 +57,7 @@ private func stripKey(_ w: String) -> String {
 private func lookupKnown(_ q: String, _ g: Gender) -> Word? {
     let k = stripKey(q)
     if k.isEmpty { return nil }
-    let lines: [Line] = Content.allDays.flatMap { d in [d.day.key] + d.day.steps.flatMap { s -> [Line] in
-        switch s { case .repeatLine(let l): return [l]; case .answer(let q, let a): return [q, a]; default: return [] } } }
+    let lines: [Line] = Content.allDays.flatMap { d in [d.day.key] + d.day.steps.flatMap(\.lines) }
     let r = C.resources
     let all: [Word] = r.themes.flatMap(\.words) + r.phrases + r.grammar.flatMap(\.examples) + r.alphabet.map(\.example)
         + lines.map { Word(he: $0.he(g), tr: $0.tr(g), fr: $0.fr, note: nil) }

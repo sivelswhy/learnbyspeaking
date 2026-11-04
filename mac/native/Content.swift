@@ -83,13 +83,21 @@ struct PlacementQuestion: Codable, Hashable {
     let tip: String
 }
 
+struct ListenOption: Codable, Hashable { let fr: String; let ok: Bool? }
+struct Blank: Codable, Hashable { let he: G; let tr: G }
+
+/// Étapes d'une journée d'entraînement (voir lib/content/course-he.ts).
 enum Step: Codable, Hashable {
     case intro(fr: String)
     case repeatLine(Line)
     case answer(q: Line, a: Line)
+    case listen(say: Line, ask: String, options: [ListenOption])
+    case fill(line: Line, blank: Blank)
+    case free(q: Line, example: Line)
+    case swap(instr: String, from: Line, to: Line)
     case other(kind: String)
 
-    private enum K: String, CodingKey { case kind, fr, line, q, a }
+    private enum K: String, CodingKey { case kind, fr, line, q, a, say, ask, options, blank, example, instr, from, to }
     init(from d: Decoder) throws {
         let c = try d.container(keyedBy: K.self)
         let kind = try c.decode(String.self, forKey: .kind)
@@ -97,10 +105,26 @@ enum Step: Codable, Hashable {
         case "intro": self = .intro(fr: try c.decode(String.self, forKey: .fr))
         case "repeat": self = .repeatLine(try c.decode(Line.self, forKey: .line))
         case "answer": self = .answer(q: try c.decode(Line.self, forKey: .q), a: try c.decode(Line.self, forKey: .a))
+        case "listen": self = .listen(say: try c.decode(Line.self, forKey: .say), ask: try c.decode(String.self, forKey: .ask), options: try c.decode([ListenOption].self, forKey: .options))
+        case "fill": self = .fill(line: try c.decode(Line.self, forKey: .line), blank: try c.decode(Blank.self, forKey: .blank))
+        case "free": self = .free(q: try c.decode(Line.self, forKey: .q), example: try c.decode(Line.self, forKey: .example))
+        case "swap": self = .swap(instr: try c.decode(String.self, forKey: .instr), from: try c.decode(Line.self, forKey: .from), to: try c.decode(Line.self, forKey: .to))
         default: self = .other(kind: kind)
         }
     }
     func encode(to e: Encoder) throws {}
+
+    /// Toutes les phrases de l'étape (recherche « Comment dire… ? », vocabulaire).
+    var lines: [Line] {
+        switch self {
+        case .repeatLine(let l), .fill(let l, _): return [l]
+        case .answer(let q, let a): return [q, a]
+        case .listen(let s, _, _): return [s]
+        case .free(let q, let e): return [q, e]
+        case .swap(_, let f, let t): return [f, t]
+        default: return []
+        }
+    }
 }
 
 struct DayScenario: Codable, Hashable { let goal: String; let role: String; let starter: Starter }

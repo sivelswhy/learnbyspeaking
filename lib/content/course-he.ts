@@ -6,10 +6,40 @@ const s = (v: string): G => ({ m: v, f: v });
 const g = (m: string, f: string): G => ({ m, f });
 
 export interface Line { he: G; tr: G; fr: string }
+/** Étapes d'une journée d'entraînement.
+ *  - intro : Shuli explique (français).
+ *  - repeat : écoute puis répète.
+ *  - answer : une question, la réponse modèle est donnée en aide.
+ *  - listen : compréhension, Shuli dit une phrase sans l'écrire, l'apprenant choisit son sens (pas de micro).
+ *  - fill : phrase à trou, l'apprenant dit la phrase entière de mémoire.
+ *  - free : question ouverte, l'apprenant répond avec ses vraies infos (l'exemple n'est qu'une aide).
+ *  - swap : transformer une phrase (changer de genre, de mot) et la dire. */
 export type Step =
   | { kind: "intro"; fr: string }
   | { kind: "repeat"; line: Line }
-  | { kind: "answer"; q: Line; a: Line };
+  | { kind: "answer"; q: Line; a: Line }
+  | { kind: "listen"; say: Line; ask: string; options: { fr: string; ok?: boolean }[] }
+  | { kind: "fill"; line: Line; blank: { he: G; tr: G } }
+  | { kind: "free"; q: Line; example: Line }
+  | { kind: "swap"; instr: string; from: Line; to: Line };
+
+/** Toutes les phrases d'une étape (pour le vocabulaire, la recherche « Comment dire… ? »). */
+export function linesOf(s: Step): Line[] {
+  switch (s.kind) {
+    case "repeat": case "fill": return [s.line];
+    case "answer": return [s.q, s.a];
+    case "listen": return [s.say];
+    case "free": return [s.q, s.example];
+    case "swap": return [s.from, s.to];
+    default: return [];
+  }
+}
+
+/** Phrase à trou : le mot caché devient « ___ » (hébreu et translittération). */
+export function blanked(line: Line, blank: { he: G; tr: G }, gender: Gender): { he: string; tr: string } {
+  const cut = (text: string, word: string) => (word && text.includes(word) ? text.replace(word, "___") : text);
+  return { he: cut(line.he[gender], blank.he[gender]), tr: cut(line.tr[gender], blank.tr[gender]) };
+}
 
 export interface Day {
   id: string;
@@ -29,6 +59,11 @@ const L = (he: G | string, tr: G | string, fr: string): Line => ({
 const intro = (fr: string): Step => ({ kind: "intro", fr });
 const rep = (line: Line): Step => ({ kind: "repeat", line });
 const ask = (q: Line, a: Line): Step => ({ kind: "answer", q, a });
+/** Compréhension : la bonne réponse d'abord, puis les mauvaises (l'ordre est mélangé à l'affichage). */
+const listen = (say: Line, ask: string, good: string, ...bad: string[]): Step => ({ kind: "listen", say, ask, options: [{ fr: good, ok: true }, ...bad.map((fr) => ({ fr }))] });
+const fill = (line: Line, he: G | string, tr: G | string): Step => ({ kind: "fill", line, blank: { he: typeof he === "string" ? s(he) : he, tr: typeof tr === "string" ? s(tr) : tr } });
+const free = (q: Line, example: Line): Step => ({ kind: "free", q, example });
+const swap = (instr: string, from: Line, to: Line): Step => ({ kind: "swap", instr, from, to });
 const st = (l: Line): Starter => ({ text: l.he, transliteration: l.tr, translation: { fr: l.fr } });
 
 const day = (id: string, title: string, key: Line, steps: Step[], role: string, goal: string, starter: Line): Day => ({
@@ -40,6 +75,39 @@ export const COURSE: CourseLevel[] = [
     id: "beg1", title: "Débutant 1", cefr: "A1",
     units: [
       {
+        id: "u0", title: "Survie",
+        days: [
+          day("u0d1", "Je ne comprends pas", L(g("אני לא מבין", "אני לא מבינה"), g("Ani lo mevin", "Ani lo mevina"), "Je ne comprends pas"), [
+            intro("Avant de parler, apprends à te tirer d'affaire. Dire « je ne comprends pas » n'est pas une honte : les Israéliens parlent vite, tout le monde le dit."),
+            rep(L(g("אני לא מבין", "אני לא מבינה"), g("Ani lo mevin", "Ani lo mevina"), "Je ne comprends pas")),
+            rep(L("לאט, בבקשה", "Le'at, bevakasha", "Lentement, s'il te plaît")),
+            rep(L("עוד פעם, בבקשה", "Od pa'am, bevakasha", "Encore une fois, s'il te plaît")),
+            listen(L(g("אתה מדבר אנגלית?", "את מדברת אנגלית?"), g("Ata medaber anglit?", "At medaberet anglit?"), "Tu parles anglais ?"), "Que te demande-t-on ?", "Si tu parles anglais", "Où est l'arrêt de bus", "Comment tu t'appelles", "Quelle heure il est"),
+            ask(L(g("אתה מדבר עברית?", "את מדברת עברית?"), g("Ata medaber ivrit?", "At medaberet ivrit?"), "Tu parles hébreu ?"), L(g("אני מדבר קצת עברית", "אני מדברת קצת עברית"), g("Ani medaber ktsat ivrit", "Ani medaberet ktsat ivrit"), "Je parle un peu hébreu")),
+            swap("Dis-le avec « lentement » à la place de « encore une fois ».", L("עוד פעם, בבקשה", "Od pa'am, bevakasha", "Encore une fois, s'il te plaît"), L("לאט, בבקשה", "Le'at, bevakasha", "Lentement, s'il te plaît")),
+          ], "un passant pressé qui parle très vite", "Dire que tu ne comprends pas et demander de répéter plus lentement", L(g("סליחה, אתה יודע איפה התחנה? אני ממהרת!", "סליחה, את יודעת איפה התחנה? אני ממהרת!"), g("Slikha, ata yode'a eifo ha-takhana? Ani memaheret!", "Slikha, at yoda'at eifo ha-takhana? Ani memaheret!"), "Pardon, tu sais où est l'arrêt ? Je suis pressée !")),
+          day("u0d2", "Comment dit-on… ?", L("איך אומרים … בעברית?", "Eikh omrim … be-ivrit?", "Comment dit-on … en hébreu ?"), [
+            intro("Cette phrase vaut de l'or : « eikh omrim … be-ivrit ? ». Avec elle, tu peux apprendre n'importe quel mot sur le terrain."),
+            rep(L("איך אומרים … בעברית?", "Eikh omrim … be-ivrit?", "Comment dit-on … en hébreu ?")),
+            rep(L("מה זה אומר?", "Ma ze omer?", "Qu'est-ce que ça veut dire ?")),
+            rep(L("איך כותבים את זה?", "Eikh kotvim et ze?", "Comment ça s'écrit ?")),
+            listen(L("זה אומר מים", "Ze omer mayim", "Ça veut dire « eau »"), "Que t'explique-t-on ?", "Ça veut dire « eau »", "Ça veut dire « pain »", "Ça veut dire « café »", "Ça veut dire « maison »"),
+            ask(L(g("אתה מבין?", "את מבינה?"), g("Ata mevin?", "At mevina?"), "Tu comprends ?"), L("לא, לא הבנתי. עוד פעם, בבקשה", "Lo, lo hevanti. Od pa'am, bevakasha", "Non, je n'ai pas compris. Encore une fois, s'il te plaît")),
+            fill(L("איך אומרים … בעברית?", "Eikh omrim … be-ivrit?", "Comment dit-on … en hébreu ?"), "אומרים", "omrim"),
+          ], "un chauffeur de bus qui t'explique le trajet", "Demander de répéter et de traduire un mot", L("זה אוטובוס מספר ארבע, ויורדים בתחנה השלישית.", "Ze otobus mispar arba, ve-yordim ba-takhana ha-shlishit.", "C'est le bus numéro quatre, et on descend au troisième arrêt.")),
+          day("u0d3", "Toilettes et aide", L("איפה השירותים?", "Eifo ha-sherutim?", "Où sont les toilettes ?"), [
+            intro("Trois besoins de base : les toilettes, de l'aide, et un merci poli. « Sherutim » veut dire « services », donc toilettes."),
+            rep(L("איפה השירותים?", "Eifo ha-sherutim?", "Où sont les toilettes ?")),
+            rep(L(g("אני צריך עזרה", "אני צריכה עזרה"), g("Ani tsarikh ezra", "Ani tsrikha ezra"), "J'ai besoin d'aide")),
+            rep(L(g("אתה יכול לעזור לי?", "את יכולה לעזור לי?"), g("Ata yakhol la'azor li?", "At yekhola la'azor li?"), "Tu peux m'aider ?")),
+            rep(L("אין בעיה", "Ein be'aya", "Pas de problème")),
+            listen(L("השירותים בקומה למעלה", "Ha-sherutim ba-koma lemala", "Les toilettes sont à l'étage"), "Que t'indique-t-on ?", "Les toilettes sont à l'étage", "Les toilettes sont à droite", "Le café est fermé", "Il n'y a pas de toilettes"),
+            ask(L("אפשר לעזור?", "Efshar la'azor?", "Je peux vous aider ?"), L("כן, איפה השירותים?", "Ken, eifo ha-sherutim?", "Oui, où sont les toilettes ?")),
+            fill(L(g("אני צריך עזרה", "אני צריכה עזרה"), g("Ani tsarikh ezra", "Ani tsrikha ezra"), "J'ai besoin d'aide"), "עזרה", "ezra"),
+          ], "une employée à l'accueil d'un centre commercial", "Demander les toilettes et de l'aide", L("שלום וברוכים הבאים! במה אפשר לעזור?", "Shalom u-vruchim ha-ba'im! Ba-me efshar la'azor?", "Bonjour et bienvenue ! En quoi puis-je vous aider ?")),
+        ],
+      },
+      {
         id: "u1", title: "Se présenter",
         days: [
           day("u1d1", "Bonjour !", L("שלום! מה נשמע?", "Shalom! Ma nishma?", "Salut ! Ça va ?"), [
@@ -47,12 +115,14 @@ export const COURSE: CourseLevel[] = [
             rep(L("שלום", "Shalom", "Bonjour")),
             rep(L("מה נשמע?", "Ma nishma?", "Ça va ?")),
             ask(L("מה נשמע?", "Ma nishma?", "Ça va ?"), L("הכול בסדר, תודה!", "Hakol beseder, toda!", "Tout va bien, merci !")),
+            intro("Pour renvoyer la question, « et toi ? » change selon la personne : « ve-ata » à un homme, « ve-at » à une femme."),
+            rep(L("ואתה?", "Ve-ata?", "Et toi ? (à un homme)")),
             rep(L("ואת?", "Ve-at?", "Et toi ? (à une femme)")),
           ], "un voisin sympathique que tu croises le matin", "Saluer et demander comment ça va", L("בוקר טוב! מה נשמע?", "Boker tov! Ma nishma?", "Bonjour ! Ça va ?")),
           day("u1d2", "Je m'appelle…", L("קוראים לי…", "Kor'im li…", "Je m'appelle…"), [
-            intro("Pour dire ton prénom, on dit « kor'im li », littéralement « on m'appelle »."),
+            intro("Pour dire ton prénom, on dit « kor'im li », littéralement « on m'appelle ». Remplace Dana par ton prénom."),
             rep(L("קוראים לי…", "Kor'im li…", "Je m'appelle…")),
-            ask(L("איך קוראים לך?", g("Eikh kor'im lekha?", "Eikh kor'im lakh?"), "Comment tu t'appelles ?"), L("קוראים לי …", "Kor'im li + ton prénom", "Je m'appelle + ton prénom")),
+            free(L("איך קוראים לך?", g("Eikh kor'im lekha?", "Eikh kor'im lakh?"), "Comment tu t'appelles ?"), L("קוראים לי דנה", "Kor'im li Dana", "Je m'appelle Dana")),
             rep(L("נעים מאוד!", "Na'im me'od!", "Enchanté(e) !")),
             rep(L("ואיך קוראים לך?", "Ve-eikh kor'im lakh?", "Et toi, comment tu t'appelles ? (à une femme)")),
           ], "une personne que tu rencontres à une soirée", "Te présenter", L("היי! אני דנה. איך קוראים לך?", g("Hai! Ani Dana. Eikh kor'im lekha?", "Hai! Ani Dana. Eikh kor'im lakh?"), "Salut ! Moi c'est Dana. Comment tu t'appelles ?")),

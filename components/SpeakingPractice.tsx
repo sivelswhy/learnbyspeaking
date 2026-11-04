@@ -1,8 +1,8 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RiLightbulbLine, RiMicFill, RiPauseFill, RiRestartLine } from "react-icons/ri";
-import type { Day, Step } from "@/lib/content/course-he";
-import { LANGUAGES } from "@/lib/languages";
+import { blanked, type Day, type Line, type Step } from "@/lib/content/course-he";
+import { LANGUAGES, type Gender } from "@/lib/languages";
 import type { LlmSettings } from "@/lib/llm";
 import { LEVEL_RATE, STT_ERRORS, cancelSpeech, speak, useVoiceInput } from "@/lib/speech";
 import { useSpaceKey } from "@/lib/keys";
@@ -10,6 +10,19 @@ import { avgFluency, fluencyScore, type SpeechMetrics } from "@/lib/speechMetric
 import type { Profile } from "@/lib/types";
 import { Avatar } from "./Avatar";
 import { Btn, Header, wordMatch } from "./ui";
+
+/** Ce que chaque type d'étape à micro demande : phrase affichée, phrase attendue, consigne, phrase dite par Shuli, aide. */
+function info(step: Step, g: Gender) {
+  switch (step.kind) {
+    case "repeat": return { shown: step.line, target: step.line.he[g], verb: "Répète", say: step.line.he[g], help: null as Line | null };
+    case "answer": return { shown: step.q, target: step.a.he[g], verb: "Réponds", say: step.q.he[g], help: step.a };
+    case "fill": return { shown: step.line, target: step.line.he[g], verb: "Complète", say: null, help: step.line };
+    case "swap": return { shown: step.from, target: step.to.he[g], verb: "Transforme", say: step.from.he[g], help: step.to };
+    case "free": return { shown: step.q, target: "", verb: "Réponds", say: step.q.he[g], help: step.example };
+    default: return null;
+  }
+}
+const hebrewWords = (t: string) => t.split(/\s+/).filter((w) => /[\u05d0-\u05ea]/.test(w)).length;
 
 /** Entraînement guidé : Shuli parle (sous-titres), puis l'apprenant répète ou répond à voix haute. */
 export function SpeakingPractice({ day, profile, llm, onExit, onDone }: {
@@ -25,6 +38,9 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: {
   const [heard, setHeard] = useState<string | null>(null);
   const [hint, setHint] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
+  // Étape « écoute » : réponses déjà essayées (mauvaises) et bonne réponse trouvée.
+  const [tried, setTried] = useState<number[]>([]);
+  const [solved, setSolved] = useState(false);
   const [metrics, setMetrics] = useState<SpeechMetrics | null>(null);
   // Fluidité de chaque étape parlée (pauses, débit, hésitations : lib/speechMetrics.ts).
   const fluencies = useRef<(number | null)[]>([]);
@@ -32,6 +48,15 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: {
   const [summary, setSummary] = useState<{ fluency: number | null; seconds: number; turns: number; measured: number } | null>(null);
   const step: Step | undefined = day.steps[i];
   const finished = i >= day.steps.length;
+  const inf = step ? info(step, gnd) : null;
+  // Ordre des réponses de l'étape « écoute » : mélangé (graine fixe) une fois par étape.
+  const order = useMemo(() => {
+    if (step?.kind !== "listen") return [] as number[];
+    const idx = step.options.map((_, k) => k);
+    let seed = (i + 1) * 7919 + day.id.length * 104729;
+    for (let k = idx.length - 1; k > 0; k--) { seed = (seed * 48271) % 2147483647; const j = seed % (k + 1); [idx[k], idx[j]] = [idx[j], idx[k]]; }
+    return idx;
+  }, [i, day.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   // Étape courante : un rappel de fin de parole d'une étape déjà quittée ne doit plus rien déclencher.
   const stepRef = useRef(i);
@@ -42,7 +67,7 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: {
   const voice = useVoiceInput(llm.stt, profile.target, lang.speech, (t, _c, m) => {
     setHeard(t);
     setMetrics(m ?? null);
-    const words = t.split(/\s+/).filter((w) => /[\u05d0-\u05ea]/.test(w)).length;
+    const words = hebrewWords(t);
     fluencies.current.push(fluencyScore(m, words, profile.level)?.score ?? null);
   });
   // Micro ouvert dès l'arrivée sur l'écran : le premier enregistrement ne perd pas le début de la phrase.
@@ -73,9 +98,11 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: {
     setHeard(null);
     setMetrics(null);
     setHint(false);
+    setTried([]);
+    setSolved(false);
     if (stepRef.current + 1 >= day.steps.length) {
       const measured = fluencies.current.filter((f) => f !== null).length;
-      setSummary({ fluency: avgFluency(fluencies.current), seconds: Math.round((Date.now() - t0) / 1000), turns: day.steps.filter((s) => s.kind !== "intro").length, measured });
+      setSummary({ fluency: avgFluency(fluencies.current), seconds: Math.round((Date.now() - t0) / 1000), turns: day.steps.filter((s) => s.kind !== "intro" && s.kind !== "listen").length, measured });
     }
     setI((x) => x + 1);
   }, [voice, day.steps, t0]);
@@ -97,9 +124,10 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: {
           if (n <= 0) next();
         }, 1000);
       });
-    } else {
-      const text = step.kind === "repeat" ? step.line.he[gnd] : step.q.he[gnd];
-      say(text, lang.speech, rate, () => still() && voice.start());
+    } else if (step.kind === "listen") {
+      say(step.say.he[gnd], lang.speech, rate);
+    } else if (inf?.say) {
+      say(inf.say, lang.speech, rate, () => still() && voice.start());
     }
     return () => {
       if (timer.current) clearInterval(timer.current);
@@ -107,7 +135,7 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: {
   }, [i]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => () => cancelSpeech(), []);
-  useSpaceKey(() => (step?.kind === "intro" ? next() : voice.listening ? voice.stop() : voice.transcribing ? undefined : (cancelSpeech(), setHeard(null), voice.start())), !finished);
+  useSpaceKey(() => (step?.kind === "intro" ? next() : step?.kind === "listen" ? (solved ? next() : undefined) : voice.listening ? voice.stop() : voice.transcribing ? undefined : (cancelSpeech(), setHeard(null), voice.start())), !finished);
 
   if (finished) {
     return (
@@ -123,9 +151,12 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: {
     );
   }
 
-  const line = step.kind === "repeat" ? step.line : step.kind === "answer" ? step.q : null;
-  const target = step.kind === "repeat" ? step.line.he[gnd] : step.kind === "answer" ? step.a.he[gnd] : "";
+  const line = inf?.shown ?? null;
+  const target = inf?.target ?? "";
   const match = heard !== null && target ? wordMatch(target, heard) : null;
+  const gap = step.kind === "fill" ? blanked(step.line, step.blank, gnd) : null;
+  const freeOk = step.kind === "free" && heard !== null ? hebrewWords(heard) >= 2 : null;
+  const canHint = inf?.help != null;
 
   return (
     <div className="mx-auto flex h-dvh max-w-lg lg:max-w-3xl flex-col">
@@ -147,24 +178,59 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: {
               <p className="absolute inset-x-4 bottom-4 mx-auto w-fit max-w-full rounded-md bg-[#2b2622]/85 px-3 py-1.5 text-[15px] font-semibold text-white">{step.fr}</p>
             </div>
           </>
+        ) : step.kind === "listen" ? (
+          <div className="w-full rounded-3xl bg-card p-6 shadow-card">
+            <div className="flex justify-center"><Avatar speaking={talking} size={72} mood={solved ? "cheer" : tried.length ? "think" : "happy"} /></div>
+            <span className="mt-4 inline-block rounded-md bg-accent px-3 py-1.5 text-lg font-bold text-accent-ink">{talking ? "Écoute…" : "Écoute et choisis"}</span>
+            <p className="mt-4 text-muted">{step.ask}</p>
+            <div className="mt-4 flex flex-col gap-2">
+              {order.map((k) => {
+                const o = step.options[k];
+                const wrong = tried.includes(k);
+                const right = solved && o.ok;
+                return (
+                  <button key={k} disabled={solved || wrong}
+                    onClick={() => { if (o.ok) setSolved(true); else setTried((t) => [...t, k]); }}
+                    className={`min-h-12 rounded-xl px-4 py-2 text-left font-semibold ${right ? "bg-good text-white" : wrong ? "bg-bg text-muted line-through opacity-60" : "bg-bg text-fg"}`}>
+                    {o.fr}
+                  </button>
+                );
+              })}
+            </div>
+            {tried.length > 0 && !solved && <p className="mt-3 text-sm text-muted">Pas tout à fait. Réécoute et réessaie.</p>}
+            {solved && (
+              <div className="mt-4 rounded-xl bg-soft p-3 text-sm">
+                <p className="text-xs font-semibold uppercase text-accent">Shuli a dit</p>
+                <p className={`${he} text-lg`}>{step.say.he[gnd]}</p>
+                <p className="text-muted">{step.say.tr[gnd]} — {step.say.fr}</p>
+              </div>
+            )}
+            <div className="mt-5 flex justify-center">
+              <button onClick={() => say(step.say.he[gnd], lang.speech, 0.75)} aria-label="Réécouter" className="grid size-12 place-items-center rounded-full bg-bg text-accent">
+                <RiRestartLine aria-hidden className="size-6" />
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="w-full rounded-3xl bg-card p-6 shadow-card">
             <div className="flex justify-center"><Avatar speaking={talking} size={72} mood={match === null ? "happy" : match >= 70 ? "cheer" : "think"} /></div>
             <span className="mt-4 inline-block rounded-md bg-accent px-3 py-1.5 text-lg font-bold text-accent-ink">
-              {talking ? "Écoute…" : voice.opening ? "Ouverture du micro…" : voice.listening ? (step.kind === "repeat" ? "Répète maintenant…" : "Réponds maintenant…") : voice.transcribing ? "Transcription…" : step.kind === "repeat" ? "Répète" : "Réponds"}
+              {talking ? "Écoute…" : voice.opening ? "Ouverture du micro…" : voice.listening ? `${inf!.verb} maintenant…` : voice.transcribing ? "Transcription…" : inf!.verb}
             </span>
+            {step.kind === "swap" && <p className="mt-4 rounded-xl bg-soft px-3 py-2 text-sm font-semibold text-accent">{step.instr}</p>}
+            {step.kind === "free" && <p className="mt-4 text-sm text-muted">Réponds avec tes vraies infos.</p>}
             {line && (
               <>
-                <p className={`${he} mt-6 text-3xl font-semibold leading-snug text-muted`}>{line.he[gnd]}</p>
-                <p className="mt-1 text-muted">{line.tr[gnd]}</p>
+                <p className={`${he} mt-6 text-3xl font-semibold leading-snug text-muted`}>{gap ? gap.he : line.he[gnd]}</p>
+                <p className="mt-1 text-muted">{gap ? gap.tr : line.tr[gnd]}</p>
                 <p className="mt-6">{line.fr}</p>
               </>
             )}
-            {step.kind === "answer" && (hint || heard !== null) && (
+            {inf?.help && (hint || heard !== null) && (
               <div className="mt-4 rounded-xl bg-soft p-3 text-sm">
-                <p className="text-xs font-semibold uppercase text-accent">Tu peux dire</p>
-                <p className={`${he} text-lg`}>{step.a.he[gnd]}</p>
-                <p className="text-muted">{step.a.tr[gnd]} — {step.a.fr}</p>
+                <p className="text-xs font-semibold uppercase text-accent">{step.kind === "free" ? "Par exemple" : "Tu peux dire"}</p>
+                <p className={`${he} text-lg`}>{inf.help.he[gnd]}</p>
+                <p className="text-muted">{inf.help.tr[gnd]} — {inf.help.fr}</p>
               </div>
             )}
             {heard !== null && (
@@ -172,12 +238,15 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: {
                 <p dir="auto" className={he}>Compris : « {heard} »</p>
                 {match !== null && (
                   <p className={match >= 70 ? "text-good" : "text-muted"}>
-                    {match}% des mots {step.kind === "repeat" ? "de la phrase" : "de l'exemple"} retrouvés{match >= 70 ? " — bravo !" : ""}
+                    {match}% des mots {step.kind === "answer" ? "de l'exemple" : "de la phrase"} retrouvés{match >= 70 ? " — bravo !" : ""}
                   </p>
+                )}
+                {freeOk !== null && (
+                  <p className={freeOk ? "text-good" : "text-muted"}>{freeOk ? "Bien : une vraie réponse, avec tes infos !" : "Essaie avec une phrase complète, au moins deux mots."}</p>
                 )}
                 {metrics && (
                   <p className="mt-1 text-xs text-muted">
-                    Fluidité {fluencyScore(metrics, heard.split(/\s+/).filter((w) => /[\u05d0-\u05ea]/.test(w)).length, profile.level)?.score ?? "—"}
+                    Fluidité {fluencyScore(metrics, hebrewWords(heard), profile.level)?.score ?? "—"}
                     {metrics.wpm !== null ? ` · ${metrics.wpm} mots/min` : ""} · {metrics.pauses} pause{metrics.pauses > 1 ? "s" : ""} · réaction {metrics.latency.toFixed(1)} s
                   </p>
                 )}
@@ -194,7 +263,7 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: {
                 className="grid size-20 place-items-center rounded-full bg-bg text-accent disabled:opacity-50">
                 {voice.listening ? <RiPauseFill aria-hidden className="size-10" /> : <RiMicFill aria-hidden className="size-9" />}
               </button>
-              {step.kind === "answer" && (
+              {canHint && (
                 <button onClick={() => setHint(!hint)} aria-label="Aide" className="grid size-12 place-items-center rounded-full bg-bg text-accent">
                   <RiLightbulbLine aria-hidden className="size-6" />
                 </button>
@@ -208,6 +277,10 @@ export function SpeakingPractice({ day, profile, llm, onExit, onDone }: {
       <div className="px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-2 text-center">
         {step.kind === "intro" ? (
           <p className="text-sm uppercase tracking-wide text-muted">Touche pour continuer{countdown !== null ? ` · suite dans ${countdown}…` : ""}</p>
+        ) : step.kind === "listen" ? (
+          solved
+            ? <Btn onClick={next} className="min-h-12 w-full">Continuer</Btn>
+            : <button onClick={next} className="min-h-12 w-full text-sm uppercase tracking-wide text-muted">Passer</button>
         ) : (
           heard !== null
             ? <Btn onClick={next} className="min-h-12 w-full">Continuer</Btn>
