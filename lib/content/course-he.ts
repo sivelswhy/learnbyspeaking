@@ -132,6 +132,16 @@ const verbDay = (id: string, title: string, intro1: string, verbs: VerbSpec[], k
     ...verbs.flatMap(verbSteps),
   ], "un ami qui te demande ce que font les gens autour de toi", "Parler de ce que font les autres : il, elle, nous", L("מה עשיתם אתמול?", "Ma asitem etmol?", "Qu'est-ce que vous avez fait hier ?"));
 
+/** Jour de compréhension : un mini-dialogue entendu à vitesse naturelle, des questions à choix, deux phrases clés à répéter, une réponse libre. */
+const dialogDay = (id: string, title: string, tip: string, dialog: Line, qs: [string, string, ...string[]][], keys: Line[], q: Line, a: Line, role: string, goal: string): Day =>
+  day(id, title, dialog, [
+    intro(tip),
+    ...qs.map(([ask, good, ...bad]) => listen(dialog, ask, good, ...bad)),
+    ...keys.map(rep),
+    ask(q, a),
+    fill(keys[0], keys[0].he.m.split(" ")[0], keys[0].tr.m.split(" ")[0]),
+  ], role, goal, q);
+
 export const COURSE: CourseLevel[] = [
   {
     id: "beg1", title: "Débutant 1", cefr: "A1",
@@ -789,6 +799,41 @@ export const COURSE: CourseLevel[] = [
             fill(L("יש לי ביטוח", "Yesh li bituakh", "J'ai une assurance"), "ביטוח", "bituakh"),
             ask(L("במה אפשר לעזור?", "Ba-ma efshar la'azor?", "En quoi puis-je vous aider ?"), L(g("אני צריך תור לרופא משפחה", "אני צריכה תור לרופא משפחה"), g("Ani tsarikh tor le-rofe mishpakha", "Ani tsrikha tor le-rofe mishpakha"), "Il me faut un rendez-vous chez le médecin de famille")),
           ], "une secrétaire de caisse de santé", "Prendre un rendez-vous médical et demander un document", L("שלום, קופת חולים, במה אפשר לעזור?", "Shalom, kupat kholim, ba-ma efshar la'azor?", "Bonjour, caisse de santé, en quoi puis-je vous aider ?")),
+        ],
+      },
+      {
+        id: "u19", title: "Comprendre les Israéliens",
+        days: [
+          dialogDay("u19d1", "Au café, à vitesse normale", "Un Israélien parle vite et ne dit pas tout. Écoute le dialogue en entier, sans chercher chaque mot : repère seulement les mots que tu connais. Tu peux le réécouter autant de fois que tu veux avec le bouton.",
+            L("שלום, מה אפשר להביא? אפשר קפה הפוך ועוגת גבינה. פה או לקחת? פה. תשבו איפה שנוח.", "Shalom, ma efshar lehavi? Efshar kafe hafukh ve-ugat gvina. Po o lakakhat? Po. Teshvu eifo she-no'akh.", "Bonjour, qu'est-ce que je vous apporte ? Un café au lait et un gâteau au fromage. Sur place ou à emporter ? Sur place. Asseyez-vous où vous voulez."),
+            [["Que commande le client ?", "Un café au lait et un gâteau au fromage", "Un thé et un gâteau au chocolat", "Un café noir seulement", "Un jus et un sandwich"], ["Où va-t-il consommer ?", "Sur place", "À emporter", "Dans la rue", "À la maison"], ["Que dit le serveur à la fin ?", "Asseyez-vous où vous voulez", "Payez à la caisse", "Revenez demain", "La table est réservée"]],
+            [L("פה או לקחת?", "Po o lakakhat?", "Sur place ou à emporter ?"), L("תשבו איפה שנוח", "Teshvu eifo she-no'akh", "Asseyez-vous où vous voulez")],
+            L("מה אפשר להביא?", "Ma efshar lehavi?", "Qu'est-ce que je vous apporte ?"), L("קפה הפוך ועוגת גבינה, בבקשה", "Kafe hafukh ve-ugat gvina, bevakasha", "Un café au lait et un gâteau au fromage, s'il vous plaît"), "un serveur pressé", "Commander dans un café bondé"),
+          dialogDay("u19d2", "Dans le taxi", "Les chauffeurs de taxi posent des questions courtes. Cherche d'abord la destination, puis le prix ou la durée.",
+            L("לאן? לתחנה המרכזית. אתה רוצה מונה? כן, בבקשה. זה ייקח בערך עשרים דקות.", "Le'an? La-takhana ha-merkazit. Ata rotse mone? Ken, bevakasha. Ze yikakh be'erekh esrim dakot.", "Où allez-vous ? À la gare centrale. Vous voulez le compteur ? Oui, s'il vous plaît. Ça prendra environ vingt minutes."),
+            [["Où va le client ?", "À la gare centrale", "À l'aéroport", "À l'hôtel", "À la plage"], ["Combien de temps le trajet va-t-il prendre ?", "Environ vingt minutes", "Environ deux minutes", "Environ une heure", "Environ trente minutes"], ["Qu'a demandé le chauffeur ?", "S'il veut le compteur", "S'il a une carte", "S'il veut de la musique", "S'il connaît la route"]],
+            [L("אתה רוצה מונה?", "Ata rotse mone?", "Vous voulez le compteur ?"), L("זה ייקח בערך עשרים דקות", "Ze yikakh be'erekh esrim dakot", "Ça prendra environ vingt minutes")],
+            L("לאן?", "Le'an?", "Où allez-vous ?"), L("לתחנה המרכזית, בבקשה", "La-takhana ha-merkazit, bevakasha", "À la gare centrale, s'il vous plaît"), "un chauffeur de taxi bavard", "Donner une destination et comprendre la durée"),
+          dialogDay("u19d3", "Au marché", "Au marché, les vendeurs crient les prix. Écoute les chiffres et le total.",
+            L("כמה עולים התפוזים? עשרה שקל לקילו. תן לי שני קילו. בבקשה, עשרים שקל.", "Kama olim ha-tapuzim? Asara shekel la-kilo. Ten li shnei kilo. Bevakasha, esrim shekel.", "Combien coûtent les oranges ? Dix shekels le kilo. Donnez-m'en deux kilos. Voilà, vingt shekels."),
+            [["Quel fruit achète-t-on ?", "Des oranges", "Des pommes", "Des bananes", "Des raisins"], ["Combien coûte le kilo ?", "Dix shekels", "Vingt shekels", "Quinze shekels", "Cinq shekels"], ["Quel est le total à payer ?", "Vingt shekels", "Dix shekels", "Quarante shekels", "Deux shekels"]],
+            [L("כמה עולים התפוזים?", "Kama olim ha-tapuzim?", "Combien coûtent les oranges ?"), L("תן לי שני קילו", "Ten li shnei kilo", "Donnez-m'en deux kilos")],
+            L("מה אתה רוצה?", "Ma ata rotse?", "Qu'est-ce que vous voulez ?"), L("תן לי שני קילו תפוזים, בבקשה", "Ten li shnei kilo tapuzim, bevakasha", "Donnez-moi deux kilos d'oranges, s'il vous plaît"), "un vendeur d'oranges au marché", "Acheter des fruits au kilo et comprendre le total"),
+          dialogDay("u19d4", "Au téléphone", "Au téléphone, il n'y a pas de visage pour t'aider. Repère le nom, l'heure, et le message à transmettre.",
+            L("הלו, אפשר לדבר עם רונית? היא לא כאן, היא תחזור בארבע. רוצה להשאיר הודעה? כן, תגידי לה שדני התקשר.", "Halo, efshar ledaber im Ronit? Hi lo kan, hi takhzor be-arba. Rotse lehash'ir hoda'a? Ken, tagidi la she-Dani hitkasher.", "Allô, je peux parler à Ronit ? Elle n'est pas là, elle revient à quatre heures. Vous voulez laisser un message ? Oui, dites-lui que Dani a appelé."),
+            [["Qui cherche-t-on au téléphone ?", "Ronit", "Dani", "Une collègue de Dani", "Un médecin"], ["À quelle heure revient-elle ?", "À quatre heures", "À trois heures", "À cinq heures", "Demain"], ["Quel message laisse-t-on ?", "Dani a appelé", "Ronit doit rappeler Dani demain", "Dani sera en retard", "Dani est malade"]],
+            [L("היא לא כאן", "Hi lo kan", "Elle n'est pas là"), L("היא תחזור בארבע", "Hi takhzor be-arba", "Elle revient à quatre heures")],
+            L("רוצה להשאיר הודעה?", g("Rotse lehash'ir hoda'a?", "Rotsa lehash'ir hoda'a?"), "Vous voulez laisser un message ?"), L("כן, תגידי לה שהתקשרתי", "Ken, tagidi la she-hitkasharti", "Oui, dites-lui que j'ai appelé"), "une collègue qui répond au téléphone", "Demander quelqu'un et laisser un message"),
+          dialogDay("u19d5", "Chez le médecin", "Le médecin pose des questions rapides sur ce qui ne va pas. Écoute où, depuis quand, et ce qu'il décide.",
+            L("מה כואב לך? הבטן כואבת לי מאתמול. יש לך חום? קצת. אני אתן לך מרשם.", "Ma ko'ev lekha? Ha-beten ko'evet li me-etmol. Yesh lekha khom? Ktsat. Ani eten lekha mirsham.", "Où avez-vous mal ? J'ai mal au ventre depuis hier. Vous avez de la fièvre ? Un peu. Je vais vous donner une ordonnance."),
+            [["Où le patient a-t-il mal ?", "Au ventre", "À la tête", "À la gorge", "Au dos"], ["Depuis quand ?", "Depuis hier", "Depuis ce matin", "Depuis une semaine", "Depuis demain"], ["Que va faire le médecin ?", "Donner une ordonnance", "Faire une opération", "Renvoyer le patient", "Prendre un rendez-vous"]],
+            [L("הבטן כואבת לי מאתמול", "Ha-beten ko'evet li me-etmol", "J'ai mal au ventre depuis hier"), L("יש לך חום?", "Yesh lekha khom?", "Vous avez de la fièvre ?")],
+            L("מה כואב לך?", g("Ma ko'ev lekha?", "Ma ko'ev lakh?"), "Où avez-vous mal ?"), L("הבטן כואבת לי מאתמול", "Ha-beten ko'evet li me-etmol", "J'ai mal au ventre depuis hier"), "un médecin pressé", "Décrire ce qui ne va pas et comprendre le traitement"),
+          dialogDay("u19d6", "Une invitation", "Entre amis, on parle vite et on coupe les phrases. Cherche l'heure et ce que chacun apporte.",
+            L("מה אתה עושה בערב? אין לי תוכניות. בוא לארוחה אצלנו. באיזו שעה? בשבע. אני אביא יין.", "Ma ata ose ba-erev? Ein li tokhniyot. Bo le-arukha etslenu. Be-eizo sha'a? Be-sheva. Ani avi yayin.", "Tu fais quoi ce soir ? Je n'ai rien de prévu. Viens dîner chez nous. À quelle heure ? À sept heures. J'apporterai du vin."),
+            [["Quelle est l'invitation ?", "Un dîner chez eux", "Un film au cinéma", "Une sortie à la plage", "Un déjeuner au restaurant"], ["À quelle heure ?", "À sept heures", "À huit heures", "À six heures", "À midi"], ["Qu'apporte l'invité ?", "Du vin", "Un gâteau", "Du pain", "Rien"]],
+            [L("בוא לארוחה אצלנו", "Bo le-arukha etslenu", "Viens dîner chez nous"), L("אני אביא יין", "Ani avi yayin", "J'apporterai du vin")],
+            L("מה אתה עושה בערב?", g("Ma ata ose ba-erev?", "Ma at osa ba-erev?"), "Tu fais quoi ce soir ?"), L("אין לי תוכניות", "Ein li tokhniyot", "Je n'ai rien de prévu"), "un ami qui t'invite", "Accepter une invitation et proposer d'apporter quelque chose"),
         ],
       },
       {
