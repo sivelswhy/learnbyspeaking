@@ -107,6 +107,91 @@ export const THEMES: Theme[] = [
     ],
   },
   {
+    id: "home", title: "La maison", words: [
+      { he: "חדר", tr: "kheder", fr: "pièce, chambre" }, { he: "מטבח", tr: "mitbakh", fr: "cuisine" },
+      { he: "מקלחת", tr: "miklakhat", fr: "douche" }, { he: "מיטה", tr: "mita", fr: "lit" },
+      { he: "שולחן", tr: "shulkhan", fr: "table" }, { he: "כיסא", tr: "kise", fr: "chaise" },
+      { he: "דלת", tr: "delet", fr: "porte" }, { he: "חלון", tr: "khalon", fr: "fenêtre" },
+      { he: "מפתח", tr: "mafte'akh", fr: "clé" }, { he: "מקרר", tr: "mekarer", fr: "réfrigérateur" },
+      { he: "מזגן", tr: "mazgan", fr: "climatisation" }, { he: "מרפסת", tr: "mirpeset", fr: "balcon" },
+    ],
+  },
+  {
+    id: "body", title: "Le corps", words: [
+      { he: "ראש", tr: "rosh", fr: "tête" }, { he: "עין", tr: "ayin", fr: "œil" }, { he: "אוזן", tr: "ozen", fr: "oreille" },
+      { he: "אף", tr: "af", fr: "nez" }, { he: "פה", tr: "pe", fr: "bouche" }, { he: "שן", tr: "shen", fr: "dent" },
+      { he: "יד", tr: "yad", fr: "main, bras" }, { he: "רגל", tr: "regel", fr: "pied, jambe" }, { he: "בטן", tr: "beten", fr: "ventre" },
+      { he: "גב", tr: "gav", fr: "dos" }, { he: "לב", tr: "lev", fr: "cœur" }, { he: "גרון", tr: "garon", fr: "gorge" },
+    ],
+  },
+  {
+    id: "clothes", title: "Vêtements", words: [
+      { he: "חולצה", tr: "khultsa", fr: "chemise, haut" }, { he: "מכנסיים", tr: "mikhnasayim", fr: "pantalon" },
+      { he: "שמלה", tr: "simla", fr: "robe" }, { he: "נעליים", tr: "na'alayim", fr: "chaussures" },
+      { he: "מעיל", tr: "me'il", fr: "manteau" }, { he: "כובע", tr: "kova", fr: "chapeau, casquette" },
+      { he: "גרביים", tr: "garbayim", fr: "chaussettes" }, { he: "תיק", tr: "tik", fr: "sac" },
+      { he: "חגורה", tr: "khagora", fr: "ceinture" }, { he: "משקפיים", tr: "mishkafayim", fr: "lunettes" },
+    ],
+  },
+  {
+    id: "produce", title: "Fruits et légumes", words: [
+      { he: "בננה", tr: "banana", fr: "banane" }, { he: "תפוז", tr: "tapuz", fr: "orange" }, { he: "ענבים", tr: "anavim", fr: "raisin" },
+      { he: "אבטיח", tr: "avatiakh", fr: "pastèque" }, { he: "עגבנייה", tr: "agvaniya", fr: "tomate" }, { he: "מלפפון", tr: "melafefon", fr: "concombre" },
+      { he: "בצל", tr: "batsal", fr: "oignon" }, { he: "גזר", tr: "gezer", fr: "carotte" }, { he: "תפוח אדמה", tr: "tapuakh adama", fr: "pomme de terre" },
+      { he: "לימון", tr: "limon", fr: "citron" }, { he: "אבוקדו", tr: "avokado", fr: "avocat" },
+    ],
+  },
+  {
+    id: "grocery", title: "Supermarché", words: [
+      { he: "ביצים", tr: "beitsim", fr: "œufs" }, { he: "חמאה", tr: "khem'a", fr: "beurre" }, { he: "אורז", tr: "orez", fr: "riz" },
+      { he: "פסטה", tr: "pasta", fr: "pâtes" }, { he: "מיץ", tr: "mitz", fr: "jus" }, { he: "סוכר", tr: "sukar", fr: "sucre" },
+      { he: "מלח", tr: "melakh", fr: "sel" }, { he: "שמן", tr: "shemen", fr: "huile" }, { he: "בשר", tr: "basar", fr: "viande" },
+      { he: "דג", tr: "dag", fr: "poisson" }, { he: "שקית", tr: "sakit", fr: "sac, sachet" }, { he: "קופה", tr: "kupa", fr: "caisse" },
+    ],
+  },
+  {
+    id: "transport", title: "Transports", words: [
+      { he: "נהג", tr: "nahag", fr: "chauffeur" }, { he: "כביש", tr: "kvish", fr: "route" }, { he: "רמזור", tr: "ramzor", fr: "feu de circulation" },
+      { he: "חניה", tr: "khanaya", fr: "parking, stationnement" }, { he: "מדרכה", tr: "midrakha", fr: "trottoir" }, { he: "גשר", tr: "gesher", fr: "pont" },
+      { he: "מטוס", tr: "matos", fr: "avion" }, { he: "טיסה", tr: "tisa", fr: "vol" }, { he: "מזוודה", tr: "mizvada", fr: "valise" },
+      { he: "אופניים", tr: "ofanayim", fr: "vélo" },
+    ],
+  },
+  {
+    id: "work", title: "Travail et bureau", words: [
+      { he: "משרד", tr: "misrad", fr: "bureau" }, { he: "מחשב", tr: "makhshev", fr: "ordinateur" }, { he: "פגישה", tr: "pgisha", fr: "réunion, rendez-vous" },
+      { he: "עבודה", tr: "avoda", fr: "travail" }, { he: "משכורת", tr: "maskoret", fr: "salaire" }, { he: "מנהל", tr: "menahel", fr: "directeur" },
+      { he: "חוזה", tr: "khoze", fr: "contrat" }, { he: "חופשה", tr: "khufsha", fr: "congé, vacances" }, { he: "לקוח", tr: "lakoakh", fr: "client" },
+      { he: "מייל", tr: "meil", fr: "e-mail" },
+    ],
+  },
+  {
+    id: "feelings", title: "États et qualités", words: [
+      { he: "שמח", tr: "same'akh", fr: "content", note: "fém. שמחה (smekha)" }, { he: "עצוב", tr: "atsuv", fr: "triste", note: "fém. עצובה (atsuva)" },
+      { he: "עייף", tr: "ayef", fr: "fatigué", note: "fém. עייפה (ayefa)" }, { he: "כועס", tr: "ko'es", fr: "en colère", note: "fém. כועסת (ko'eset)" },
+      { he: "גדול", tr: "gadol", fr: "grand", note: "fém. גדולה (gdola)" }, { he: "קטן", tr: "katan", fr: "petit", note: "fém. קטנה (ktana)" },
+      { he: "חדש", tr: "khadash", fr: "nouveau", note: "fém. חדשה (khadasha)" }, { he: "ישן", tr: "yashan", fr: "vieux, ancien", note: "fém. ישנה (yeshana)" },
+      { he: "יפה", tr: "yafe", fr: "beau", note: "fém. יפה (yafa)" }, { he: "קל", tr: "kal", fr: "facile, léger", note: "fém. קלה (kala)" },
+      { he: "קשה", tr: "kashe", fr: "difficile, dur", note: "fém. קשה (kasha)" },
+    ],
+  },
+  {
+    id: "frequency", title: "Quand et combien de fois", words: [
+      { he: "תמיד", tr: "tamid", fr: "toujours" }, { he: "לפעמים", tr: "lif'amim", fr: "parfois" }, { he: "אף פעם", tr: "af pa'am", fr: "jamais" },
+      { he: "בדרך כלל", tr: "bederekh klal", fr: "d'habitude" }, { he: "מהר", tr: "maher", fr: "vite" }, { he: "לאט", tr: "le'at", fr: "lentement" },
+      { he: "עוד", tr: "od", fr: "encore, plus" }, { he: "כבר", tr: "kvar", fr: "déjà" }, { he: "עדיין", tr: "adayin", fr: "toujours, encore" },
+      { he: "מאוחר", tr: "me'ukhar", fr: "tard" }, { he: "מוקדם", tr: "mukdam", fr: "tôt" },
+    ],
+  },
+  {
+    id: "connectors", title: "Petits mots de liaison", words: [
+      { he: "אבל", tr: "aval", fr: "mais" }, { he: "כי", tr: "ki", fr: "parce que" }, { he: "אז", tr: "az", fr: "alors, donc" },
+      { he: "גם", tr: "gam", fr: "aussi" }, { he: "רק", tr: "rak", fr: "seulement" }, { he: "או", tr: "o", fr: "ou" },
+      { he: "אם", tr: "im", fr: "si" }, { he: "בגלל", tr: "biglal", fr: "à cause de" }, { he: "למרות", tr: "lamrot", fr: "malgré" },
+      { he: "לפני", tr: "lifnei", fr: "avant" }, { he: "אחרי", tr: "akharei", fr: "après" }, { he: "בלי", tr: "bli", fr: "sans" },
+    ],
+  },
+  {
     id: "verbs", title: "Verbes essentiels (présent)", words: [
       { he: "רוצה", tr: "rotse / rotsa", fr: "vouloir", note: "masc. / fém. — infinitif לרצות" },
       { he: "אוהב / אוהבת", tr: "ohev / ohevet", fr: "aimer", note: "infinitif לאהוב" },
@@ -120,6 +205,17 @@ export const THEMES: Theme[] = [
       { he: "לומד / לומדת", tr: "lomed / lomedet", fr: "apprendre, étudier", note: "infinitif ללמוד" },
       { he: "יודע / יודעת", tr: "yode'a / yoda'at", fr: "savoir", note: "infinitif לדעת" },
       { he: "מבין / מבינה", tr: "mevin / mevina", fr: "comprendre", note: "infinitif להבין" },
+    ],
+  },
+  {
+    id: "verbs2", title: "Verbes utiles (infinitif)", words: [
+      { he: "לשאול", tr: "lish'ol", fr: "demander, poser une question" }, { he: "לענות", tr: "la'anot", fr: "répondre" },
+      { he: "לחשוב", tr: "lakhshov", fr: "penser" }, { he: "להבין", tr: "lehavin", fr: "comprendre" }, { he: "לדעת", tr: "lada'at", fr: "savoir" },
+      { he: "לקנות", tr: "liknot", fr: "acheter" }, { he: "לשלם", tr: "leshalem", fr: "payer" }, { he: "לפגוש", tr: "lifgosh", fr: "rencontrer" },
+      { he: "לחכות", tr: "lekhakot", fr: "attendre" }, { he: "לנסוע", tr: "linso'a", fr: "voyager, partir (en véhicule)" }, { he: "לישון", tr: "lishon", fr: "dormir" },
+      { he: "לחזור", tr: "lakhzor", fr: "revenir, rentrer" }, { he: "לצאת", tr: "latset", fr: "sortir" }, { he: "לעזור", tr: "la'azor", fr: "aider" },
+      { he: "לפתוח", tr: "liftoakh", fr: "ouvrir" }, { he: "לסגור", tr: "lisgor", fr: "fermer" }, { he: "להתקשר", tr: "lehitkasher", fr: "appeler (au téléphone)" },
+      { he: "לשלוח", tr: "lishlo'akh", fr: "envoyer" }, { he: "לשכוח", tr: "lishkoakh", fr: "oublier" }, { he: "לזכור", tr: "lizkor", fr: "se souvenir" },
     ],
   },
 ];
