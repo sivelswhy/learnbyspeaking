@@ -31,7 +31,15 @@ const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,
 
 /** Le mot français, essayé tel quel, sans accents, sans article, au singulier. */
 export function lookupFrench(d: Dict, word: string): { key: string; entries: FrEntry[] } | null {
-  plainIndex ??= new Map(Object.keys(d.fr).map((k) => [fold(k), k]));
+  if (!plainIndex) {
+    // Collision (« Sucre » / « sucre ») : le mot commun en minuscules l'emporte sur le nom propre.
+    plainIndex = new Map();
+    for (const k of Object.keys(d.fr)) {
+      const f = fold(k);
+      const cur = plainIndex.get(f);
+      if (!cur || (k === k.toLowerCase() && cur !== cur.toLowerCase())) plainIndex.set(f, k);
+    }
+  }
   const w = word.trim().toLowerCase();
   const bare = w.replace(/^(le |la |les |l'|l’|un |une |des |du |de la |se |s'|s’)/, "");
   for (const c of [w, bare, bare.replace(/s$/, ""), bare.replace(/x$/, "")]) {
