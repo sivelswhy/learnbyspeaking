@@ -14,6 +14,12 @@ const arg = (k, d) => {
 };
 
 const PROFILES = {
+  // iPhone 15 : écran 393×852 @3x, CPU ~2× plus lent qu'un Mac récent (ajuster avec --cpu=)
+  iphone15: {
+    cpu: 2,
+    viewport: { width: 393, height: 852, deviceScaleFactor: 3, isMobile: true, hasTouch: true },
+    ua: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+  },
   // Android d'entrée de gamme (≈ Moto G4 / Galaxy A0x)
   phone: {
     cpu: 6,
@@ -39,10 +45,11 @@ const NETS = {
 };
 
 const url = arg("url", "http://localhost:3000");
-const profName = arg("profile", "phone");
-const netName = arg("net", "slow4g");
+const profName = arg("profile", "iphone15");
+const netName = arg("net", "fast");
 const prof = PROFILES[profName];
 const net = NETS[netName];
+if (arg("cpu")) prof.cpu = Number(arg("cpu"));
 if (!prof || !net) {
   console.error(`Profil ou réseau inconnu. Profils : ${Object.keys(PROFILES)} ; réseaux : ${Object.keys(NETS)}`);
   process.exit(2);
