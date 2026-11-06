@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- export de données hétérogènes vers JSON */
 /**
  * Exporte les contenus et règles partagés vers l'app Mac native (Swift) : mac/native/Resources/content.json.
  * Les expressions régulières sont exportées par leur source (lues par NSRegularExpression).
