@@ -97,6 +97,12 @@ enum Step: Codable, Hashable {
     case fill(line: Line, blank: Blank)
     case free(q: Line, example: Line)
     case swap(instr: String, from: Line, to: Line)
+    /// Seul le français est montré : l'hébreu se retrouve de mémoire.
+    case recall(Line)
+    /// Shuli dit la phrase à vitesse naturelle, l'apprenant la redit aussitôt au même rythme.
+    case shadow(Line)
+    /// 4-3-2 : la même réponse en 60 s, 45 s puis 30 s.
+    case retell(q: Line, example: Line)
     case other(kind: String)
 
     private enum K: String, CodingKey { case kind, fr, parts, line, q, a, say, ask, options, blank, example, instr, from, to }
@@ -111,6 +117,9 @@ enum Step: Codable, Hashable {
         case "fill": self = .fill(line: try c.decode(Line.self, forKey: .line), blank: try c.decode(Blank.self, forKey: .blank))
         case "free": self = .free(q: try c.decode(Line.self, forKey: .q), example: try c.decode(Line.self, forKey: .example))
         case "swap": self = .swap(instr: try c.decode(String.self, forKey: .instr), from: try c.decode(Line.self, forKey: .from), to: try c.decode(Line.self, forKey: .to))
+        case "recall": self = .recall(try c.decode(Line.self, forKey: .line))
+        case "shadow": self = .shadow(try c.decode(Line.self, forKey: .line))
+        case "retell": self = .retell(q: try c.decode(Line.self, forKey: .q), example: try c.decode(Line.self, forKey: .example))
         default: self = .other(kind: kind)
         }
     }
@@ -119,7 +128,8 @@ enum Step: Codable, Hashable {
     /// Toutes les phrases de l'étape (recherche « Comment dire… ? », vocabulaire).
     var lines: [Line] {
         switch self {
-        case .repeatLine(let l), .fill(let l, _): return [l]
+        case .repeatLine(let l), .fill(let l, _), .recall(let l), .shadow(let l): return [l]
+        case .retell(let q, let e): return [q, e]
         case .answer(let q, let a): return [q, a]
         case .listen(let s, _, _): return [s]
         case .free(let q, let e): return [q, e]
@@ -143,7 +153,7 @@ extension Day {
         var out: [Line] = [key]
         for s in steps {
             switch s {
-            case .repeatLine(let l), .fill(let l, _): out.append(l)
+            case .repeatLine(let l), .fill(let l, _), .recall(let l): out.append(l)
             case .answer(_, let a): out.append(a)
             case .swap(_, _, let t): out.append(t)
             default: break

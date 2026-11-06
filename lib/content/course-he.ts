@@ -17,7 +17,10 @@ export interface IntroPart { t: string; he?: G }
  *  - listen : compréhension, Shuli dit une phrase sans l'écrire, l'apprenant choisit son sens (pas de micro).
  *  - fill : phrase à trou, l'apprenant dit la phrase entière de mémoire.
  *  - free : question ouverte, l'apprenant répond avec ses vraies infos (l'exemple n'est qu'une aide).
- *  - swap : transformer une phrase (changer de genre, de mot) et la dire. */
+ *  - swap : transformer une phrase (changer de genre, de mot) et la dire.
+ *  - recall : seul le français est montré, l'apprenant retrouve l'hébreu de mémoire (récupération active, plus efficace que répéter).
+ *  - shadow : Shuli dit la phrase à vitesse naturelle, l'apprenant la redit aussitôt au même rythme (shadowing).
+ *  - retell : 4-3-2 (Paul Nation) : la même réponse trois fois, en 60 s, 45 s puis 30 s ; la fluidité monte d'un tour à l'autre. */
 export type Step =
   | { kind: "intro"; fr: string; parts?: IntroPart[] }
   | { kind: "repeat"; line: Line }
@@ -25,12 +28,16 @@ export type Step =
   | { kind: "listen"; say: Line; ask: string; options: { fr: string; ok?: boolean }[] }
   | { kind: "fill"; line: Line; blank: { he: G; tr: G } }
   | { kind: "free"; q: Line; example: Line }
-  | { kind: "swap"; instr: string; from: Line; to: Line };
+  | { kind: "swap"; instr: string; from: Line; to: Line }
+  | { kind: "recall"; line: Line }
+  | { kind: "shadow"; line: Line }
+  | { kind: "retell"; q: Line; example: Line };
 
 /** Toutes les phrases d'une étape (pour le vocabulaire, la recherche « Comment dire… ? »). */
 export function linesOf(s: Step): Line[] {
   switch (s.kind) {
-    case "repeat": case "fill": return [s.line];
+    case "repeat": case "fill": case "recall": case "shadow": return [s.line];
+    case "retell": return [s.q, s.example];
     case "answer": return [s.q, s.a];
     case "listen": return [s.say];
     case "free": return [s.q, s.example];
@@ -43,7 +50,7 @@ export function linesOf(s: Step): Line[] {
 export function dayCards(day: Day): Line[] {
   const out: Line[] = [day.key];
   for (const s of day.steps) {
-    if (s.kind === "repeat" || s.kind === "fill") out.push(s.line);
+    if (s.kind === "repeat" || s.kind === "fill" || s.kind === "recall") out.push(s.line);
     else if (s.kind === "answer") out.push(s.a);
     else if (s.kind === "swap") out.push(s.to);
   }
@@ -80,6 +87,9 @@ const listen = (say: Line, ask: string, good: string, ...bad: string[]): Step =>
 const fill = (line: Line, he: G | string, tr: G | string): Step => ({ kind: "fill", line, blank: { he: typeof he === "string" ? s(he) : he, tr: typeof tr === "string" ? s(tr) : tr } });
 const free = (q: Line, example: Line): Step => ({ kind: "free", q, example });
 const swap = (instr: string, from: Line, to: Line): Step => ({ kind: "swap", instr, from, to });
+const recall = (line: Line): Step => ({ kind: "recall", line });
+const shadow = (line: Line): Step => ({ kind: "shadow", line });
+const retell = (q: Line, example: Line): Step => ({ kind: "retell", q, example });
 const st = (l: Line): Starter => ({ text: l.he, transliteration: l.tr, translation: { fr: l.fr } });
 
 /** Fin de jour : un récapitulatif de ce qu'on sait dire (sens en français des phrases répétées), puis le jeu de rôle. */
@@ -1360,19 +1370,49 @@ export const COURSE: CourseLevel[] = [
   },
 ];
 
+// Fin de jour : trois phrases répétées dans la journée, à retrouver de mémoire à partir du français (début, milieu et fin du jour),
+// avant le récapitulatif. Pas pour les jours de lecture : on y apprend à lire, pas à traduire.
+const RECALL_PER_DAY = 3;
+for (const lvl of COURSE) {
+  for (const unit of lvl.units) {
+    if (unit.id === "u00") continue;
+    for (const d of unit.days) {
+      const reps = d.steps.flatMap((x) => (x.kind === "repeat" && !x.line.fr.includes("…") ? [x.line] : []));
+      const seen = new Set<string>();
+      const uniq = reps.filter((l) => (seen.has(l.fr) ? false : (seen.add(l.fr), true)));
+      if (uniq.length < 2) continue;
+      const pick = uniq.length <= RECALL_PER_DAY ? uniq : [0, Math.floor((uniq.length - 1) / 2), uniq.length - 1].map((k) => uniq[k]);
+      d.steps.splice(d.steps.length - 1, 0, intro("Maintenant, sans modèle : je te donne le français, tu retrouves l'hébreu de mémoire."), ...pick.map(recall));
+    }
+  }
+}
+
 // Fin d'unité : un jour « Révision » construit à partir des jours de l'unité (phrases clés, une écoute par jour),
 // puis un jeu de rôle qui reprend le dernier scénario.
 for (const lvl of COURSE) {
   for (const unit of lvl.units) {
     if (unit.days.length < 3) continue;
     const last = unit.days[unit.days.length - 1];
-    const steps: Step[] = [intro(`Révision de l'unité « ${unit.title} ». Je te refais dire les phrases clés de chaque jour, puis tu les utilises en conversation.`)];
+    const steps: Step[] = [intro(`Révision de l'unité « ${unit.title} ». Je te donne le sens des phrases clés de chaque jour : retrouve-les de mémoire, puis utilise-les en conversation.`)];
     for (const d of unit.days) {
-      steps.push(rep(d.key));
+      steps.push(unit.id === "u00" ? rep(d.key) : recall(d.key));
       const hear = d.steps.find((x) => x.kind === "listen");
       if (hear) steps.push(hear);
       const produce = d.steps.find((x) => x.kind === "answer" || x.kind === "free") ?? d.steps.find((x) => x.kind === "fill" || x.kind === "swap");
       if (produce) steps.push(produce);
+    }
+    if (unit.id !== "u00") {
+      // Révision mélangée : deux phrases clés de l'unité précédente du niveau, à retrouver aussi (entrelacement).
+      const prev = lvl.units[lvl.units.indexOf(unit) - 1];
+      const old = prev && prev.id !== "u00" ? prev.days.filter((d) => !d.id.endsWith("r")).map((d) => d.key) : [];
+      if (old.length) steps.push(intro(`Et deux phrases de l'unité « ${prev.title} », pour ne pas les oublier.`), ...[old[0], old[old.length - 1]].filter((l, k, a) => a.indexOf(l) === k).map(recall));
+      // Shadowing : deux phrases clés redites aussitôt, au rythme naturel de Shuli.
+      const keys = unit.days.map((d) => d.key);
+      steps.push(intro("Au rythme de Shuli : elle parle à vitesse normale, tu redis tout de suite, sans ralentir."), ...[keys[0], keys[keys.length - 1]].filter((l, k, a) => a.indexOf(l) === k).map(shadow));
+      // 4-3-2 : la même réponse trois fois, de plus en plus vite.
+      const open = unit.days.flatMap((d) => d.steps).find((x) => x.kind === "free") ?? unit.days.flatMap((d) => d.steps).find((x) => x.kind === "answer");
+      if (open?.kind === "free") steps.push(retell(open.q, open.example));
+      else if (open?.kind === "answer") steps.push(retell(open.q, open.a));
     }
     const sc = last.scenario;
     unit.days.push(day(`${unit.id}r`, "Révision", unit.days[0].key, steps, sc.role, sc.goal, { he: sc.starter.text, tr: sc.starter.transliteration, fr: sc.starter.translation.fr ?? "" }));

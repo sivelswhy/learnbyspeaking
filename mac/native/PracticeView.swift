@@ -27,7 +27,12 @@ private struct PracticeBody: View {
     // Étape « écoute » : mauvaises réponses déjà essayées, bonne réponse trouvée.
     @State private var tried: [Int] = []
     @State private var solved = false
-    @State private var replayed = false
+    // Essais sur l'étape : au premier raté d'une étape de mémoire, un indice ; la réponse au deuxième.
+    @State private var attempts = 0
+    // 4-3-2 : tours faits et secondes restantes du tour en cours.
+    @State private var rounds: [(words: Int, wpm: Int?, fluency: Int?)] = []
+    @State private var left: Int?
+    @State private var roundTimer: Timer?
 
     var g: Gender { (store.profile ?? NEW_PROFILE).g }
     var level: String { (store.profile ?? NEW_PROFILE).level }
@@ -84,6 +89,7 @@ private struct PracticeBody: View {
                             .frame(maxWidth: 320).background(Palette.card, in: RoundedRectangle(cornerRadius: 24)).cardShadow()
                         }.buttonStyle(PressStyle())
                     } else if case .listen(let say, let ask, let options) = step { listenCard(say, ask, options) }
+                    else if case .retell(let q, let ex) = step { retellCard(q, ex) }
                     else { speak(step) }
                 }.padding(.horizontal, 24)
             }
@@ -94,6 +100,9 @@ private struct PracticeBody: View {
                         Text("TOUCHE POUR CONTINUER\(countdown.map { " · SUITE DANS \($0)…" } ?? "")").font(.app(14)).tracking(0.6).foregroundStyle(Palette.muted)
                     } else if case .listen = step {
                         if solved { Button("Continuer", action: next).buttonStyle(Btn(full: true, height: 48)).keyboardShortcut(.defaultAction) }
+                        else { Button("PASSER", action: next).buttonStyle(.plain).font(.app(14)).tracking(0.6).foregroundStyle(Palette.muted).frame(maxWidth: .infinity, minHeight: 48) }
+                    } else if case .retell = step {
+                        if rounds.count == 3 { Button("Continuer", action: next).buttonStyle(Btn(full: true, height: 48)).keyboardShortcut(.defaultAction) }
                         else { Button("PASSER", action: next).buttonStyle(.plain).font(.app(14)).tracking(0.6).foregroundStyle(Palette.muted).frame(maxWidth: .infinity, minHeight: 48) }
                     } else if heard != nil {
                         Button("Continuer", action: next).buttonStyle(Btn(full: true, height: 48)).keyboardShortcut(.defaultAction)
@@ -114,6 +123,8 @@ private struct PracticeBody: View {
         case .fill(let l, _): return Info(shown: l, target: l.he(g), verb: "Complète", say: nil, help: l)
         case .swap(_, let f, let t): return Info(shown: f, target: t.he(g), verb: "Transforme", say: f.he(g), help: t)
         case .free(let q, let e): return Info(shown: q, target: "", verb: "Réponds", say: q.he(g), help: e)
+        case .recall(let l): return Info(shown: l, target: l.he(g), verb: "Dis-le en hébreu", say: nil, help: l)
+        case .shadow(let l): return Info(shown: l, target: l.he(g), verb: "Au rythme de Shuli", say: l.he(g), help: nil)
         default: return nil
         }
     }
@@ -160,10 +171,90 @@ private struct PracticeBody: View {
         .padding(24).frame(maxWidth: .infinity).background(Palette.card, in: RoundedRectangle(cornerRadius: 24)).cardShadow()
     }
 
+    /// Étapes où, après un premier raté, on donne un indice et on laisse réessayer avant de montrer la réponse.
+    private func isRetry(_ s: Step) -> Bool { switch s { case .recall, .fill, .swap: return true; default: return false } }
+    private func isRecall(_ s: Step) -> Bool { if case .recall = s { return true }; return false }
+
+    @ViewBuilder private func retellCard(_ q: Line, _ ex: Line) -> some View {
+        VStack(spacing: 0) {
+            Avatar(mood: rounds.count == 3 ? .cheer : .happy, speaking: voice.speaking, size: 72)
+            Text(rounds.count == 3 ? "Bravo !" : ear.listening ? "Parle… \(left.map(String.init) ?? "") s" : ear.transcribing ? "Transcription…" : "Tour \(rounds.count + 1) sur 3 · \(RETELL_SECONDS[rounds.count]) s")
+                .font(.app(18, .bold)).foregroundStyle(.white).padding(.horizontal, 12).padding(.vertical, 6)
+                .background(Palette.accent, in: RoundedRectangle(cornerRadius: 6)).padding(.top, 16)
+            Text("Réponds à la question, puis redis la même chose deux fois, en moins de temps : 60 s, 45 s, 30 s. Tu gagnes en aisance à chaque tour.")
+                .font(.app(14)).foregroundStyle(Palette.muted).multilineTextAlignment(.center).padding(.top, 16)
+            Text(q.he(g)).font(.he(24, .semibold)).multilineTextAlignment(.center).padding(.top, 24)
+            Text("\(q.tr(g)) — \(q.fr)").foregroundStyle(Palette.muted).multilineTextAlignment(.center).padding(.top, 4)
+            if hint {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("PAR EXEMPLE").font(.app(12, .semibold)).foregroundStyle(Palette.accent)
+                    Text(ex.he(g)).font(.he(18)).frame(maxWidth: .infinity, alignment: .trailing)
+                    Text("\(ex.tr(g)) — \(ex.fr)").font(.app(14)).foregroundStyle(Palette.muted)
+                }.padding(12).background(Palette.soft, in: RoundedRectangle(cornerRadius: 12)).padding(.top, 16)
+            }
+            if !rounds.isEmpty {
+                VStack(spacing: 4) {
+                    ForEach(rounds.indices, id: \.self) { k in
+                        let r = rounds[k]
+                        HStack {
+                            Text("Tour \(k + 1) (\(RETELL_SECONDS[k]) s)").font(.app(14))
+                            Spacer()
+                            Text("\(r.words) mots\(r.wpm.map { " · \($0) mots/min" } ?? "")\(r.fluency.map { " · fluidité \($0)" } ?? "")").font(.app(14)).foregroundStyle(Palette.muted)
+                        }.padding(.horizontal, 12).padding(.vertical, 6).background(Palette.bg, in: RoundedRectangle(cornerRadius: 8))
+                    }
+                }.padding(.top, 16)
+            }
+            if rounds.count == 3, let a = rounds[0].wpm, let b = rounds[2].wpm {
+                Text(b > a ? "+\(b - a) mots/min entre le premier et le dernier tour." : "Même rythme : la prochaine fois, ose aller plus vite.")
+                    .font(.app(14, .semibold)).foregroundStyle(b > a ? Palette.good : Palette.muted).padding(.top, 12)
+            }
+            HStack(spacing: 16) {
+                round("arrow.counterclockwise", 48) { Task { await app.voice.say(q.he(g), rate: 0.75) } }
+                if rounds.count < 3 {
+                    Button { ear.listening ? ear.stop() : startRound() } label: {
+                        Image(systemName: ear.listening ? "pause.fill" : "mic.fill").font(.system(size: 34)).foregroundStyle(Palette.accent)
+                            .frame(width: 80, height: 80).background(Palette.bg, in: Circle())
+                    }.buttonStyle(PressStyle(scale: 0.96)).disabled(ear.transcribing).keyboardShortcut(.space, modifiers: [])
+                }
+                round("lightbulb", 48) { hint.toggle() }
+            }.padding(.top, 20)
+        }
+        .padding(24).frame(maxWidth: .infinity).background(Palette.card, in: RoundedRectangle(cornerRadius: 24)).cardShadow()
+    }
+
+    /// 4-3-2 : un tour de parole, arrêté automatiquement à la fin du temps.
+    private func startRound() {
+        guard rounds.count < RETELL_SECONDS.count else { return }
+        app.voice.stop()
+        let at = i
+        left = RETELL_SECONDS[rounds.count]
+        roundTimer?.invalidate()
+        roundTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            Task { @MainActor in
+                left = (left ?? 1) - 1
+                if (left ?? 0) <= 0 { roundTimer?.invalidate(); roundTimer = nil; if ear.listening { ear.stop() } }
+            }
+        }
+        Task {
+            guard let r = try? await app.ear.listen(), i == at else { return }
+            roundTimer?.invalidate(); roundTimer = nil; left = nil
+            let n = hebrewWordCount(r.text)
+            let m = analyzeSpeech(r.audio, words: n)
+            let f = fluencyScore(m, words: n, level: level)?.score
+            fluencies.append(f)
+            rounds.append((n, m?.wpm, f))
+        }
+    }
+
     @ViewBuilder private func speak(_ step: Step) -> some View {
         let inf = info(step)!
         let line = inf.shown
         let match = heard.map { wordMatch(inf.target, $0) }
+        // Premier essai raté d'une étape de mémoire : indice, puis réessayer ; la réponse vient au deuxième essai.
+        let retry = isRetry(step) && (match ?? 100) < 70 && attempts == 1
+        let fix = retry ? heard.flatMap { concreteFixes($0, g, inf.target).first } : nil
+        let reveal = heard != nil && (!isRetry(step) || (match ?? 100) >= 70 || attempts >= 2)
+        let hideHebrew = isRecall(step) && !reveal && !hint
         let gap: (he: String, tr: String)? = { if case .fill(let l, let b) = step { return (cut(l.he(g), b.he(g)), cut(l.tr(g), b.tr(g))) }; return nil }()
         let freeOk: Bool? = { if case .free = step, let h = heard { return hebrewWordCount(h) >= 2 }; return nil }()
         VStack(spacing: 0) {
@@ -176,10 +267,22 @@ private struct PracticeBody: View {
                     .background(Palette.soft, in: RoundedRectangle(cornerRadius: 12)).padding(.top, 16)
             }
             if case .free = step { Text("Réponds avec tes vraies infos.").font(.app(14)).foregroundStyle(Palette.muted).padding(.top, 16) }
-            Text(gap?.he ?? line.he(g)).font(.he(30, .semibold)).foregroundStyle(Palette.muted).multilineTextAlignment(.center).padding(.top, 24)
-            Text(gap?.tr ?? line.tr(g)).foregroundStyle(Palette.muted).padding(.top, 4)
-            Text(line.fr).padding(.top, 24)
-            if let help = inf.help, hint || heard != nil {
+            if hideHebrew {
+                Text(line.fr).font(.app(22, .semibold)).multilineTextAlignment(.center).padding(.top, 24)
+            } else {
+                Text(gap?.he ?? line.he(g)).font(.he(30, .semibold)).foregroundStyle(Palette.muted).multilineTextAlignment(.center).padding(.top, 24)
+                Text(gap?.tr ?? line.tr(g)).foregroundStyle(Palette.muted).padding(.top, 4)
+                Text(line.fr).padding(.top, 24)
+            }
+            if case .shadow = step, heard == nil { Text("Redis tout de suite, à la même vitesse, sans ralentir.").font(.app(14)).foregroundStyle(Palette.muted).padding(.top, 12) }
+            if retry {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Presque ! Réessaie.").font(.app(14, .semibold)).foregroundStyle(Palette.accent)
+                    Text(fix.map(cueOf) ?? "Compare avec le sens en français et redis la phrase entière.").font(.app(14))
+                }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
+                    .background(Palette.soft, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.accent.opacity(0.4))).padding(.top, 16)
+            }
+            if let help = inf.help, !isRecall(step), hint || reveal {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(isFree(step) ? "PAR EXEMPLE" : "TU PEUX DIRE").font(.app(12, .semibold)).foregroundStyle(Palette.accent)
                     Text(help.he(g)).font(.he(18)).frame(maxWidth: .infinity, alignment: .trailing)
@@ -246,6 +349,11 @@ private struct PracticeBody: View {
             }
         } else if case .listen(let say, _, _) = step {
             Task { await app.voice.say(say.he(g), rate: Voice.rate(level)) }
+        } else if case .retell(let q, _) = step {
+            Task { await app.voice.say(q.he(g), rate: Voice.rate(level)) }
+        } else if case .shadow(let l) = step {
+            // Vitesse naturelle : c'est tout l'intérêt du shadowing.
+            listenAfter(l.he(g), rate: 1.0)
         } else if let say = info(step)?.say {
             listenAfter(say, rate: Voice.rate(level))
         }
@@ -273,18 +381,21 @@ private struct PracticeBody: View {
         heard = r.text
         metrics = analyzeSpeech(r.audio, words: hebrewWordCount(r.text))
         fluencies.append(fluencyScore(metrics, words: hebrewWordCount(r.text), level: level)?.score)
-        // Comme un professeur : si on est loin du modèle, on le redit lentement (une fois par étape), puis on laisse réessayer.
-        if i < day.steps.count, let t = info(day.steps[i])?.target, !t.isEmpty, wordMatch(t, r.text) < 60, !replayed {
-            replayed = true
-            await app.voice.say(t, rate: 0.7)
-        }
+        attempts += 1
+        guard i < day.steps.count, let t = info(day.steps[i])?.target, !t.isEmpty else { return }
+        let step = day.steps[i], score = wordMatch(t, r.text)
+        // Étape de mémoire : la bonne version est dite dès qu'elle est trouvée ou montrée.
+        if isRecall(step) { if score >= 70 || attempts >= 2 { await app.voice.say(t, rate: 0.8) } }
+        // Ailleurs, comme un professeur : si on est loin du modèle, on le redit lentement (une fois), puis on laisse réessayer.
+        else if !isRetry(step) && score < 60 && attempts == 1 { await app.voice.say(t, rate: 0.7) }
     }
 
     private func next() {
         timer?.invalidate(); timer = nil; countdown = nil
         app.voice.stop()
         if ear.listening { ear.stop() }
-        heard = nil; metrics = nil; hint = false; tried = []; solved = false; replayed = false
+        heard = nil; metrics = nil; hint = false; tried = []; solved = false; attempts = 0
+        rounds = []; left = nil; roundTimer?.invalidate(); roundTimer = nil
         if i + 1 >= day.steps.count {
             let turns = day.steps.filter { switch $0 { case .intro, .listen: return false; default: return true } }.count
             summary = (avgFluency(fluencies), Int(Date().timeIntervalSince(t0)), turns, fluencies.compactMap { $0 }.count)
@@ -295,7 +406,17 @@ private struct PracticeBody: View {
 
     private func stopAll() {
         timer?.invalidate()
+        roundTimer?.invalidate()
         app.voice.stop()
         if ear.listening { ear.stop() }
     }
+}
+
+/// 4-3-2 : durée de chaque tour, en secondes (miroir de RETELL_SECONDS).
+let RETELL_SECONDS = [60, 45, 30]
+
+/// Indice sans donner la réponse : quel mot regarder et pourquoi, ou la première lettre du mot manquant (miroir de cueOf).
+func cueOf(_ f: Fix) -> String {
+    if f.from.isEmpty { return "Il manque un mot : il commence par « \(f.to.prefix(1)) »." }
+    return "Regarde « \(f.from) » : \(f.why)."
 }
