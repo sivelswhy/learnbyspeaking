@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:lowend": "node scripts/lowend-test.mjs"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.1",
@@ -26,6 +27,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "puppeteer-core": "^25.16.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

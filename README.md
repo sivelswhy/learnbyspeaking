@@ -45,6 +45,8 @@ Le contenu est écrit en TypeScript (`lib/content/`), puis partagé avec l'app M
 npx jiti scripts/check-course.ts     # contrôle du cours (étapes valides, mots nouveaux par jour)
 npx jiti scripts/lint-course.ts      # audit du contenu
 npx jiti scripts/export-native.ts    # écrit mac/native/Resources/content.json
+npm run test:lowend                  # machine low end simulée (CPU ×6, 4G lente, écran 360 px) ; serveur : npx serve out -l 3000
+
 ```
 
 Audio du cours après une modification :
