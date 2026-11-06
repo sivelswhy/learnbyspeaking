@@ -3,6 +3,9 @@
 //   npm run build && npx serve out -l 3000   (autre terminal ; export statique)
 //   npm run test:lowend [-- --profile=phone|tablet|oldlaptop] [--net=slow4g|slow3g|fast] [--url=...]
 import puppeteer from "puppeteer-core";
+import { execFileSync } from "node:child_process";
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 
 const CHROME =
   process.env.CHROME_PATH ||
@@ -44,6 +47,9 @@ const NETS = {
   fast: { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 },
 };
 
+const R = (n) => Math.round(n);
+const verdict = (v, ok, warn) => (v <= ok ? "OK  " : v <= warn ? "LENT" : "MAUVAIS");
+const AI = process.argv.includes("--ai");
 const url = arg("url", "http://localhost:3000");
 const profName = arg("profile", "iphone15");
 const netName = arg("net", "fast");
@@ -58,7 +64,12 @@ if (!prof || !net) {
 const browser = await puppeteer.launch({
   executablePath: CHROME,
   headless: true,
-  args: ["--disable-gpu", "--js-flags=--max-old-space-size=256"],
+  protocolTimeout: 30 * 60 * 1000, // téléchargement des modèles : long
+  // --ai : profil persistant (les ~2,5 Go de modèles ne sont téléchargés qu'une fois) et WebGPU activé.
+  ...(AI ? { userDataDir: ".lowend-profile" } : {}),
+  args: AI
+    ? ["--enable-unsafe-webgpu", "--enable-features=Vulkan,WebGPU", "--use-angle=metal", "--ignore-gpu-blocklist"]
+    : ["--disable-gpu", "--js-flags=--max-old-space-size=256"],
 });
 const page = await browser.newPage();
 await page.setViewport(prof.viewport);
@@ -130,11 +141,12 @@ for (const b of btns.slice(0, 5)) {
   inter.push({ label, ms: Date.now() - s, idle: Math.round(t) });
 }
 
+let ai = null;
+if (AI) ai = await testAI(page, cdp);
+
 await page.screenshot({ path: `lowend-${profName}.png` });
 await browser.close();
 
-const R = (n) => Math.round(n);
-const verdict = (v, ok, warn) => (v <= ok ? "OK  " : v <= warn ? "LENT" : "MAUVAIS");
 console.log(`\nProfil ${profName} (CPU ×${prof.cpu}, réseau ${netName}, ${prof.viewport.width}×${prof.viewport.height}) — ${url}\n`);
 const rows = [
   ["Chargement (load)", `${loadMs} ms`, verdict(loadMs, 4000, 8000)],
@@ -152,9 +164,117 @@ if (inter.length) {
   console.log("\nClics (ms jusqu'à 2 frames) :");
   for (const i of inter) console.log(`  ${i.label.padEnd(30)} ${i.ms} ms  ${verdict(i.ms, 200, 500)}`);
 }
+if (ai) {
+  console.log("\nFonctions IA (le CPU ralenti ne touche que le thread principal ; GPU et workers tournent à pleine vitesse) :");
+  for (const [a, b, c] of ai) console.log(`  ${a.padEnd(24)} ${b.padEnd(46)} ${c}`);
+}
 if (problems.length) {
   console.log("\nProblèmes :");
-  [...new Set(problems)].forEach((p) => console.log(`  - ${p}`));
+  [...new Set(problems)].forEach((p) => console.log(`  - ${p.replace(/\?[^ ]*/, "?…").slice(0, 160)}`));
 }
 console.log(`\nCapture : lowend-${profName}.png`);
 process.exit(problems.length ? 1 : 0);
+
+/* ---------- Fonctions IA : WebLLM, Whisper, voix, traduction ---------- */
+async function testAI(page, cdp) {
+  const rows = [];
+  const add = (a, b, c = "-") => rows.push([a, b, c]);
+  const run = async (name, fn, arg) => {
+    // Le réseau de la machine de test coupe parfois les gros téléchargements : on réessaie (les fichiers finis restent en cache).
+    for (let n = 1; ; n++) {
+      try {
+        return await page.evaluate(fn, arg);
+      } catch (e) {
+        if (n < 5 && /fetch|network/i.test(e.message)) {
+          console.error(`  ${name} : ${String(e.message).split("\n")[0]} — nouvel essai ${n}/4`);
+          await new Promise((r) => setTimeout(r, 3000));
+          continue;
+        }
+        add(name, `ÉCHEC : ${String(e.message).split("\n")[0].slice(0, 80)}`, "MAUVAIS");
+        return null;
+      }
+    }
+  };
+  await page.waitForFunction(() => !!window.__lbs, { timeout: 30000 }).catch(() => {});
+  const gpu = await page.evaluate(async () => {
+    if (!navigator.gpu) return "absent";
+    const a = await navigator.gpu.requestAdapter();
+    return a ? "ok" : "pas d'adaptateur";
+  });
+  add("WebGPU", gpu, gpu === "ok" ? "OK  " : "MAUVAIS");
+  if (gpu !== "ok") return rows;
+  await cdp.send("Network.emulateNetworkConditions", NETS.fast); // pas de limite réseau pour les modèles
+
+  // 1. LLM (DictaLM) : chargement, premier token, débit.
+  const llm = await run("LLM", async () => {
+    const L = window.__lbs;
+    let t = performance.now();
+    await L.loadWebLLM(L.DEFAULT_LLM.webllmModel);
+    const load = performance.now() - t;
+    t = performance.now();
+    let first = 0, last = "";
+    const out = await L.complete(L.DEFAULT_LLM, {
+      messages: [{ role: "system", content: "Tu es un partenaire de conversation en hébreu." }, { role: "user", content: "שלום! מה שלומך? ספר לי על היום שלך." }],
+      maxTokens: 80,
+      onToken: (p) => { if (!first) first = performance.now() - t; last = p; },
+    });
+    const total = performance.now() - t;
+    return { load, first, total, chars: out.length, text: out.slice(0, 60) };
+  });
+  if (llm) {
+    add("LLM chargement", `${R(llm.load)} ms`, verdict(llm.load, 15000, 40000));
+    add("LLM 1er token", `${R(llm.first)} ms`, verdict(llm.first, 1500, 4000));
+    add("LLM réponse (80 tok max)", `${R(llm.total)} ms, ${llm.chars} car.`, verdict(llm.total, 6000, 15000));
+    add("LLM texte", llm.text.replace(/\s+/g, " "), llm.chars > 5 ? "OK  " : "MAUVAIS");
+  }
+
+  // 2. Whisper : un vrai fichier hébreu du cours, converti en PCM 16 kHz.
+  const dir = "mac/native/Resources/he";
+  const file = readdirSync(dir).find((f) => f.endsWith(".m4a") && !f.includes("slow"));
+  const pcm = execFileSync("ffmpeg", ["-v", "error", "-i", join(dir, file), "-t", "8", "-ac", "1", "-ar", "16000", "-f", "f32le", "-"], { maxBuffer: 1 << 26 });
+  const samples = Array.from(new Float32Array(pcm.buffer, pcm.byteOffset, pcm.length / 4));
+  const w = await run("Whisper", async (samples) => {
+    const L = window.__lbs;
+    let t = performance.now();
+    await L.loadWhisper();
+    const load = performance.now() - t;
+    t = performance.now();
+    const text = await L.transcribe(new Float32Array(samples), "he");
+    return { load, ms: performance.now() - t, text, sec: samples.length / 16000 };
+  }, samples);
+  if (w) {
+    add("Whisper chargement", `${R(w.load)} ms`, verdict(w.load, 15000, 40000));
+    add("Whisper transcription", `${R(w.ms)} ms pour ${w.sec.toFixed(1)} s d'audio (×${(w.ms / 1000 / w.sec).toFixed(2)})`, verdict(w.ms / 1000 / w.sec, 1, 2));
+    add("Whisper texte", w.text.slice(0, 46), w.text.length > 2 ? "OK  " : "MAUVAIS");
+  }
+
+  // 3. Voix hébraïque (Piper + Phonikud).
+  const v = await run("Voix", async () => {
+    const L = window.__lbs;
+    let t = performance.now();
+    await L.loadVoice();
+    const load = performance.now() - t;
+    t = performance.now();
+    const ok = await L.speak("שלום, מה שלומך היום?");
+    return { load, ok, ms: performance.now() - t };
+  });
+  if (v) {
+    add("Voix chargement", `${R(v.load)} ms`, verdict(v.load, 10000, 30000));
+    add("Voix lancement", v.ok ? "démarrée" : "refusée (non prête)", v.ok ? "OK  " : "MAUVAIS");
+  }
+
+  // 4. Traduction hébreu → français (opus-mt, ~465 Mo).
+  const tr = await run("Traduction", async () => {
+    const t = performance.now();
+    const out = await window.__lbs.translateHebrew("אני רוצה לאכול משהו טעים. איפה המסעדה?", "fr");
+    return { ms: performance.now() - t, out };
+  });
+  if (tr) {
+    add("Traduction he→fr", `${R(tr.ms)} ms (chargement inclus)`, verdict(tr.ms, 8000, 20000));
+    add("Traduction texte", tr.out.slice(0, 46), tr.out.length > 2 ? "OK  " : "MAUVAIS");
+  }
+
+  const mem = await page.evaluate(() => performance.memory?.usedJSHeapSize / 1048576);
+  if (mem) add("Mémoire JS (page)", `${mem.toFixed(0)} Mo`, "-");
+  return rows;
+}

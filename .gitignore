@@ -48,3 +48,4 @@ design-refs/
 /mac/Debug.local.swift
 mac/native/Dev.local.swift
 lowend-*.png
+.lowend-profile/

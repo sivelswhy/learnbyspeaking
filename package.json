@@ -7,7 +7,8 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test:lowend": "node scripts/lowend-test.mjs"
+    "test:lowend": "node scripts/lowend-test.mjs",
+    "test:lowend:ai": "node scripts/lowend-test.mjs --ai"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.1",
