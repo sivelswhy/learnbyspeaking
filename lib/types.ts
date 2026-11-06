@@ -125,6 +125,8 @@ export interface PlacementResult {
   /** Compétence estimée (échelle logit) et confiance de l'estimation, 0-100 (test adaptatif). */
   theta?: number;
   confidence?: number;
+  /** Niveau estimé par le test, quand l'apprenant a choisi de partir d'un niveau plus bas (`level` = son choix). */
+  estimatedLevel?: Level;
   /** Moyennes sur les réponses parlées mesurées. */
   voice?: { wpm: number | null; pauseRatio: number; longPauses: number; latency: number; spoken: number };
 }

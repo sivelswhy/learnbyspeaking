@@ -51,6 +51,20 @@ struct AnswerScore: Hashable {
 }
 private let TARGET_WORDS: [String: Double] = ["A1": 2, "A2": 4, "B1": 7, "B2": 9, "C1": 12, "C2": 14]
 
+private let BASIC_WORDS = Set(C.rules.basicWords)
+func variants(_ w: String) -> [String] {
+    var out: [String] = [w]
+    var cur = w
+    var i = 0
+    while i < 3, let f = cur.first, "ושהבלמכ".contains(f), cur.count > 3 { cur = String(cur.dropFirst()); out.append(cur); i += 1 }
+    for v in out where v.count > 3 {
+        out.append(v.sub("ות$", with: "ה")); out.append(v.sub("(ים|ות)$", with: ""))
+    }
+    return out.filter { $0 == w || $0.count >= 3 }
+}
+func isAdvancedWord(_ w: String) -> Bool { w.count >= 3 && !variants(w).contains { BASIC_WORDS.contains($0) } }
+func advancedWords(_ words: [String]) -> [String] { Set(words).filter(isAdvancedWord).sorted() }
+
 func hasKeyword(_ q: PlacementQuestion, _ answer: String) -> Bool {
     let unprefix = { (w: String) in w.sub("^(ו|ש)?(ה|ב|ל|מ|כ)?", with: "") }
     return hebrewWords(answer).contains { w in
@@ -71,7 +85,11 @@ func scoreAnswer(_ q: PlacementQuestion, _ answer: String, _ ai: AiJudgement?, _
     if words.isEmpty { return AnswerScore(score: 0, fluency: nil, fluencyHint: nil, ai: ai != nil, relevance: 0, grammar: ai != nil ? 0 : nil, development: 0, vocabulary: 0, words: 0) }
     let target = TARGET_WORDS[q.level] ?? 4
     let development = clamp100(Double(words.count) / target * 100)
-    let vocabulary = clamp100(Double(Set(words).count) / (target * 0.8) * 100)
+    // Vocabulaire : 60 % variété, 40 % richesse (mots poussés, hors vocabulaire de base).
+    let variety = clamp100(Double(Set(words).count) / (target * 0.8) * 100)
+    let expected = C.rules.advancedExpected[q.level] ?? 2
+    let richness = expected > 0 ? clamp100(Double(advancedWords(words).count) / Double(expected) * 100) : 100
+    let vocabulary = clamp100(Double(variety) * 0.6 + Double(richness) * 0.4)
     let hit = hasKeyword(q, answer)
     let flu = fluencyScore(speech, words: words.count, level: q.level)
     guard let ai else {

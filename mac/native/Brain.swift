@@ -95,7 +95,7 @@ extension LLM {
         let grammarAlert = focus.contains("grammar") ? 75 : 60
         var tips: [String] = []
         if asked && r.relevance < 40 { tips.append("Ta réponse ne répond pas vraiment à la question de Shuli. Réécoute-la ou traduis-la, puis réponds-y directement.") }
-        if r.correction == nil && r.grammar < grammarAlert { tips.append("Il reste sans doute une faute d'accord ou de conjugaison : vérifie le genre et la personne du verbe.") }
+        if r.grammar < grammarAlert || r.correction != nil { tips.append(contentsOf: concreteFixes(answer, p.g, r.correction).map(fixText)) }
         if words <= 2 { tips.append("Fais une phrase complète, avec un verbe : « אני… ».") }
         else if words < devWords { tips.append("Au niveau \(target), on développe davantage : vise au moins \(devWords) mots, avec un détail ou une raison.") }
         if let skill = C.rules.levelSkill[target], words > 2, !answer.sub(NIKUD, with: "").test(skill.has) { tips.append(skill.tip) }

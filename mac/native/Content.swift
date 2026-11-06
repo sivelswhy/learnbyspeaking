@@ -204,6 +204,8 @@ struct Rules: Codable {
     let atToMan: String
     let filler: String
     let dontKnow: String
+    let basicWords: [String]
+    let advancedExpected: [String: Int]
     let mustAnswer: [[String]]
     let fem: [String: String]
     let devWords: [String: Int]

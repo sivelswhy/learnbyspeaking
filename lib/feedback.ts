@@ -1,5 +1,6 @@
 "use client";
 import { complete, yesProbability, type LlmSettings, type Msg } from "./llm";
+import { concreteFixes, fixText } from "./fixes";
 import { judge } from "./judge";
 import { grammarPrompts, hebrewWords, readJudgement, relevancePrompt } from "./placement";
 import { HE_LEVEL } from "./prompts";
@@ -90,7 +91,7 @@ export async function reviewAnswer(llm: LlmSettings, o: { question: string; answ
   const tips: string[] = [];
 
   if (asked && r.relevance < 40) tips.push("Ta réponse ne répond pas vraiment à la question de Shuli. Réécoute-la ou traduis-la, puis réponds-y directement.");
-  if (!r.correction && r.grammar < grammarAlert) tips.push("Il reste sans doute une faute d'accord ou de conjugaison : vérifie le genre et la personne du verbe.");
+  if (r.grammar < grammarAlert || r.correction) concreteFixes(o.answer, l.gender, r.correction).forEach((f) => tips.push(fixText(f)));
   if (words <= 2) tips.push("Fais une phrase complète, avec un verbe : « אני… ».");
   else if (words < devWords) tips.push(`Au niveau ${target}, on développe davantage : vise au moins ${devWords} mots, avec un détail ou une raison.`);
   const skill = LEVEL_SKILL[target];

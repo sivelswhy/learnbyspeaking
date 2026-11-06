@@ -105,6 +105,8 @@ struct PlacementResult: Codable, Hashable {
     var theta: Double?
     var confidence: Int?
     var voice: [String: Double?]?
+    /// Niveau estimé par le test, quand l'apprenant a choisi de partir plus bas (`level` = son choix).
+    var estimatedLevel: String?
 }
 
 let iso: ISO8601DateFormatter = {

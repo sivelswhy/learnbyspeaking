@@ -1,5 +1,7 @@
 import { LEVEL_B, type Item } from "./adaptive";
 import type { Gender, LangCode, Level } from "./languages";
+import { COURSE, linesOf } from "./content/course-he";
+import { PHRASES, THEMES } from "./content/resources-he";
 import { fluencyScore, type SpeechMetrics } from "./speechMetrics";
 
 /**
@@ -236,6 +238,62 @@ export const PLACEMENT: Partial<Record<LangCode, PlacementQuestion[]>> = {
 const ORDER: Level[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
 const TARGET_WORDS: Record<string, number> = { A1: 2, A2: 4, B1: 7, B2: 9, C1: 12, C2: 14 };
 
+/**
+ * Vocabulaire de base (A1-A2) : mots grammaticaux, présentation, famille, nourriture, lieux, verbes courants, temps.
+ * Un mot absent de cette liste (même avec préfixe ou suffixe usuel) compte comme « poussé » : il montre un lexique plus riche.
+ */
+const HAND_WORDS = "פירות חשוב חשובה כדי לדעתי למשל בעיקר כמובן אפילו בערך מעט הרבה לכן לפי מול בין תוך דרך אצל ליד מתחת מעל אבא אבוא אביב אבל אדום אהיה או אוהב אוהבים אוהבת אוזן אוטובוס אוכל אוכלים אוכלת אולי אומר אומרים אומרת אותה אותו אותי אותך אותנו אז אח אחד אחות אחרי אחת איזה איזו איך אין איפה איש אישה איתה איתו איתי איתך אכלנו אכלתי אל אלה אלו אלך אלמד אם אמא אנגליה אנחנו אני אסע אעשה אף אקנה אראה ארבע ארבעה ארץ את אתה אתם אתמול אתן ב בא באה באים באמת באתי בבקשה בגלל בדרך בוקר ביחד בית בלגיה בלי בן בננה בנק בסדר בעל בשר בת בתים גבר גדול גדולה גדל גם גן גר גרה גרות גרים דג דיברתי דירה דקה דרך ה הוא הולך הולכים הולכת הורים היא היה היו היום היי היינו הייתי היתה הלכנו הלכתי הם הן הנה הרבה ו ודאי זאת זה זו זמן חבר חברה חברים חג חדר חדש חדשה חודש חופשה חושב חושבים חושבת חיפה חלב חם חמישה חמישי חמש חנות טוב טובה טובים טיול טלפון יד יהיה יהיו יודע יודעים יודעת יום יכול יכולה יכולים ילד ילדה ילדים ים יפה יפים ירוק ירושלים ירק יש ישן ישראל כ כאב כאן כביש כבר כדורגל כחול כי כיתה כל כלל כמה כן כסף כש ל לא לאהוב לאט לאכול לאן לב לבד לבוא לבן לבשל לגור לדבר לדעת לה להם להתראות לו לומד לומדים לומדת לחם לחשוב לטוס לטייל לי ליון לילה לימודים לישון לך לכתוב ללכת ללמוד למדתי למה למכור לנו לנסוע לעבוד לעשות לפני לפעמים לקנות לקרוא לראות לרצות לשחות לשחק לשמוע לשתות מ מאה מאוד מאיפה מדבר מדברים מדברת מה מהר מוזיקה מונית מורה מחיר מחר מחשב מטבח מטוס מי מים מכונית ממך ממני ממש מן מצוין מרסיי משחק משפחה משרד מתי נהיה נחמד נחמדה נלך נעים נעשה נשואה נשוי סבבה סטודנט סטודנטית סלט סליחה ספר ספרים סרט עבדתי עבודה עבודות עד עובד עובדות עובדים עובדת עוד עושה עושים עין עיר עכשיו על עם עצמי ערב עשיתי עשר עשרה עשרים פה פיצה פעם פרי פריז צהוב צהריים צריך צריכה צריכים צרפת קורא קוראים קוראת קטן קטנה קל קנדה קניתי קפה קצת קר קשה ראיתי ראש ראשון רביעי רגל רואה רואים רווק רווקה רופא רופאה רוצה רוצות רוצים רחוב רכבת רע רק ש שבוע שבע שבעה שבת שוויץ שומע שומעת שוק שוקולד שותה שותים שחור שיר שישה שישי של שלה שלהם שלו שלום שלוש שלושה שלושים שלי שלישי שלך שלנו שם שמונה שמי שמך שמש שנה שני שניים שנים שעה שקל שקלים שש שתי שתיים שתיתי תה תודה תחנה תל תלמיד תלמידה תמיד תפוח תשע תשעה".split(" ");
+
+/** Formes d'un mot sans pluriel : « שעות » → « שעה », « ילדים » → « ילד ». */
+const singular = (w: string) => (w.length > 3 ? [w.replace(/ות$/, "ה"), w.replace(/(ים|ות)$/, "")] : []).filter((x) => x !== w);
+
+/** Formes possibles d'un mot : tel quel, sans préfixes collés (ו ש ה ב ל מ כ, jusqu'à 3), au singulier. Les formes de moins de 3 lettres sont écartées. */
+export const variants = (w: string): string[] => {
+  const out = new Set<string>([w]);
+  let cur = w;
+  for (let i = 0; i < 3 && /^[ושהבלמכ]/.test(cur) && cur.length > 3; i++) {
+    cur = cur.slice(1);
+    out.add(cur);
+  }
+  for (const v of [...out]) for (const x of singular(v)) out.add(x);
+  return [...out].filter((v) => v === w || v.length >= 3);
+};
+
+/** Mots des leçons A1-A2 du cours et des thèmes : l'apprenant les a vus, ils comptent comme vocabulaire de base. */
+const taughtWords = (): string[] => {
+  const lines: string[] = [];
+  for (const lv of COURSE) {
+    if (lv.cefr !== "A1" && lv.cefr !== "A2") continue;
+    for (const u of lv.units)
+      for (const d of u.days) {
+        for (const l of [d.key, d.scenario.starter as unknown as { text: Record<string, string> }]) {
+          const g = "he" in l ? (l as { he: Record<string, string> }).he : (l as { text: Record<string, string> }).text;
+          lines.push(g.m, g.f);
+        }
+        for (const st of d.steps) for (const l of linesOf(st)) lines.push(l.he.m, l.he.f);
+      }
+  }
+  for (const t of THEMES) for (const w of t.words) lines.push(w.he);
+  for (const w of PHRASES) lines.push(w.he);
+  for (const q of PLACEMENT.he ?? []) if (q.level === "A1" || q.level === "A2") lines.push(q.text.m, q.text.f);
+  return lines.flatMap((l) => l.split(/\s+/)).map((w) => w.replace(/[֑-ׇ]/g, "").replace(/[^א-ת]/g, "")).filter(Boolean);
+};
+
+/** Mots de base, tels quels et en racine (les formes courtes comme « לי » restent comparées telles quelles). */
+const BASIC_WORDS = new Set<string>();
+for (const w of [...HAND_WORDS.map((x) => x.replace(/[֑-ׇ]/g, "")), ...taughtWords()]) {
+  BASIC_WORDS.add(w);
+  for (const x of singular(w)) BASIC_WORDS.add(x);
+}
+export const BASIC_WORDS_LIST = [...BASIC_WORDS];
+/** Mots poussés attendus (distincts) pour avoir un vocabulaire à la hauteur du niveau de la question. */
+export const ADVANCED_EXPECTED: Record<string, number> = { A1: 0, A2: 0, B1: 2, B2: 3, C1: 4, C2: 4 };
+
+/** Mot poussé : au moins 3 lettres de racine, et aucune de ses formes (préfixes, pluriel) n'est dans le vocabulaire de base. */
+export const isAdvancedWord = (w: string) => w.length >= 3 && !variants(w).some((v) => BASIC_WORDS.has(v));
+/** Mots poussés distincts d'une réponse. */
+export const advancedWords = (words: string[]) => [...new Set(words)].filter(isAdvancedWord);
+
 const strip = (w: string) => w.replace(/[֑-ׇ]/g, "").replace(/[^א-ת]/g, "");
 /** Enlève les préfixes collés (ו ה ב ל מ ש כ) pour comparer les racines. */
 const unprefix = (w: string) => w.replace(/^(ו|ש)?(ה|ב|ל|מ|כ)?/, "");
@@ -313,7 +371,11 @@ export function scoreAnswer(q: PlacementQuestion, answer: string, ai?: AiJudgeme
   if (!words.length) return { score: 0, fluency: null, fluencyHint: null, ai: !!ai, relevance: 0, grammar: ai ? 0 : null, development: 0, vocabulary: 0, words: 0 };
   const target = TARGET_WORDS[q.level];
   const development = clamp((words.length / target) * 100);
-  const vocabulary = clamp((new Set(words).size / (target * 0.8)) * 100);
+  // Vocabulaire : 60 % variété (mots distincts), 40 % richesse (mots poussés, hors vocabulaire de base A1-A2).
+  const variety = clamp((new Set(words).size / (target * 0.8)) * 100);
+  const expected = ADVANCED_EXPECTED[q.level] ?? 2;
+  const richness = expected ? clamp((advancedWords(words).length / expected) * 100) : 100;
+  const vocabulary = clamp(variety * 0.6 + richness * 0.4);
   const hit = hasKeyword(q, answer);
   const flu = fluencyScore(speech, words.length, q.level);
   const fluency = flu?.score ?? null;
@@ -383,10 +445,10 @@ export function estimateLevel(qs: PlacementQuestion[], scores: number[]): Level 
 }
 
 export const SCORING_EXPLANATION =
-  "Chaque réponse est notée par l'IA (DictaLM, sur ton appareil) et par des règles : 35 % pertinence (l'IA juge si tu réponds à la question, sans tenir compte des fautes), 45 % grammaire (l'IA juge si la phrase est correcte et propose une correction), 10 % développement (réponse assez fournie pour le niveau), 10 % variété du vocabulaire ; quand ta voix est mesurée, 10 % viennent de ta fluidité (pauses, hésitations, débit, temps de réaction). Une réponse à côté de la question est plafonnée à 25. Les questions sont choisies une à une selon tes réponses (test adaptatif) : ton niveau est l'estimation statistique de ta compétence, avec sa fiabilité. L'IA peut se tromper, surtout sur la grammaire ; la prononciation n'est pas notée.";
+  "Chaque réponse est notée par l'IA (DictaLM, sur ton appareil) et par des règles : 35 % pertinence (l'IA juge si tu réponds à la question, sans tenir compte des fautes), 45 % grammaire (l'IA juge si la phrase est correcte et propose une correction), 10 % développement (réponse assez fournie pour le niveau), 10 % vocabulaire (60 % variété des mots, 40 % mots avancés au-delà du vocabulaire de base) ; quand ta voix est mesurée, 10 % viennent de ta fluidité (pauses, hésitations, débit, temps de réaction). Une réponse à côté de la question est plafonnée à 25. Les questions sont choisies une à une selon tes réponses (test adaptatif) : ton niveau est l'estimation statistique de ta compétence, avec sa fiabilité. L'IA peut se tromper, surtout sur la grammaire ; la prononciation n'est pas notée.";
 
 export const SCORING_EXPLANATION_NO_AI =
-  "Notation par règles seulement, sans IA : 35 % développement, 25 % variété du vocabulaire, 40 % pertinence (présence des mots ou formes attendus). Une réponse sans les mots attendus est plafonnée à 30. La grammaire et la prononciation ne sont pas notées.";
+  "Notation par règles seulement, sans IA : 35 % développement, 25 % vocabulaire (variété et mots avancés), 40 % pertinence (présence des mots ou formes attendus). Une réponse sans les mots attendus est plafonnée à 30. La grammaire et la prononciation ne sont pas notées.";
 
 /* ---------- Questions posées à l'IA (en hébreu, avec exemples : DictaLM s'en sort mieux ainsi) ---------- */
 

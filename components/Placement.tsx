@@ -1,7 +1,8 @@
 "use client";
+import { concreteFixes, fixText } from "@/lib/fixes";
 import { useEffect, useRef, useState } from "react";
 import { RiEyeLine, RiKeyboardLine, RiLightbulbLine, RiShareBoxLine, RiStopFill, RiVoiceprintLine, RiTranslate2, RiVolumeUpLine } from "react-icons/ri";
-import { LANGUAGES, type Gender, type Level } from "@/lib/languages";
+import { LANGUAGES, LEVELS, type Gender, type Level } from "@/lib/languages";
 import type { LlmSettings } from "@/lib/llm";
 import { judge } from "@/lib/judge";
 import { canTranslate, translateHebrew } from "@/lib/translate";
@@ -16,7 +17,7 @@ import { LEVEL_RATE, STT_ERRORS, cancelSpeech, speak, useVoiceInput } from "@/li
 import type { PlacementResult, Profile } from "@/lib/types";
 import { Avatar } from "./Avatar";
 import { Radar } from "./Radar";
-import { Btn, Header } from "./ui";
+import { Btn, Chip, Header } from "./ui";
 
 type Phase = "intro" | "test" | "report";
 
@@ -28,7 +29,7 @@ export function Placement({ profile, llm, onDone, onSkip, onGender }: {
   const [phase, setPhase] = useState<Phase>("intro");
   const [result, setResult] = useState<PlacementResult | null>(null);
   if (phase === "intro") return <Intro onStart={() => setPhase("test")} onSkip={onSkip} gender={profile.gender} onGender={LANGUAGES[profile.target].genderedYou ? onGender : undefined} />;
-  if (phase === "report" && result) return <PlacementReport r={result} profile={profile} onContinue={() => onDone(result)} />;
+  if (phase === "report" && result) return <PlacementReport r={result} profile={profile} onContinue={(level) => onDone(level === result.level ? result : { ...result, level, estimatedLevel: result.level })} />;
   return <Test profile={profile} llm={llm} onExit={onGender ? undefined : onSkip} onFinish={(r) => { setResult(r); setPhase("report"); }} />;
 }
 
@@ -406,10 +407,12 @@ function Feedback({ t, q, gnd, he, speech }: { t: Turn; q: PlacementQuestion; gn
   }
   const verdict = sc.score >= 75 ? "Très bien !" : sc.score >= 55 ? "Bien joué !" : sc.words ? "Bon début !" : "Pas de souci, voici un modèle.";
   const notes: string[] = [];
+  const fixes = sc.words && sc.grammar !== null && sc.grammar < 60 ? concreteFixes(t.answer, gnd, sc.correction) : [];
   if (sc.words) {
     notes.push(sc.relevance >= 50 ? "Tu réponds bien à la question." : "Ta réponse ne semble pas répondre à la question : relis-la, ou touche « Traduire ».");
     if (sc.grammar !== null) {
-      notes.push(sc.grammar >= 60 ? "Ta phrase semble correcte." : sc.grammar >= 35 ? "Ta phrase est compréhensible, mais il y a peut-être une faute : compare avec l'exemple." : "Il y a sans doute une faute (accord, conjugaison…) : compare avec l'exemple.");
+      if (sc.grammar >= 60 && !fixes.length) notes.push("Ta phrase semble correcte.");
+      else if (fixes.length) fixes.forEach((f) => notes.push(fixText(f)));
     }
     if (sc.development < 100) notes.push("Développe un peu plus : ajoute un détail, ou une deuxième idée avec ו (et) ou כי (parce que).");
   } else if (t.answer) {
@@ -466,7 +469,8 @@ const LEVEL_TEXT: Record<Level, string> = {
   C2: "Ton niveau est proche de celui d'un natif.",
 };
 
-export function PlacementReport({ r, profile, onContinue }: { r: PlacementResult; profile: Profile; onContinue: () => void }) {
+export function PlacementReport({ r, profile, onContinue }: { r: PlacementResult; profile: Profile; onContinue: (level: Level) => void }) {
+  const [chosen, setChosen] = useState<Level>(r.level);
   const he = LANGUAGES[profile.target].rtl ? "he" : "";
   const gnd = profile.gender ?? "m";
   const bank = PLACEMENT[profile.target] ?? [];
@@ -567,7 +571,18 @@ export function PlacementReport({ r, profile, onContinue }: { r: PlacementResult
         </div>
       </div>
       <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-bg via-bg to-transparent px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-6">
-        <Btn onClick={onContinue} className="mx-auto block min-h-14 w-full max-w-lg lg:max-w-3xl text-base">Fixer mon objectif et progresser</Btn>
+        {tab === "report" && LEVELS.indexOf(r.level) > 0 && (
+          <div className="mx-auto mb-2 w-full max-w-lg lg:max-w-3xl rounded-2xl bg-card p-3 shadow-card">
+            <p className="text-sm font-semibold">Le test te met {r.level}. Tu préfères démarrer plus bas ?</p>
+            <p className="text-xs text-muted">Un niveau plus bas rend les exercices plus faciles pour prendre confiance. Tu pourras refaire le test quand tu veux.</p>
+            <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Niveau de départ">
+              {LEVELS.filter((l) => LEVELS.indexOf(l) <= LEVELS.indexOf(r.level)).map((l) => (
+                <Chip key={l} active={chosen === l} role="radio" aria-checked={chosen === l} onClick={() => setChosen(l)}>{l}{l === r.level ? " · test" : ""}</Chip>
+              ))}
+            </div>
+          </div>
+        )}
+        <Btn onClick={() => onContinue(chosen)} className="mx-auto block min-h-14 w-full max-w-lg lg:max-w-3xl text-base">Fixer mon objectif et progresser</Btn>
       </div>
     </div>
   );

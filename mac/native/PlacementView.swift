@@ -18,7 +18,11 @@ struct PlacementView: View {
                 PlacementIntro(gender: p.gender, askGender: onboarding, onGender: { store.profile?.gender = $0 },
                                onStart: { phase = "test" }, onSkip: skip)
             case "report":
-                PlacementReport(r: result!, g: p.g) { done(result!) }
+                PlacementReport(r: result!, g: p.g) { level in
+                    var r = result!
+                    if level != r.level { r.estimatedLevel = r.level; r.level = level }
+                    done(r)
+                }
             default:
                 PlacementTest(profile: p, ear: app.ear, voice: app.voice, onExit: onboarding ? nil : { nav.home() }) { r in result = r; phase = "report" }
             }
@@ -467,7 +471,8 @@ private struct PFeedback: View {
         if sc.words > 0 {
             n.append(sc.relevance >= 50 ? "Tu réponds bien à la question." : "Ta réponse ne semble pas répondre à la question : relis-la, ou touche « Traduire ».")
             if let gr = sc.grammar {
-                n.append(gr >= 60 ? "Ta phrase semble correcte." : gr >= 35 ? "Ta phrase est compréhensible, mais il y a peut-être une faute : compare avec l'exemple." : "Il y a sans doute une faute (accord, conjugaison…) : compare avec l'exemple.")
+                let fixes = gr < 60 ? concreteFixes(t.answer, g, sc.correction) : []
+                if fixes.isEmpty { if gr >= 60 { n.append("Ta phrase semble correcte.") } } else { n.append(contentsOf: fixes.map(fixText)) }
             }
             if sc.development < 100 { n.append("Développe un peu plus : ajoute un détail, ou une deuxième idée avec ו (et) ou כי (parce que).") }
         } else if !t.answer.isEmpty {
@@ -488,13 +493,15 @@ private let LEVEL_TEXT = [
     "C1": "Tu t'exprimes avec aisance et nuance.",
     "C2": "Ton niveau est proche de celui d'un natif.",
 ]
-private let SCORING = "Chaque réponse est notée par l'IA (Gemma, sur ton Mac) et par des règles : 35 % pertinence (l'IA juge si tu réponds à la question, sans tenir compte des fautes), 45 % grammaire (l'IA juge si la phrase est correcte et propose une correction), 10 % développement (réponse assez fournie pour le niveau), 10 % variété du vocabulaire ; quand ta voix est mesurée, 10 % viennent de ta fluidité (pauses, hésitations, débit, temps de réaction). Une réponse à côté de la question est plafonnée à 25. Les questions sont choisies une à une selon tes réponses (test adaptatif) : ton niveau est l'estimation statistique de ta compétence, avec sa fiabilité. L'IA peut se tromper, surtout sur la grammaire ; la prononciation n'est pas notée."
-private let SCORING_NO_AI = "Notation par règles seulement, sans IA : 35 % développement, 25 % variété du vocabulaire, 40 % pertinence (présence des mots ou formes attendus). Une réponse sans les mots attendus est plafonnée à 30. La grammaire et la prononciation ne sont pas notées."
+private let SCORING = "Chaque réponse est notée par l'IA (Gemma, sur ton Mac) et par des règles : 35 % pertinence (l'IA juge si tu réponds à la question, sans tenir compte des fautes), 45 % grammaire (l'IA juge si la phrase est correcte et propose une correction), 10 % développement (réponse assez fournie pour le niveau), 10 % vocabulaire (60 % variété des mots, 40 % mots avancés au-delà du vocabulaire de base) ; quand ta voix est mesurée, 10 % viennent de ta fluidité (pauses, hésitations, débit, temps de réaction). Une réponse à côté de la question est plafonnée à 25. Les questions sont choisies une à une selon tes réponses (test adaptatif) : ton niveau est l'estimation statistique de ta compétence, avec sa fiabilité. L'IA peut se tromper, surtout sur la grammaire ; la prononciation n'est pas notée."
+private let SCORING_NO_AI = "Notation par règles seulement, sans IA : 35 % développement, 25 % vocabulaire (variété et mots avancés), 40 % pertinence (présence des mots ou formes attendus). Une réponse sans les mots attendus est plafonnée à 30. La grammaire et la prononciation ne sont pas notées."
 
 struct PlacementReport: View {
     let r: PlacementResult
     let g: Gender
-    let onContinue: () -> Void
+    let onContinue: (String) -> Void
+    @State private var chosen: String?
+    private let LEVEL_LIST = ["A1", "A2", "B1", "B2", "C1", "C2"]
 
     private var radarValues: [(label: String, v: Int)] {
         func ax(_ k: String) -> Int { Int((r.axes[k] ?? nil) ?? 0) }
@@ -569,7 +576,21 @@ struct PlacementReport: View {
                     }
                 }
             }
-            Button("Fixer mon objectif et progresser", action: onContinue).buttonStyle(Btn(full: true, height: 56, fontSize: 16))
+            VStack(spacing: 8) {
+                let idx = LEVEL_LIST.firstIndex(of: r.level) ?? 0
+                if tab == "report" && idx > 0 {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Le test te met \(r.level). Tu préfères démarrer plus bas ?").font(.app(14, .semibold))
+                        Text("Un niveau plus bas rend les exercices plus faciles pour prendre confiance. Tu pourras refaire le test quand tu veux.").font(.app(12)).foregroundStyle(Palette.muted)
+                        HStack(spacing: 8) {
+                            ForEach(Array(LEVEL_LIST.prefix(idx + 1)), id: \.self) { l in
+                                Button(l == r.level ? "\(l) · test" : l) { chosen = l }.buttonStyle(ChipStyle(active: (chosen ?? r.level) == l))
+                            }
+                        }
+                    }.frame(maxWidth: .infinity, alignment: .leading).card()
+                }
+                Button("Fixer mon objectif et progresser") { onContinue(chosen ?? r.level) }.buttonStyle(Btn(full: true, height: 56, fontSize: 16))
+            }
                 .frame(maxWidth: 768).padding(.horizontal, 16).padding(.top, 24).padding(.bottom, 16).frame(maxWidth: .infinity)
                 .background(LinearGradient(colors: [Palette.bg.opacity(0), Palette.bg, Palette.bg], startPoint: .top, endPoint: .bottom))
         }.background(Palette.bg)

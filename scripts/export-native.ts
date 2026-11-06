@@ -43,6 +43,7 @@ const templates = {
 const rules = {
   mascYou: prompts.MASC_YOU.source, femYou: prompts.FEM_YOU.source, noamFem: prompts.NOAM_FEM.source,
   atToMan: human.AT_TO_MAN.source, filler: human.FILLER.source, dontKnow: placement.DONT_KNOW.source,
+  basicWords: placement.BASIC_WORDS_LIST, advancedExpected: placement.ADVANCED_EXPECTED,
   mustAnswer: human.MUST_ANSWER.map(([q, a]: RegExp[]) => [q.source, a.source]),
   fem: fem.FEM,
   devWords: feedback.DEV_WORDS, goalTip: feedback.GOAL_TIP,
