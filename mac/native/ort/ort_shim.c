@@ -7,7 +7,11 @@
 struct OrtShimSession { OrtSession *session; };
 
 static const OrtApi *api(void) { static const OrtApi *a = NULL; if (!a) a = OrtGetApiBase()->GetApi(ORT_API_VERSION); return a; }
-static OrtEnv *env(void) { static OrtEnv *e = NULL; if (!e) api()->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "lbs", &e); return e; }
+static OrtEnv *env(void) {
+    static OrtEnv *e = NULL;
+    if (!e) { OrtStatus *st = api()->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "lbs", &e); if (st) { api()->ReleaseStatus(st); e = NULL; } }
+    return e;
+}
 
 static int fail(OrtStatus *st, char *err) {
     if (!st) return 0;
@@ -16,16 +20,48 @@ static int fail(OrtStatus *st, char *err) {
     return 1;
 }
 
+/* Copie les sorties (tenseurs float) et les libère. Toute sortie est libérée, même en cas d'erreur. */
+static int copy_outputs(OrtValue **res, int nouts, OrtShimOutput *outs, char *err) {
+    int ok = 1;
+    for (int i = 0; i < nouts; i++) {
+        outs[i].data = NULL;
+        outs[i].count = 0;
+        if (!ok || !res[i]) { if (res[i]) api()->ReleaseValue(res[i]); continue; }
+        OrtTensorTypeAndShapeInfo *info = NULL;
+        size_t count = 0;
+        ONNXTensorElementDataType t = ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
+        float *p = NULL;
+        if (fail(api()->GetTensorTypeAndShape(res[i], &info), err)) ok = 0;
+        else {
+            if (fail(api()->GetTensorShapeElementCount(info, &count), err) || fail(api()->GetTensorElementType(info, &t), err)) ok = 0;
+            api()->ReleaseTensorTypeAndShapeInfo(info);
+        }
+        if (ok && t != ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT) { if (err) snprintf(err, 512, "sortie %d : type %d, float attendu", i, (int)t); ok = 0; }
+        if (ok && fail(api()->GetTensorMutableData(res[i], (void **)&p), err)) ok = 0;
+        if (ok) {
+            outs[i].data = malloc(count * sizeof(float) + 1);
+            if (!outs[i].data) { if (err) snprintf(err, 512, "mémoire insuffisante"); ok = 0; }
+            else { memcpy(outs[i].data, p, count * sizeof(float)); outs[i].count = count; }
+        }
+        api()->ReleaseValue(res[i]);
+    }
+    if (!ok) for (int i = 0; i < nouts; i++) { free(outs[i].data); outs[i].data = NULL; outs[i].count = 0; }
+    return ok;
+}
+
 OrtShimSession *ort_shim_open(const char *path, char *err) {
     OrtSessionOptions *opt = NULL;
     if (fail(api()->CreateSessionOptions(&opt), err)) return NULL;
-    api()->SetSessionGraphOptimizationLevel(opt, ORT_ENABLE_ALL);
-    api()->SetIntraOpNumThreads(opt, 4);
+    /* Réglages facultatifs : un échec garde la valeur par défaut. */
+    (void)fail(api()->SetSessionGraphOptimizationLevel(opt, ORT_ENABLE_ALL), NULL);
+    (void)fail(api()->SetIntraOpNumThreads(opt, 4), NULL);
+    if (!env()) { api()->ReleaseSessionOptions(opt); if (err) snprintf(err, 512, "onnxruntime : environnement non créé"); return NULL; }
     OrtSession *s = NULL;
     OrtStatus *st = api()->CreateSession(env(), path, opt, &s);
     api()->ReleaseSessionOptions(opt);
     if (fail(st, err)) return NULL;
     OrtShimSession *r = malloc(sizeof *r);
+    if (!r) { api()->ReleaseSession(s); if (err) snprintf(err, 512, "mémoire insuffisante"); return NULL; }
     r->session = s;
     return r;
 }
@@ -36,6 +72,7 @@ void ort_shim_free(void *p) { free(p); }
 int ort_shim_run(OrtShimSession *s, const char **int_names, const int64_t **int_data, int nints, int64_t n,
                  const char *len_name, int64_t len_value, const char *scale_name, const float *scales, int64_t nscales,
                  const char **out_names, int nouts, OrtShimOutput *outs, char *err) {
+    if (nints + 2 > 8 || nouts > 8) { if (err) snprintf(err, 512, "trop d'entrées ou de sorties"); return -1; }
     OrtMemoryInfo *mem = NULL;
     if (fail(api()->CreateCpuMemoryInfo(OrtArenaAllocator, OrtMemTypeDefault, &mem), err)) return -1;
     const char *names[8];
@@ -59,19 +96,7 @@ int ort_shim_run(OrtShimSession *s, const char **int_names, const int64_t **int_
     }
     OrtValue *res[8] = {0};
     if (fail(api()->Run(s->session, NULL, names, (const OrtValue *const *)vals, k, out_names, nouts, res), err)) goto done;
-    for (int i = 0; i < nouts; i++) {
-        OrtTensorTypeAndShapeInfo *info = NULL;
-        size_t count = 0;
-        float *p = NULL;
-        api()->GetTensorTypeAndShape(res[i], &info);
-        api()->GetTensorShapeElementCount(info, &count);
-        api()->ReleaseTensorTypeAndShapeInfo(info);
-        api()->GetTensorMutableData(res[i], (void **)&p);
-        outs[i].data = malloc(count * sizeof(float));
-        memcpy(outs[i].data, p, count * sizeof(float));
-        outs[i].count = count;
-        api()->ReleaseValue(res[i]);
-    }
+    if (!copy_outputs(res, nouts, outs, err)) goto done;
     rc = nouts;
 done:
     for (int i = 0; i < k; i++) if (vals[i]) api()->ReleaseValue(vals[i]);
@@ -99,19 +124,7 @@ int ort_shim_run_generic(OrtShimSession *s, const OrtShimInput *ins, int nin, co
         if (fail(api()->CreateTensorWithDataAsOrtValue(mem, p, n * isz, ins[i].shape, (size_t)ins[i].ndim, t, &vals[i]), err)) goto done;
     }
     if (fail(api()->Run(s->session, NULL, names, (const OrtValue *const *)vals, (size_t)nin, out_names, (size_t)nouts, res), err)) goto done;
-    for (int i = 0; i < nouts; i++) {
-        OrtTensorTypeAndShapeInfo *info = NULL;
-        size_t count = 0;
-        float *p = NULL;
-        api()->GetTensorTypeAndShape(res[i], &info);
-        api()->GetTensorShapeElementCount(info, &count);
-        api()->ReleaseTensorTypeAndShapeInfo(info);
-        api()->GetTensorMutableData(res[i], (void **)&p);
-        outs[i].data = malloc(count * sizeof(float) + 1);
-        memcpy(outs[i].data, p, count * sizeof(float));
-        outs[i].count = count;
-        api()->ReleaseValue(res[i]);
-    }
+    if (!copy_outputs(res, nouts, outs, err)) goto done;
     rc = nouts;
 done:
     for (int i = 0; i < nin; i++) if (vals[i]) api()->ReleaseValue(vals[i]);
