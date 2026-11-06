@@ -247,7 +247,7 @@ const HAND_WORDS = "פירות חשוב חשובה כדי לדעתי למשל ב
 /** Formes d'un mot sans pluriel : « שעות » → « שעה », « ילדים » → « ילד ». */
 const singular = (w: string) => (w.length > 3 ? [w.replace(/ות$/, "ה"), w.replace(/(ים|ות)$/, "")] : []).filter((x) => x !== w);
 
-/** Formes possibles d'un mot : tel quel, sans préfixes collés (ו ש ה ב ל מ כ, jusqu'à 3), au singulier. Les formes de moins de 3 lettres sont écartées. */
+/** Formes possibles d'un mot : tel quel, sans préfixes collés (ו ש ה ב ל מ כ, jusqu'à 3), au singulier. Les formes de moins de 3 lettres sont écartées, et celles de 3 lettres si plus de 2 lettres ont été retirées (« הממשלה » ne devient pas « שלה »). */
 export const variants = (w: string): string[] => {
   const out = new Set<string>([w]);
   let cur = w;
@@ -256,7 +256,7 @@ export const variants = (w: string): string[] => {
     out.add(cur);
   }
   for (const v of [...out]) for (const x of singular(v)) out.add(x);
-  return [...out].filter((v) => v === w || v.length >= 3);
+  return [...out].filter((v) => v === w || (v.length >= 3 && (v.length >= 4 || w.length - v.length <= 2)));
 };
 
 /** Mots des leçons A1-A2 du cours et des thèmes : l'apprenant les a vus, ils comptent comme vocabulaire de base. */

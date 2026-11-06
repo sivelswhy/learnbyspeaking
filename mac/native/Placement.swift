@@ -62,7 +62,7 @@ func variants(_ w: String) -> [String] {
     for v in out where v.count > 3 {
         out.append(v.sub("ות$", with: "ה")); out.append(v.sub("(ים|ות)$", with: ""))
     }
-    return out.filter { $0 == w || $0.count >= 3 }
+    return out.filter { $0 == w || ($0.count >= 3 && ($0.count >= 4 || w.count - $0.count <= 2)) }
 }
 func isAdvancedWord(_ w: String) -> Bool { w.count >= 3 && !variants(w).contains { BASIC_WORDS.contains($0) } }
 func advancedWords(_ words: [String]) -> [String] { Set(words).filter(isAdvancedWord).sorted() }
