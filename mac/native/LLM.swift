@@ -20,6 +20,9 @@ final class LLM {
     let key: String
     /// Langue maternelle de l apprenant (choix du traducteur).
     var native: () -> String = { "fr" }
+    /// Jugements déjà faits (question, réponse, genre) : le bilan de séance ne refait pas ceux de la conversation.
+    var judged: [String: AiJudgement] = [:]
+    let judgedLock = NSLock()
     init(port: UInt16, key: String) {
         base = URL(string: "http://\(appHost):\(port)/v1/chat/completions")!
         self.key = key

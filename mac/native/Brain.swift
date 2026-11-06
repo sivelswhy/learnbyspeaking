@@ -72,6 +72,9 @@ extension LLM {
     /// La réponse répond-elle à la question, est-elle correcte ? nil sans mot hébreu.
     func judge(question: String, answer: String, female: Bool = false) async throws -> AiJudgement? {
         guard !hebrewWords(answer).isEmpty else { return nil }
+        // Même question, même réponse : même avis (température 0), sans refaire les 4 appels au modèle.
+        let key = "\(female ? "f" : "m")\u{1}\(question)\u{1}\(answer)"
+        if let hit = judgedLock.withLock({ judged[key] }) { return hit }
         let relevance = try await yesProbability(fill(T.relevance, ["Q": question, "A": answer]))
         let correct = try await yesProbability(fill(T.grammarCorrect, ["A": answer]))
         let mistake = try await yesProbability(fill(T.grammarMistake, ["A": answer]))
@@ -79,7 +82,9 @@ extension LLM {
             .components(separatedBy: "\n").first ?? ""
         // Les exemples de correction sont surtout au masculin : pour une apprenante, « je » repasse au féminin.
         if female { correction = await feminize(correction) }
-        return AiJudgement(relevance: relevance, grammar: (correct + 1 - mistake) / 2, correction: correction)
+        let r = AiJudgement(relevance: relevance, grammar: (correct + 1 - mistake) / 2, correction: correction)
+        judgedLock.withLock { if judged.count > 300 { judged.removeAll() }; judged[key] = r }
+        return r
     }
 
     // MARK: Avis de Shuli
@@ -193,12 +198,12 @@ extension LLM {
 
     // MARK: Bilan de séance
 
-    func scoreSession(_ turns: [(question: String, answer: String)], level: String) async -> SessionReport {
+    func scoreSession(_ turns: [(question: String, answer: String)], level: String, female: Bool = false) async -> SessionReport {
         let rules = scoreByRules(turns.map(\.answer), level: level)
         let judged = Array(turns.filter { !hebrewWords($0.answer).isEmpty }.suffix(8))
         var read: [(q: String, a: String, relevance: Int, grammar: Int, correction: String?)] = []
         for t in judged {
-            guard var ai = try? await judge(question: t.question, answer: t.answer) else { return rules }
+            guard var ai = try? await judge(question: t.question, answer: t.answer, female: female) else { return rules }
             if !t.question.contains("?") || t.answer.trimmed.hasSuffix("?") { ai.relevance = 1 }
             let r = readJudgement(t.answer, ai)
             read.append((t.question, t.answer, r.relevance, r.grammar, r.correction))

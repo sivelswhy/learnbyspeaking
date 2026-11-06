@@ -181,7 +181,7 @@ final class ConversationModel: ObservableObject {
         guard !users.isEmpty else { return nil }
         finishing = true
         let turns = users.map { (i, m) in (question: messages[..<i].last { $0.role == "assistant" }?.text ?? "", answer: m.text) }
-        let report = await app.llm.scoreSession(turns, level: profile.level)
+        let report = await app.llm.scoreSession(turns, level: profile.level, female: profile.g == .f)
         finishing = false
         var rec = SessionRecord(id: uid(), date: nowISO(), scenarioId: sc.id, title: sc.title, seconds: Int(Date().timeIntervalSince(t0)),
                                 turns: users.count, words: [], report: report)
