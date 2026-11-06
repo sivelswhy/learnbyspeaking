@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LANGUAGES, type Scenario } from "@/lib/languages";
 import { complete, errorMessage, type LlmSettings } from "@/lib/llm";
-import { correctionsToWeakPoints, translateMessages } from "@/lib/prompts";
+import { translateMessages } from "@/lib/prompts";
+import { correctionOf } from "@/lib/fixes";
 import { LEVEL_RATE, STT_ERRORS, cancelSpeech, hasVoice, speak, useRecognizer, useWhisperRecognizer } from "@/lib/speech";
 import { judge } from "@/lib/judge";
 import { reviewAnswer } from "@/lib/feedback";
@@ -75,7 +76,9 @@ export function Conversation({
   const bottom = useRef<HTMLDivElement>(null);
   const handsFreeRef = useRef(false);
   const repeatRef = useRef(false);
-  const weak = useRef(correctionsToWeakPoints(pastCorrections));
+  // Points faibles des séances passées : pas encore envoyés au modèle (consigne non testée avec DictaLM 1,7 Md).
+  const weak = useRef<string[]>([]);
+  void pastCorrections;
   const script = SCENES[sc.id];
 
   const update = useCallback((fn: (m: Message[]) => Message[]) => {
@@ -306,7 +309,11 @@ export function Conversation({
     const seconds = Math.round((Date.now() - t0.current) / 1000);
     if (!userTurns.length) return onExit();
     setFinishing(true);
-    const corrections = msgs.current.flatMap((m) => (m.correction ? [m.correction] : []));
+    // Corrections de la séance, tirées des avis de Shuli (phrase corrigée et faute expliquée) : « Erreurs fréquentes » du bilan.
+    const corrections = msgs.current.flatMap((m) => {
+      const c = m.role === "user" ? correctionOf(m.text, profile.gender ?? "m", m.feedback?.correction) : null;
+      return c ? [c] : [];
+    });
     const base: SessionRecord = {
       id: uid(), date: new Date().toISOString(), scenarioId: sc.id, title: sc.title, seconds, turns: userTurns.length,
       corrections, words: newWords.current,

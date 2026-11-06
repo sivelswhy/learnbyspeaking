@@ -167,6 +167,13 @@ struct ProgressView_: View {
                     }.frame(height: 110)
                 }.frame(maxWidth: .infinity, alignment: .leading).card()
             }
+            let cats = errorCategories(sessions)
+            if !cats.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Erreurs fréquentes").font(.app(16, .semibold))
+                    ForEach(cats, id: \.0) { k, n in HStack { Text(k).font(.app(14)); Spacer(); Text("\(n)").font(.app(14)).foregroundStyle(Palette.muted) } }
+                }.frame(maxWidth: .infinity, alignment: .leading).card()
+            }
             Text("Historique").font(.app(16, .semibold))
             if sessions.isEmpty {
                 HStack(spacing: 12) { Avatar(mood: .sad, size: 56); Text("Aucune session pour l'instant. Viens parler avec moi !").font(.app(14)).foregroundStyle(Palette.muted) }
@@ -190,4 +197,11 @@ struct ProgressView_: View {
     private func stat(_ v: String, _ l: String) -> some View {
         VStack(spacing: 2) { Text(v).font(.app(24, .bold)); Text(l).font(.app(12)).foregroundStyle(Palette.muted) }.frame(maxWidth: .infinity).card()
     }
+}
+
+/// Nombre de fautes par famille sur toutes les séances (miroir de components/Progress.tsx).
+func errorCategories(_ sessions: [SessionRecord]) -> [(String, Int)] {
+    var n: [String: Int] = [:]
+    for s in sessions { for c in s.corrections { if case .obj(let o) = c, case .str(let k)? = o["category"] { n[k, default: 0] += 1 } } }
+    return n.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }.map { ($0.key, $0.value) }
 }

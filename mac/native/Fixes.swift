@@ -69,3 +69,19 @@ func concreteFixes(_ answer: String, _ g: Gender, _ correction: String?) -> [Fix
     let rest = correction.map { explainFixes(answer, $0).filter { f in !slips.contains { f.from.split(separator: " ").map(String.init).contains($0.from) } } } ?? []
     return Array((slips + rest).prefix(4))
 }
+
+/// Famille d'une faute, pour le bilan (miroir de fixCategory).
+func fixCategory(_ f: Fix) -> String {
+    if f.why.test("autre mot") { return "vocabulaire" }
+    if f.why.test("mot en trop|mot manquant|reformuler|un seul mot") { return "fluidité" }
+    if f.why.test("accord|féminin|masculin|futur|passé|infinitif|préposition|article|pluriel|singulier|forme") { return "grammaire" }
+    return "autre"
+}
+
+/// Correction gardée dans l'historique d'une séance (miroir de correctionOf, même format JSON que le site).
+func correctionOf(_ answer: String, _ g: Gender, _ correction: String?) -> JSONValue? {
+    guard let c = correction, c.trimmed != answer.trimmed else { return nil }
+    let f = concreteFixes(answer, g, c).first
+    return .obj(["original": .str(answer), "corrected": .str(c), "natural": .str(c),
+                 "explanation": .str(f.map(fixText) ?? ""), "category": .str(f.map(fixCategory) ?? "autre")])
+}

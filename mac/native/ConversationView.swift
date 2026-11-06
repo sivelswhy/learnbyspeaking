@@ -183,8 +183,11 @@ final class ConversationModel: ObservableObject {
         let turns = users.map { (i, m) in (question: messages[..<i].last { $0.role == "assistant" }?.text ?? "", answer: m.text) }
         let report = await app.llm.scoreSession(turns, level: profile.level)
         finishing = false
-        return SessionRecord(id: uid(), date: nowISO(), scenarioId: sc.id, title: sc.title, seconds: Int(Date().timeIntervalSince(t0)),
-                             turns: users.count, words: [], report: report)
+        var rec = SessionRecord(id: uid(), date: nowISO(), scenarioId: sc.id, title: sc.title, seconds: Int(Date().timeIntervalSince(t0)),
+                                turns: users.count, words: [], report: report)
+        // Corrections de la séance, tirées des avis de Shuli : « Erreurs fréquentes » de la progression.
+        rec.corrections = users.compactMap { correctionOf($0.element.text, profile.g, $0.element.feedback?.correction) }
+        return rec
     }
 }
 

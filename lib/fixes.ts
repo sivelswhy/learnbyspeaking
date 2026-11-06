@@ -1,5 +1,6 @@
 import { FEM } from "./sayInHebrew";
 import type { Gender } from "./languages";
+import type { Correction } from "./types";
 
 /** Une faute précise : le mot de l'apprenant, le mot juste, et pourquoi. */
 export interface Fix {
@@ -80,4 +81,20 @@ export function concreteFixes(answer: string, gender: Gender, correction?: strin
   const slips = genderSlips(answer, gender);
   const rest = correction ? explainFixes(answer, correction).filter((f) => !slips.some((s) => f.from.split(" ").includes(s.from))) : [];
   return [...slips, ...rest].slice(0, 4);
+}
+
+/** Famille d'une faute, pour le bilan (« Erreurs fréquentes »). */
+export function fixCategory(f: Fix): Correction["category"] {
+  if (/autre mot/.test(f.why)) return "vocabulaire";
+  if (/mot en trop|mot manquant|reformuler|un seul mot/.test(f.why)) return "fluidité";
+  if (/accord|féminin|masculin|futur|passé|infinitif|préposition|article|pluriel|singulier|forme/.test(f.why)) return "grammaire";
+  return "autre";
+}
+
+/** Correction gardée dans l'historique d'une séance : la phrase, sa correction et la première faute expliquée. */
+export function correctionOf(answer: string, gender: Gender, correction?: string): Correction | null {
+  if (!correction || correction.trim() === answer.trim()) return null;
+  const fixes = concreteFixes(answer, gender, correction);
+  const f = fixes[0];
+  return { original: answer, corrected: correction, natural: correction, explanation: f ? fixText(f) : "", category: f ? fixCategory(f) : "autre" };
 }
