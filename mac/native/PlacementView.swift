@@ -353,7 +353,7 @@ private struct PlacementTest: View {
     private func next() {
         let est = estimate()
         let pool = bank.filter { b in !qs.contains(b) }
-        if !shouldStop(est, qs.count) && !pool.isEmpty {
+        if !shouldStop(est, qs.count, turns.map { Double($0.score?.score ?? 0) / 100 }) && !pool.isEmpty {
             qs.append(pool[pickNext(est, pool.map(itemOf), seed: qs.count)])
             i += 1
             times.append(clockFmt.string(from: Date()))

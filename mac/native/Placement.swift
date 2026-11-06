@@ -39,7 +39,9 @@ func levelOf(_ theta: Double) -> String {
     return "B2"
 }
 func levelProb(_ e: Estimate) -> Double { let lv = levelOf(e.theta); return zip(e.post, GRID).reduce(0) { $0 + (levelOf($1.1) == lv ? $1.0 : 0) } }
-func shouldStop(_ e: Estimate, _ asked: Int) -> Bool { asked >= MAX_QUESTIONS || (asked >= MIN_QUESTIONS && levelProb(e) >= 0.9) }
+func shouldStop(_ e: Estimate, _ asked: Int, _ scores: [Double] = []) -> Bool {
+    if asked >= 5 && scores.count >= 5 && scores.prefix(5).allSatisfy({ $0 < 0.15 }) { return true }
+    return asked >= MAX_QUESTIONS || (asked >= MIN_QUESTIONS && levelProb(e) >= 0.9) }
 func confidence(_ e: Estimate) -> Int { Int((levelProb(e) * 100).rounded()) }
 func itemOf(_ q: PlacementQuestion) -> Item { Item(b: LEVEL_B[q.level] ?? 0, a: 1.2) }
 

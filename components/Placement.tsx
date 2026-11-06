@@ -212,7 +212,7 @@ function Test({ profile, llm, onExit, onFinish }: { profile: Profile; llm: LlmSe
     // Estimation de la compétence d'après les réponses déjà notées, puis question suivante ou fin.
     const est = estimateFrom(turns.map((t, k) => ({ item: itemOf(qs[k]), s: (t.score?.score ?? 0) / 100 })));
     const pool = bank.filter((b) => !qs.includes(b));
-    if (!shouldStop(est, qs.length) && pool.length) {
+    if (!shouldStop(est, qs.length, turns.map((t) => (t.score?.score ?? 0) / 100)) && pool.length) {
       const nextQ = pool[pickNext(est, pool.map(itemOf), qs.length)];
       setQs((cur) => [...cur, nextQ]);
       setI(i + 1);

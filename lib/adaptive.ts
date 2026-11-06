@@ -107,7 +107,12 @@ export function levelProb(est: Estimate): number {
   return est.post.reduce((a, p, i) => a + (levelOf(GRID[i]) === lv ? p : 0), 0);
 }
 
-export function shouldStop(est: Estimate, asked: number): boolean {
+/** Débutant complet : 5 réponses de suite sans rien de juste (note < 15 %) suffisent, inutile de décourager avec 8 questions. */
+export const BEGINNER_QUESTIONS = 5;
+export const BEGINNER_MAX = 0.15;
+
+export function shouldStop(est: Estimate, asked: number, scores: number[] = []): boolean {
+  if (asked >= BEGINNER_QUESTIONS && scores.length >= BEGINNER_QUESTIONS && scores.slice(0, BEGINNER_QUESTIONS).every((s) => s < BEGINNER_MAX)) return true;
   return asked >= MAX_QUESTIONS || (asked >= MIN_QUESTIONS && levelProb(est) >= STOP_PROB);
 }
 
