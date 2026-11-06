@@ -1372,6 +1372,35 @@ export const COURSE: CourseLevel[] = [
 
 // Écoute longue (input compréhensible) : de petites histoires racontées à vitesse naturelle, un peu au-dessus du niveau,
 // avec des questions de compréhension, deux phrases clés à redire et une question pour en parler soi-même.
+COURSE.find((l) => l.id === "beg2")!.units.push({
+  id: "u23", title: "Petites histoires",
+  days: [
+    dialogDay("u23d1", "La journée de Dana", "Une petite histoire au présent. Écoute-la en entier, puis réponds. Repère les heures et les verbes : elle se lève, elle boit, elle va.",
+      L("דנה קמה כל בוקר בשבע. היא שותה קפה ואוכלת לחם עם גבינה. בשמונה היא נוסעת לעבודה באוטובוס. היא עובדת בבנק בתל אביב. בצהריים היא אוכלת סלט עם חברה מהעבודה. בערב היא הולכת לים עם הכלב שלה.",
+        "Dana kama kol boker be-sheva. Hi shota kafe ve-okhelet lekhem im gvina. Be-shmone hi nosa'at la-avoda ba-otobus. Hi ovedet ba-bank be-Tel Aviv. Ba-tsohorayim hi okhelet salat im khavera me-ha-avoda. Ba-erev hi holekhet la-yam im ha-kelev shela.",
+        "Dana se lève tous les matins à sept heures. Elle boit un café et mange du pain avec du fromage. À huit heures, elle va au travail en bus. Elle travaille dans une banque à Tel-Aviv. À midi, elle mange une salade avec une amie du travail. Le soir, elle va à la mer avec son chien."),
+      [["À quelle heure Dana se lève-t-elle ?", "À sept heures", "À six heures", "À huit heures", "À neuf heures"], ["Comment va-t-elle au travail ?", "En bus", "En train", "À pied", "En voiture"], ["Que fait-elle le soir ?", "Elle va à la mer avec son chien", "Elle regarde un film", "Elle cuisine", "Elle va au restaurant"]],
+      [L("בערב היא הולכת לים", "Ba-erev hi holekhet la-yam", "Le soir, elle va à la mer"), L("היא נוסעת לעבודה באוטובוס", "Hi nosa'at la-avoda ba-otobus", "Elle va au travail en bus")],
+      L(g("מה אתה עושה בבוקר?", "מה את עושה בבוקר?"), g("Ma ata ose ba-boker?", "Ma at osa ba-boker?"), "Que fais-tu le matin ?"), L(g("אני קם בשבע ושותה קפה", "אני קמה בשבע ושותה קפה"), g("Ani kam be-sheva ve-shote kafe", "Ani kama be-sheva ve-shota kafe"), "Je me lève à sept heures et je bois un café"),
+      "une collègue au café du matin", "Décrire ta journée"),
+    dialogDay("u23d2", "Au supermarché", "Écoute la liste de courses et ce qui manque. La fin est une petite surprise.",
+      L("אבי הולך לסופרמרקט ביום שישי. הוא קונה חלב, ביצים, לחם ופירות. הוא רוצה לקנות גם עוגה, אבל אין עוגת שוקולד. אז הוא קונה עוגת תפוחים. בקופה הוא משלם מאה ועשרים שקל. הוא חוזר הביתה, ואשתו אומרת: שכחת את הקפה!",
+        "Avi holekh la-supermarket be-yom shishi. Hu kone khalav, beitsim, lekhem u-perot. Hu rotse liknot gam uga, aval ein ugat shokolad. Az hu kone ugat tapukhim. Ba-kupa hu meshalem me'a ve-esrim shekel. Hu khozer ha-bayta, ve-ishto omeret: shakhakhta et ha-kafe!",
+        "Avi va au supermarché le vendredi. Il achète du lait, des œufs, du pain et des fruits. Il veut aussi acheter un gâteau, mais il n'y a pas de gâteau au chocolat. Alors il achète un gâteau aux pommes. À la caisse, il paie cent vingt shekels. Il rentre à la maison, et sa femme lui dit : tu as oublié le café !"),
+      [["Quand Avi va-t-il au supermarché ?", "Le vendredi", "Le dimanche", "Le samedi", "Le lundi"], ["Quel gâteau achète-t-il ?", "Un gâteau aux pommes", "Un gâteau au chocolat", "Un gâteau au fromage", "Aucun gâteau"], ["Qu'a-t-il oublié ?", "Le café", "Le lait", "Le pain", "Les œufs"]],
+      [L("אין עוגת שוקולד", "Ein ugat shokolad", "Il n'y a pas de gâteau au chocolat"), L("שכחת את הקפה!", g("Shakhakhta et ha-kafe!", "Shakhakht et ha-kafe!"), "Tu as oublié le café !")],
+      L(g("מה אתה קונה בסופר?", "מה את קונה בסופר?"), g("Ma ata kone ba-super?", "Ma at kona ba-super?"), "Qu'est-ce que tu achètes au supermarché ?"), L("אני קונה לחם, חלב ופירות", g("Ani kone lekhem, khalav u-perot", "Ani kona lekhem, khalav u-perot"), "J'achète du pain, du lait et des fruits"),
+      "un caissier sympathique", "Dire ce que tu achètes et payer"),
+    dialogDay("u23d3", "Le nouvel appartement", "Une description : combien de pièces, ce qui est bien, et le seul problème. Écoute « aval » (mais) : il annonce un contraste.",
+      L("נועה ועומר עברו לדירה חדשה בירושלים. בדירה יש שלושה חדרים ומרפסת גדולה. המטבח קטן, אבל יש בו חלון לגינה. הם אוהבים את השכונה כי היא שקטה ויש פארק ליד הבית. הבעיה היחידה: אין מעלית, והם גרים בקומה רביעית.",
+        "No'a ve-Omer avru le-dira khadasha bi-Yerushalayim. Ba-dira yesh shlosha khadarim u-mirpeset gdola. Ha-mitbakh katan, aval yesh bo khalon la-gina. Hem ohavim et ha-shkhuna ki hi shketa ve-yesh park leyad ha-bayit. Ha-be'aya ha-yekhida: ein ma'alit, ve-hem garim ba-koma revi'it.",
+        "Noa et Omer ont emménagé dans un nouvel appartement à Jérusalem. Il y a trois pièces et un grand balcon. La cuisine est petite, mais elle a une fenêtre sur le jardin. Ils aiment le quartier parce qu'il est calme et qu'il y a un parc près de la maison. Le seul problème : il n'y a pas d'ascenseur, et ils habitent au quatrième étage."),
+      [["Combien de pièces a l'appartement ?", "Trois", "Deux", "Quatre", "Cinq"], ["Pourquoi aiment-ils le quartier ?", "Il est calme et il y a un parc", "Il est près de la mer", "Il y a beaucoup de magasins", "Il est près de leur travail"], ["Quel est le seul problème ?", "Il n'y a pas d'ascenseur", "La cuisine n'a pas de fenêtre", "C'est trop cher", "Le quartier est bruyant"]],
+      [L("הבעיה היחידה: אין מעלית", "Ha-be'aya ha-yekhida: ein ma'alit", "Le seul problème : il n'y a pas d'ascenseur"), L("השכונה שקטה ויש פארק ליד הבית", "Ha-shkhuna shketa ve-yesh park leyad ha-bayit", "Le quartier est calme et il y a un parc près de la maison")],
+      L("איך הדירה שלך?", g("Eikh ha-dira shelkha?", "Eikh ha-dira shelakh?"), "Comment est ton appartement ?"), L("יש בדירה שני חדרים, והמטבח קטן", "Yesh ba-dira shnei khadarim, ve-ha-mitbakh katan", "Il y a deux pièces dans l'appartement, et la cuisine est petite"),
+      "un ami qui veut visiter", "Décrire ton logement"),
+  ],
+});
 COURSE.find((l) => l.id === "int1")!.units.push({
   id: "u21", title: "Histoires à écouter",
   days: [
