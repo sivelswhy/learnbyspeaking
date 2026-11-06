@@ -17,12 +17,15 @@ const seen = new Set<string>();
 const all = process.argv.includes("--all");
 let flagged = 0;
 for (const { day } of ALL_DAYS) {
+  // Phrases seulement entendues (écoutes, histoires) : comprises sans être à dire, leurs mots ne comptent pas dans la charge du jour.
+  const heardOnly = new Set(day.steps.flatMap((st) => (st.kind === "listen" ? [st.say.fr] : [])));
   const lines = [day.key, ...day.steps.flatMap(linesOf)];
   // Le jeu de rôle (amorce) est vu après l'entraînement : ses mots ne comptent pas comme appris.
   const here = new Set<string>();
-  for (const l of lines) for (const g of ["m", "f"] as const) for (const w of words(l.he[g])) here.add(w);
+  const heard = new Set<string>();
+  for (const l of lines) for (const g of ["m", "f"] as const) for (const w of words(l.he[g])) (heardOnly.has(l.fr) ? heard : here).add(w);
   const fresh = [...here].filter((w) => !roots(w).some((r) => seen.has(r)));
-  for (const w of here) for (const r of roots(w)) seen.add(r);
+  for (const w of [...here, ...heard]) for (const r of roots(w)) seen.add(r);
   const flag = fresh.length > 12 && fresh.length / day.steps.length > 1.3;
   if (flag) flagged++;
   if (all || flag) console.log(`${day.id.padEnd(6)} ${String(day.steps.length).padStart(2)} étapes · ${String(fresh.length).padStart(2)} mots nouveaux${flag ? "  ⚠ lourd" : ""}${all ? " : " + fresh.join(" ") : ""}`);

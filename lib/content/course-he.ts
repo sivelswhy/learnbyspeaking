@@ -1370,6 +1370,59 @@ export const COURSE: CourseLevel[] = [
   },
 ];
 
+// Écoute longue (input compréhensible) : de petites histoires racontées à vitesse naturelle, un peu au-dessus du niveau,
+// avec des questions de compréhension, deux phrases clés à redire et une question pour en parler soi-même.
+COURSE.find((l) => l.id === "int1")!.units.push({
+  id: "u21", title: "Histoires à écouter",
+  days: [
+    dialogDay("u21d1", "Un week-end à Haïfa", "Écoute toute l'histoire sans t'arrêter sur chaque mot. Repère d'abord où, quand et comment. Tu peux réécouter autant que tu veux.",
+      L("בסוף השבוע נסעתי עם חברים לחיפה. יצאנו מוקדם בבוקר ברכבת. קודם הלכנו לגנים הבהאיים, והנוף היה מדהים. בצהריים אכלנו חומוס במסעדה קטנה ליד הים. אחר כך התחיל לרדת גשם, אז נכנסנו למוזיאון. חזרנו הביתה בערב, עייפים אבל מרוצים.",
+        "Be-sof ha-shavua nasati im khaverim le-Kheifa. Yatsanu mukdam ba-boker ba-rakevet. Kodem halakhnu la-ganim ha-baha'im, ve-ha-nof haya madhim. Ba-tsohorayim akhalnu khumus be-mis'ada ktana leyad ha-yam. Akhar kakh hitkhil laredet geshem, az nikhnasnu la-muze'on. Khazarnu ha-bayta ba-erev, ayefim aval merutsim.",
+        "Ce week-end, je suis allé(e) à Haïfa avec des amis. Nous sommes partis tôt le matin en train. D'abord nous sommes allés aux jardins bahaïs, et la vue était incroyable. À midi, nous avons mangé du houmous dans un petit restaurant près de la mer. Ensuite il a commencé à pleuvoir, alors nous sommes entrés dans un musée. Nous sommes rentrés le soir, fatigués mais contents."),
+      [["Comment sont-ils allés à Haïfa ?", "En train", "En voiture", "En bus", "À vélo"], ["Qu'ont-ils mangé à midi ?", "Du houmous", "Une pizza", "Du poisson", "Des falafels"], ["Pourquoi sont-ils entrés dans un musée ?", "Parce qu'il pleuvait", "Parce qu'il faisait trop chaud", "Pour retrouver un ami", "Parce que la plage était fermée"]],
+      [L("התחיל לרדת גשם", "Hitkhil laredet geshem", "Il a commencé à pleuvoir"), L("חזרנו הביתה עייפים אבל מרוצים", "Khazarnu ha-bayta ayefim aval merutsim", "Nous sommes rentrés fatigués mais contents")],
+      L("מה עשית בסוף השבוע?", g("Ma asita be-sof ha-shavua?", "Ma asit be-sof ha-shavua?"), "Qu'est-ce que tu as fait ce week-end ?"), L("נסעתי לחיפה עם חברים", "Nasati le-Kheifa im khaverim", "Je suis allé(e) à Haïfa avec des amis"),
+      "un collègue curieux le lundi matin", "Raconter ton week-end au passé"),
+    dialogDay("u21d2", "Le nouveau voisin", "Une histoire avec plusieurs personnes : retiens qui fait quoi. Écoute les verbes au passé.",
+      L("אתמול עבר לגור בבניין שלנו שכן חדש. קוראים לו יוני, והוא בא מאילת. הוא עובד כמורה למוזיקה בבית ספר קרוב. בערב הוא דפק בדלת ושאל אם יש לי מברג. נתתי לו, והוא הזמין אותי לקפה בשבת. נראה לי שהוא בחור נחמד.",
+        "Etmol avar lagur ba-binyan shelanu shakhen khadash. Kor'im lo Yoni, ve-hu ba me-Eilat. Hu oved ke-more le-muzika be-veit sefer karov. Ba-erev hu dafak ba-delet ve-sha'al im yesh li mavreg. Natati lo, ve-hu hizmin oti le-kafe be-shabat. Nir'e li she-hu bakhur nekhmad.",
+        "Hier, un nouveau voisin a emménagé dans notre immeuble. Il s'appelle Yoni, et il vient d'Eilat. Il est professeur de musique dans une école proche. Le soir, il a frappé à la porte et m'a demandé si j'avais un tournevis. Je lui en ai donné un, et il m'a invité(e) pour un café samedi. Je crois que c'est un gars sympa."),
+      [["D'où vient Yoni ?", "D'Eilat", "De Haïfa", "De Jérusalem", "De Tel-Aviv"], ["Quel est son métier ?", "Professeur de musique", "Médecin", "Chauffeur de taxi", "Cuisinier"], ["Qu'a-t-il demandé le soir ?", "Un tournevis", "Du sucre", "De l'aide pour déménager", "Le code du wifi"]],
+      [L("הוא הזמין אותי לקפה", "Hu hizmin oti le-kafe", "Il m'a invité(e) pour un café"), L("נראה לי שהוא בחור נחמד", "Nir'e li she-hu bakhur nekhmad", "Je crois que c'est un gars sympa")],
+      L(g("ספר לי על השכנים שלך", "ספרי לי על השכנים שלך"), g("Saper li al ha-shkhenim shelkha", "Sapri li al ha-shkhenim shelakh"), "Parle-moi de tes voisins"), L("השכנה שלי נחמדה מאוד, היא גרה מולי", "Ha-shkhena sheli nekhmada me'od, hi gara muli", "Ma voisine est très gentille, elle habite en face de chez moi"),
+      "une voisine qui fait connaissance", "Décrire quelqu'un et raconter une rencontre"),
+    dialogDay("u21d3", "Un vol annulé", "Écoute les heures et les durées : elles racontent l'histoire. Puis ce qu'on lui a donné à la fin.",
+      L("הטיסה שלי לפריז הייתה אמורה לצאת בשש בבוקר. הגעתי לשדה התעופה בארבע, אבל על הלוח היה כתוב שהטיסה מתעכבת. חיכיתי שלוש שעות. בסוף הודיעו שהטיסה בוטלה. הלכתי לדלפק, והם נתנו לי כרטיס לטיסה אחרת בערב ושובר לארוחה. לא נעים, אבל לפחות טסתי באותו יום.",
+        "Ha-tisa sheli le-Pariz hayta amura latset be-shesh ba-boker. Higati li-sde ha-te'ufa be-arba, aval al ha-lu'akh haya katuv she-ha-tisa mit'akevet. Khikiti shalosh sha'ot. Ba-sof hodi'u she-ha-tisa butla. Halakhti la-dalpak, ve-hem natnu li kartis le-tisa akheret ba-erev ve-shovar le-arukha. Lo na'im, aval lefakhot tasti be-oto yom.",
+        "Mon vol pour Paris devait partir à six heures du matin. Je suis arrivé(e) à l'aéroport à quatre heures, mais sur le tableau il était écrit que le vol était retardé. J'ai attendu trois heures. À la fin, on a annoncé que le vol était annulé. Je suis allé(e) au comptoir, et on m'a donné un billet pour un autre vol le soir et un bon pour un repas. Pas agréable, mais au moins j'ai pris l'avion le jour même."),
+      [["À quelle heure le vol devait-il partir ?", "À six heures du matin", "À quatre heures du matin", "À six heures du soir", "À midi"], ["Combien de temps a-t-il attendu ?", "Trois heures", "Une heure", "Six heures", "Trente minutes"], ["Qu'a-t-il reçu au comptoir ?", "Un billet pour le soir et un bon pour un repas", "Un remboursement complet", "Une chambre d'hôtel", "Rien du tout"]],
+      [L("הטיסה בוטלה", "Ha-tisa butla", "Le vol a été annulé"), L("לפחות טסתי באותו יום", "Lefakhot tasti be-oto yom", "Au moins j'ai pris l'avion le jour même")],
+      L("מה קרה לך בשדה התעופה?", g("Ma kara lekha bi-sde ha-te'ufa?", "Ma kara lakh bi-sde ha-te'ufa?"), "Qu'est-ce qui t'est arrivé à l'aéroport ?"), L("הטיסה שלי התעכבה, וחיכיתי שלוש שעות", "Ha-tisa sheli hit'akva, ve-khikiti shalosh sha'ot", "Mon vol a été retardé, et j'ai attendu trois heures"),
+      "un ami qui vient te chercher à l'arrivée", "Raconter un problème de voyage et ce qui s'est passé"),
+  ],
+});
+COURSE.find((l) => l.id === "int2")!.units.push({
+  id: "u22", title: "Écouter la radio et les messages",
+  days: [
+    dialogDay("u22d1", "Le télétravail à la radio", "Un extrait d'info : d'abord le chiffre, puis les deux avis (pour, contre), puis la conclusion. Repère « mi-tsad sheni » : il annonce l'autre côté.",
+      L("לפי סקר חדש, יותר מחצי מהעובדים בישראל רוצים לעבוד מהבית לפחות יומיים בשבוע. התומכים אומרים שהם חוסכים זמן בפקקים ומספיקים יותר. מצד שני, מנהלים רבים חוששים שהעובדים מאבדים את הקשר עם הצוות. רוב המומחים ממליצים על פתרון ביניים: כמה ימים במשרד וכמה ימים מהבית.",
+        "Lefi seker khadash, yoter me-khetsi me-ha-ovdim be-Yisra'el rotsim la'avod me-ha-bayit lefakhot yomayim ba-shavua. Ha-tomkhim omrim she-hem khoskhim zman ba-pkakim u-maspikim yoter. Mi-tsad sheni, menahalim rabim khoshshim she-ha-ovdim me'abdim et ha-kesher im ha-tsevet. Rov ha-mumkhim mamlitsim al pitaron beinayim: kama yamim ba-misrad ve-kama yamim me-ha-bayit.",
+        "Selon un nouveau sondage, plus de la moitié des salariés en Israël veulent travailler depuis chez eux au moins deux jours par semaine. Les partisans disent qu'ils gagnent du temps dans les bouchons et qu'ils en font plus. D'un autre côté, beaucoup de managers craignent que les salariés perdent le lien avec l'équipe. La plupart des experts recommandent une solution intermédiaire : quelques jours au bureau et quelques jours à la maison."),
+      [["Combien de salariés veulent travailler de chez eux ?", "Plus de la moitié", "Moins d'un quart", "Presque tous", "Environ dix pour cent"], ["Que craignent les managers ?", "Que les salariés perdent le lien avec l'équipe", "Que les salariés travaillent trop", "Que les bureaux coûtent trop cher", "Que les bouchons augmentent"], ["Que recommandent les experts ?", "Une solution intermédiaire", "Le bureau tous les jours", "La maison tous les jours", "Un autre sondage"]],
+      [L("מצד שני", "Mi-tsad sheni", "D'un autre côté"), L("פתרון ביניים", "Pitaron beinayim", "Une solution intermédiaire")],
+      L("מה דעתך על עבודה מהבית?", g("Ma da'atkha al avoda me-ha-bayit?", "Ma da'atekh al avoda me-ha-bayit?"), "Que penses-tu du télétravail ?"), L("לדעתי זה טוב, אבל מצד שני חסר לי הקשר עם הצוות", "Le-da'ati ze tov, aval mi-tsad sheni khaser li ha-kesher im ha-tsevet", "À mon avis c'est bien, mais d'un autre côté le lien avec l'équipe me manque"),
+      "un collègue qui organise un débat", "Résumer une information et donner un avis nuancé"),
+    dialogDay("u22d2", "Un message vocal", "Un message laissé à un groupe d'amis, parlé vite et familier. Il y a deux nouvelles : trouve-les toutes les deux.",
+      L("היי חבר'ה, זאת מיכל. רציתי לספר לכם שקיבלתי את העבודה בירושלים! אני מתחילה בעוד חודש, אז אני צריכה למצוא דירה מהר. אם אתם שומעים על משהו, תגידו לי. ועוד דבר: המסיבה ביום חמישי עוברת לבית של דני, כי אצלי עושים שיפוצים. ביי!",
+        "Hai khevre, zot Mikhal. Ratsiti lesaper lakhem she-kibalti et ha-avoda bi-Yerushalayim! Ani matkhila be-od khodesh, az ani tsrikha limtso dira maher. Im atem shom'im al mashehu, tagidu li. Ve-od davar: ha-mesiba be-yom khamishi overet la-bayit shel Dani, ki etsli osim shiputsim. Bai!",
+        "Salut tout le monde, c'est Mikhal. Je voulais vous dire que j'ai eu le poste à Jérusalem ! Je commence dans un mois, donc je dois trouver un appartement vite. Si vous entendez parler de quelque chose, dites-le-moi. Et autre chose : la fête de jeudi se fait chez Dani, parce que chez moi il y a des travaux. Salut !"),
+      [["Quelle nouvelle annonce Mikhal ?", "Elle a eu un poste à Jérusalem", "Elle part en vacances", "Elle se marie", "Elle a perdu son travail"], ["Que cherche-t-elle ?", "Un appartement", "Une voiture", "Une salle pour la fête", "Un nouveau travail"], ["Où aura lieu la fête ?", "Chez Dani", "Chez Mikhal", "Au restaurant", "À Jérusalem"]],
+      [L("אצלי עושים שיפוצים", "Etsli osim shiputsim", "Chez moi il y a des travaux"), L(g("אני צריך למצוא דירה מהר", "אני צריכה למצוא דירה מהר"), g("Ani tsarikh limtso dira maher", "Ani tsrikha limtso dira maher"), "Je dois trouver un appartement vite")],
+      L("מה החדשות שלך?", g("Ma ha-khadashot shelkha?", "Ma ha-khadashot shelakh?"), "Quoi de neuf ?"), L(g("קיבלתי עבודה חדשה, ואני מתחיל בעוד חודש", "קיבלתי עבודה חדשה, ואני מתחילה בעוד חודש"), g("Kibalti avoda khadasha, ve-ani matkhil be-od khodesh", "Kibalti avoda khadasha, ve-ani matkhila be-od khodesh"), "J'ai eu un nouveau travail, et je commence dans un mois"),
+      "une amie au téléphone", "Annoncer une nouvelle et organiser la suite"),
+  ],
+});
+
 // Fin de jour : trois phrases répétées dans la journée, à retrouver de mémoire à partir du français (début, milieu et fin du jour),
 // avant le récapitulatif. Pas pour les jours de lecture : on y apprend à lire, pas à traduire.
 const RECALL_PER_DAY = 3;
@@ -1394,13 +1447,15 @@ for (const lvl of COURSE) {
     if (unit.days.length < 3) continue;
     const last = unit.days[unit.days.length - 1];
     const steps: Step[] = [intro(`Révision de l'unité « ${unit.title} ». Je te donne le sens des phrases clés de chaque jour : retrouve-les de mémoire, puis utilise-les en conversation.`)];
-    for (const d of unit.days) {
+    // Grande unité (plus de 4 jours) : une écoute ou une production par jour, en alternance, pour garder une révision d'environ 15 étapes.
+    const long = unit.days.length > 4;
+    unit.days.forEach((d, k) => {
       steps.push(unit.id === "u00" ? rep(d.key) : recall(d.key));
       const hear = d.steps.find((x) => x.kind === "listen");
-      if (hear) steps.push(hear);
       const produce = d.steps.find((x) => x.kind === "answer" || x.kind === "free") ?? d.steps.find((x) => x.kind === "fill" || x.kind === "swap");
-      if (produce) steps.push(produce);
-    }
+      if (hear && (!long || k % 2 === 0 || !produce)) steps.push(hear);
+      if (produce && (!long || k % 2 === 1 || !hear)) steps.push(produce);
+    });
     if (unit.id !== "u00") {
       // Révision mélangée : deux phrases clés de l'unité précédente du niveau, à retrouver aussi (entrelacement).
       const prev = lvl.units[lvl.units.indexOf(unit) - 1];
