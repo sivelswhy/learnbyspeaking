@@ -154,7 +154,7 @@ export default function Page() {
     case "placement":
       return (
         <Placement profile={profile} llm={st.llm} onSkip={home}
-          onDone={(r) => { st.setPlacement(r); st.setProfile({ ...profile, level: r.level, placementDone: true, onboarding: "goal" }); home(); }} />
+          onDone={(r) => { st.setPlacement(r); st.setProfile({ ...profile, level: r.level, placementDone: true, onboarding: undefined }); home(); }} />
       );
     case "hub":
       return (
