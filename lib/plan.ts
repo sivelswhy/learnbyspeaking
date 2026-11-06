@@ -50,7 +50,10 @@ export const isDone = (progress: CourseProgress | undefined, id: string) => !!(p
 
 /** Correction de la compétence d'après la fluidité des cinq derniers jours terminés (60 = neutre) : entre −0,4 et +0,4. */
 export function performanceShift(progress?: CourseProgress): number {
-  const f = Object.values(progress ?? {}).filter((p) => p.speaking && p.scenario && typeof p.fluency === "number").map((p) => p.fluency as number).slice(-5);
+  const last = (p: { speaking?: string; scenario?: string }) => ((p.speaking ?? "") > (p.scenario ?? "") ? p.speaking ?? "" : p.scenario ?? "");
+  // Les cinq derniers jours terminés, dans l'ordre des dates (un jour refait garde sa place dans l'objet).
+  const f = Object.values(progress ?? {}).filter((p) => p.speaking && p.scenario && typeof p.fluency === "number")
+    .sort((a, b) => last(a).localeCompare(last(b))).map((p) => p.fluency as number).slice(-5);
   if (f.length < 3) return 0;
   const avg = f.reduce((a, b) => a + b, 0) / f.length;
   return Math.max(-0.4, Math.min(0.4, (avg - 60) / 100));

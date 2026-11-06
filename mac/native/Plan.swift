@@ -41,7 +41,9 @@ func acceleratedDays(_ unit: Unit) -> [Day] {
 }
 
 func performanceShift(_ progress: [String: DayProgress]) -> Double {
-    let f = progress.values.filter { $0.speaking != nil && $0.scenario != nil }.compactMap(\.fluency).suffix(5)
+    // Les cinq derniers jours terminés, dans l'ordre des dates (un dictionnaire n'a pas d'ordre).
+    let f = progress.values.filter { $0.speaking != nil && $0.scenario != nil && $0.fluency != nil }
+        .sorted { max($0.speaking!, $0.scenario!) < max($1.speaking!, $1.scenario!) }.compactMap(\.fluency).suffix(5)
     if f.count < 3 { return 0 }
     let avg = f.reduce(0, +) / Double(f.count)
     return max(-0.4, min(0.4, (avg - 60) / 100))
