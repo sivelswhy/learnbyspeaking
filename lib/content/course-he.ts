@@ -724,7 +724,6 @@ export const COURSE: CourseLevel[] = [
             rep(L(g("אני צריך תרופה נגד שיעול", "אני צריכה תרופה נגד שיעול"), g("Ani tsarikh trufa neged shi'ul", "Ani tsrikha trufa neged shi'ul"), "Il me faut un médicament contre la toux")),
             rep(L("כמה פעמים ביום?", "Kama pe'amim ba-yom?", "Combien de fois par jour ?")),
             rep(L("יש לי מרשם מהרופא", "Yesh li mirsham me-ha-rofe", "J'ai une ordonnance du médecin")),
-            rep(L(g("אני אלרגי לפניצילין", "אני אלרגית לפניצילין"), g("Ani alergi le-penitsilin", "Ani alergit le-penitsilin"), "Je suis allergique à la pénicilline")),
             listen(L("פעמיים ביום", "Pa'ayim ba-yom", "Deux fois par jour"), "Que dit le pharmacien ?", "Deux fois par jour", "Une fois par jour", "Trois fois par jour", "Deux fois par semaine"),
             swap("Demande quelque chose contre le mal de gorge.", L("יש לכם משהו נגד כאב ראש?", "Yesh lakhem mashehu neged ke'ev rosh?", "Vous avez quelque chose contre le mal de tête ?"), L("יש לכם משהו נגד כאב גרון?", "Yesh lakhem mashehu neged ke'ev garon?", "Vous avez quelque chose contre le mal de gorge ?")),
             fill(L("יש לי מרשם מהרופא", "Yesh li mirsham me-ha-rofe", "J'ai une ordonnance du médecin"), "מרשם", "mirsham"),
