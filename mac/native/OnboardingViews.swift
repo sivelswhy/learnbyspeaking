@@ -148,7 +148,7 @@ struct GoalSetupView: View {
                             }
                         }
                         VStack(alignment: .leading, spacing: 8) {
-                            (Text("Ton prénom ").font(.app(16, .semibold)) + Text("(facultatif)").font(.app(14)).foregroundColor(Palette.muted))
+                            Text("\(Text("Ton prénom ").font(.app(16, .semibold)))\(Text("(facultatif)").font(.app(14)).foregroundColor(Palette.muted))")
                             TextField("Ex. : Léa", text: $name).textFieldStyle(.plain).padding(.horizontal, 12).frame(minHeight: 44)
                                 .background(Palette.card, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.line))
                         }

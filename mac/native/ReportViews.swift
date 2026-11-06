@@ -65,7 +65,7 @@ struct ReportView: View {
                         if let r {
                             VStack(spacing: 4) {
                                 Text("Score").font(.app(16, .medium))
-                                (Text("\(r.score)").font(.app(48, .bold)).foregroundColor(Palette.accent) + Text("/100").font(.app(20)).foregroundColor(Palette.muted))
+                                Text("\(Text("\(r.score)").font(.app(48, .bold)).foregroundColor(Palette.accent))\(Text("/100").font(.app(20)).foregroundColor(Palette.muted))")
                                 Radar(values: r.relevance != nil
                                       ? [("Pertinence", r.relevance!), ("Grammaire", r.grammar ?? 0), ("Participation", r.participation), ("Vocabulaire", r.vocabulary)]
                                       : [("Participation", r.participation), ("Longueur", r.fluency), ("Vocabulaire", r.vocabulary)])
@@ -80,7 +80,7 @@ struct ReportView: View {
                             }
                             if !r.tips.isEmpty {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    (Text("Conseils d'amélioration ").font(.app(16, .semibold)) + Text("(\(r.tips.count))").font(.app(14)))
+                                    Text("\(Text("Conseils d'amélioration ").font(.app(16, .semibold)))\(Text("(\(r.tips.count))").font(.app(14)))")
                                     ForEach(r.tips, id: \.self) { Text("• \($0)").font(.app(14)) }
                                 }.frame(maxWidth: .infinity, alignment: .leading).card()
                             }

@@ -229,7 +229,7 @@ private struct ConversationBody: View {
                 ScrollView {
                     Column {
                         VStack(alignment: .leading, spacing: 12) {
-                            (Text(model.sc.opening).bold() + Text(" Objectif : \(model.sc.goal)."))
+                            Text("\(Text(model.sc.opening).bold())\(Text(" Objectif : \(model.sc.goal)."))")
                                 .font(.app(14)).foregroundStyle(Palette.accent)
                                 .padding(12).frame(maxWidth: .infinity, alignment: .leading)
                                 .background(Palette.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
@@ -260,8 +260,8 @@ private struct ConversationBody: View {
                         .padding(.horizontal, 16).padding(.vertical, 12)
                     }
                 }
-                .onChange(of: model.messages) { _ in withAnimation { proxy.scrollTo("bottom") } }
-                .onChange(of: model.streaming) { _ in proxy.scrollTo("bottom") }
+                .onChange(of: model.messages) { withAnimation { proxy.scrollTo("bottom") } }
+                .onChange(of: model.streaming) { proxy.scrollTo("bottom") }
             }
             bottomBar
         }
@@ -484,7 +484,7 @@ private struct MissionHint: View {
         } else {
             HStack(spacing: 12) {
                 Avatar(mood: .cheer, size: 52)
-                (Text("Missions accomplies !").bold() + Text(" Tu peux continuer à parler, ou toucher « Terminer » pour ton bilan.")).font(.app(14))
+                Text("\(Text("Missions accomplies !").bold())\(Text(" Tu peux continuer à parler, ou toucher « Terminer » pour ton bilan."))").font(.app(14))
             }
             .padding(12).frame(maxWidth: .infinity, alignment: .leading).background(Palette.soft, in: RoundedRectangle(cornerRadius: 16))
         }

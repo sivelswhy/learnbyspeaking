@@ -187,9 +187,9 @@ private struct PlacementTest: View {
                         }.padding(16)
                     }
                 }
-                .onChange(of: turns.count) { _ in withAnimation { proxy.scrollTo("bottom") } }
-                .onChange(of: asides) { _ in withAnimation { proxy.scrollTo("bottom") } }
-                .onChange(of: turns.last?.reaction) { _ in withAnimation { proxy.scrollTo("bottom") } }
+                .onChange(of: turns.count) { withAnimation { proxy.scrollTo("bottom") } }
+                .onChange(of: asides) { withAnimation { proxy.scrollTo("bottom") } }
+                .onChange(of: turns.last?.reaction) { withAnimation { proxy.scrollTo("bottom") } }
             }
             Column { bottom.padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 12) }.background(Palette.bg)
         }
@@ -451,7 +451,7 @@ private struct PFeedback: View {
                     Text(c).font(.he(16)).frame(maxWidth: .infinity, alignment: .trailing)
                     Text("L'IA peut se tromper : vérifie avec l'exemple.").font(.app(12)).foregroundStyle(Palette.muted)
                 }
-                (Text("Conseil : ").bold() + Text(q.tip)).font(.app(14))
+                Text("\(Text("Conseil : ").bold())\(Text(q.tip))").font(.app(14))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("EXEMPLE").font(.app(12, .semibold)).foregroundStyle(Palette.accent)
                     HStack {
@@ -550,14 +550,14 @@ struct PlacementReport: View {
                                     Text(LEVEL_TEXT[r.level] ?? "").font(.app(14)).foregroundStyle(Palette.muted).multilineTextAlignment(.center).frame(maxWidth: 320)
                                     Radar(values: radarValues)
                                     if let c = r.confidence {
-                                        (Text("Fiabilité de l'estimation : \(c) % ").font(.app(14, .medium)) + Text("(\(r.answers.count) questions choisies pour toi)").font(.app(14)).foregroundColor(Palette.muted))
+                                        Text("\(Text("Fiabilité de l'estimation : \(c) % ").font(.app(14, .medium)))\(Text("(\(r.answers.count) questions choisies pour toi)").font(.app(14)).foregroundColor(Palette.muted))")
                                     }
                                     if let v = r.voice { VoiceBox(v: v) }
                                     Text(r.ai == true ? SCORING : SCORING_NO_AI).font(.app(12)).foregroundStyle(Palette.muted).multilineTextAlignment(.center).padding(.top, 12)
                                 }.frame(maxWidth: .infinity).card()
                             }
                             VStack(alignment: .leading, spacing: 0) {
-                                (Text(tab == "report" ? "Conseils d'amélioration " : "Mes réponses ").font(.app(16, .semibold)) + Text("(\(r.answers.count))").font(.app(14))).padding(.horizontal, 16)
+                                Text("\(Text(tab == "report" ? "Conseils d'amélioration " : "Mes réponses ").font(.app(16, .semibold)))\(Text("(\(r.answers.count))").font(.app(14)))").padding(.horizontal, 16)
                                 HStack(spacing: 20) {
                                     ForEach([("all", "Toutes"), ("review", "À revoir (\(toReview))")], id: \.0) { f, l in
                                         Button { filter = f } label: {

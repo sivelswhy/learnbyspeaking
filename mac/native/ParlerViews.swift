@@ -183,7 +183,7 @@ struct ScenarioListView: View {
                                         .frame(width: 40, height: 40).background(Palette.soft, in: RoundedRectangle(cornerRadius: 12))
                                     Text(s.title).font(.app(14, .semibold)).padding(.top, 4)
                                     Text(s.goal).font(.app(12)).foregroundStyle(Palette.muted).multilineTextAlignment(.leading)
-                                    (Text(String(repeating: "●", count: s.difficulty)) + Text(String(repeating: "●", count: 3 - s.difficulty)).foregroundColor(Palette.muted.opacity(0.3)))
+                                    Text("\(Text(String(repeating: "●", count: s.difficulty)))\(Text(String(repeating: "●", count: 3 - s.difficulty)).foregroundColor(Palette.muted.opacity(0.3)))")
                                         .font(.system(size: 11)).foregroundStyle(Palette.muted).padding(.top, 4)
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading).card(12)

@@ -209,7 +209,7 @@ struct ToolChatView: View {
                             Color.clear.frame(height: 1).id("bottom")
                         }.padding(.horizontal, 16).padding(.vertical, 12)
                     }
-                }.onChange(of: msgs.count) { _ in withAnimation { proxy.scrollTo("bottom") } }
+                }.onChange(of: msgs.count) { withAnimation { proxy.scrollTo("bottom") } }
             }
             Divider().overlay(Palette.line)
             Column {

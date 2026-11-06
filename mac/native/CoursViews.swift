@@ -191,10 +191,10 @@ struct ResourcesView: View {
                     ForEach(C.resources.alphabet, id: \.he) { l in
                         Button { say(l.example.he) } label: {
                             VStack(spacing: 2) {
-                                (Text(l.he).font(.he(36)) + Text(l.final.map { " \($0)" } ?? "").font(.he(24)).foregroundColor(Palette.muted))
+                                Text("\(Text(l.he).font(.he(36)))\(Text(l.final.map { " \($0)" } ?? "").font(.he(24)).foregroundColor(Palette.muted))")
                                 Text(l.name).font(.app(14, .semibold))
                                 Text(l.sound).font(.app(12)).foregroundStyle(Palette.muted)
-                                (Text(l.example.he).font(.he(12)) + Text(" · \(l.example.fr)").font(.app(12))).padding(.top, 4)
+                                Text("\(Text(l.example.he).font(.he(12)))\(Text(" · \(l.example.fr)").font(.app(12)))").padding(.top, 4)
                             }.frame(maxWidth: .infinity).card(12)
                         }.buttonStyle(PressStyle())
                     }
