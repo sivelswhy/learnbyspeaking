@@ -47,7 +47,7 @@ jobs:
           cmake --build build -j --target whisper-server
           cp build/bin/whisper-server "$GITHUB_WORKSPACE/whisper-server"
       - name: Version
-        run: echo "APP_VERSION=0.1.${{ github.run_number }}" >> "$GITHUB_ENV"
+        run: echo "APP_VERSION=1.$(( ${{ github.run_number }} - 1 ))" >> "$GITHUB_ENV"
       - name: Compilation de l'app
         run: WHISPER_BIN="$GITHUB_WORKSPACE/whisper-server" bash mac/build.sh
       - name: Archive
