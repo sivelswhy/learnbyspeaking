@@ -21,10 +21,14 @@ func versionIsNewer(_ a: String, than b: String) -> Bool {
 
 @MainActor
 final class Updater: ObservableObject {
-    enum State: Equatable { case idle, checking, available, downloading, ready, installing, failed(String) }
+    enum State: Equatable { case idle, checking, available, downloading, paused(String), ready, installing, failed(String) }
 
     @Published var state: State = .idle
     @Published var progress = 0.0
+    /// Secondes restantes estimées du téléchargement (nil tant qu'on ne peut pas estimer).
+    @Published var remaining: Double?
+    /// Message pendant les nouveaux essais automatiques.
+    @Published var retryNote = ""
     @Published var version = ""
     @Published var notes = ""
     /// Dernière release publiée, même si on l'a déjà (pour lire ses notes dans les réglages).
@@ -39,15 +43,21 @@ final class Updater: ObservableObject {
     let current = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
     private var assetURL: URL?
     private var sha256 = ""
+    private var assetSize: Int64 = 0
     private var zip: URL?
     private var started = false
+    private var downloadTask: Task<Void, Never>?
+    /// Appelé juste avant la fermeture pour installer : écrit toute la progression sur le disque.
+    var beforeInstall: () -> Void = {}
 
     private var dir: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("LearnBySpeaking/update", isDirectory: true)
     }
 
-    var hasUpdate: Bool { [.available, .downloading, .ready, .installing].contains(state) }
+    var hasUpdate: Bool {
+        switch state { case .available, .downloading, .paused, .ready, .installing: return true; default: return false }
+    }
 
     /// Au lancement, puis toutes les 6 heures.
     func startChecking() {
@@ -87,49 +97,161 @@ final class Updater: ObservableObject {
             version = v
             notes = (json["body"] as? String) ?? ""
             assetURL = zipURL
+            assetSize = (assets.first { ($0["name"] as? String) == updateAsset }?["size"] as? Int64) ?? 0
             sha256 = sha.lowercased()
             state = .available
             announce = true
-            await download()
+            startDownload()
         } catch {
             state = .idle  // pas de réseau : silence, on réessaiera
         }
     }
 
     /// Téléchargement automatique en arrière-plan, archive vérifiée avant d'être déclarée prête.
+    func startDownload() {
+        guard downloadTask == nil else { return }
+        downloadTask = Task { await download(); downloadTask = nil }
+    }
+
+    /// Annule le téléchargement en cours et efface le fichier partiel ; « Télécharger » repart de zéro.
+    func cancelDownload() {
+        installWhenReady = false
+        cancelled = true
+        downloadTask?.cancel()
+    }
+    private var cancelled = false
+
+    private var partURL: URL { dir.appendingPathComponent("\(sha256.prefix(12)).part") }
+
+    /// Délais (secondes) avant chaque nouvel essai automatique ; ensuite : pause, reprise manuelle au même octet.
+    private let retryDelays: [Double] = [5, 15, 30, 60]
+
+    /// Téléchargement en arrière-plan, repris là où il en était (en-tête Range) après une coupure.
     private func download() async {
         guard let assetURL else { return }
+        cancelled = false
         state = .downloading
-        progress = 0
-        do {
-            try? FileManager.default.removeItem(at: dir)
-            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let dest = dir.appendingPathComponent(updateAsset)
-            let (bytes, resp) = try await URLSession.shared.bytes(from: assetURL)
-            guard (resp as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
-            let total = Double(max(1, resp.expectedContentLength))
-            FileManager.default.createFile(atPath: dest.path, contents: nil)
-            let h = try FileHandle(forWritingTo: dest)
-            var buf = Data(); buf.reserveCapacity(1 << 20)
-            var got = 0.0
-            var hasher = SHA256()
-            for try await b in bytes {
-                buf.append(b)
-                if buf.count >= 1 << 20 {
-                    try h.write(contentsOf: buf); hasher.update(data: buf); got += Double(buf.count); buf.removeAll(keepingCapacity: true)
-                    progress = min(1, got / total)
+        retryNote = ""
+        remaining = nil
+        let part = partURL
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // Efface les restes d'une autre version ou d'une installation ratée, garde le fichier partiel de celle-ci.
+        for f in (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [] where f != part {
+            try? FileManager.default.removeItem(at: f)
+        }
+        var failures = 0
+        while true {
+            do {
+                try await fetchRemaining(from: assetURL, into: part)
+                break
+            } catch {
+                if cancelled || Task.isCancelled || (error as? URLError)?.code == .cancelled || error is CancellationError {
+                    try? FileManager.default.removeItem(at: part)
+                    progress = 0; remaining = nil; retryNote = ""
+                    state = .available
+                    return
                 }
+                if failures >= retryDelays.count {
+                    retryNote = ""; remaining = nil
+                    state = .paused("Connexion impossible : \(error.localizedDescription). Le téléchargement est gardé à \(Int(progress * 100)) %.")
+                    return
+                }
+                let wait = retryDelays[failures]
+                failures += 1
+                remaining = nil
+                for left in stride(from: Int(wait), to: 0, by: -1) {
+                    retryNote = "Connexion perdue : nouvel essai dans \(left) s (\(failures)/\(retryDelays.count))"
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    if cancelled || Task.isCancelled { break }
+                }
+                retryNote = ""
             }
-            try h.write(contentsOf: buf); hasher.update(data: buf); try h.close()
-            let digest = hasher.finalize().map { String(format: "%02x", $0) }.joined()
-            guard digest == sha256 else { throw NSError(domain: "Updater", code: 1, userInfo: [NSLocalizedDescriptionKey: "archive corrompue (SHA-256 différent)"]) }
+        }
+        // Archive complète : empreinte lue sur le disque.
+        do {
+            let digest = try Self.sha256Of(part)
+            guard digest == sha256 else {
+                try? FileManager.default.removeItem(at: part)
+                state = .failed("Archive corrompue (SHA-256 différent). Elle a été effacée : réessaie.")
+                return
+            }
+            let dest = dir.appendingPathComponent(updateAsset)
+            try? FileManager.default.removeItem(at: dest)
+            try FileManager.default.moveItem(at: part, to: dest)
             zip = dest
-            progress = 1
+            progress = 1; remaining = nil
             state = .ready
             if installWhenReady { install() }
         } catch {
-            state = .failed("Téléchargement impossible : \(error.localizedDescription)")
+            state = .failed("Vérification impossible : \(error.localizedDescription)")
         }
+    }
+
+    /// Télécharge ce qui manque (à partir de la taille du fichier partiel).
+    private func fetchRemaining(from url: URL, into part: URL) async throws {
+        let fm = FileManager.default
+        var have: Int64 = (try? fm.attributesOfItem(atPath: part.path)[.size] as? Int64) ?? 0
+        if assetSize > 0, have > assetSize { try? fm.removeItem(at: part); have = 0 }
+        if assetSize > 0, have == assetSize { progress = 1; return }
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 30  // silence réseau de 30 s = coupure
+        if have > 0 { req.setValue("bytes=\(have)-", forHTTPHeaderField: "Range") }
+        let (bytes, resp) = try await URLSession.shared.bytes(for: req)
+        guard let http = resp as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+        if http.statusCode == 200 { have = 0 }  // le serveur ignore Range : on repart de zéro
+        else if http.statusCode != 206 { throw URLError(.badServerResponse) }
+        let total = Double(assetSize > 0 ? assetSize : have + resp.expectedContentLength)
+        if have == 0 { fm.createFile(atPath: part.path, contents: nil) }
+        let h = try FileHandle(forWritingTo: part)
+        defer { try? h.close() }
+        try h.seekToEnd()
+        var buf = Data(); buf.reserveCapacity(1 << 20)
+        var got = Double(have)
+        let t0 = Date(), base = got
+        var speed = 0.0  // octets/s, moyenne lissée
+        var lastT = t0, lastGot = got
+        for try await b in bytes {
+            buf.append(b)
+            if buf.count >= 1 << 18 {
+                try h.write(contentsOf: buf); got += Double(buf.count); buf.removeAll(keepingCapacity: true)
+                progress = min(1, got / total)
+                let now = Date(), dt = now.timeIntervalSince(lastT)
+                if dt >= 1 {
+                    let inst = (got - lastGot) / dt
+                    speed = speed == 0 ? inst : speed * 0.7 + inst * 0.3
+                    lastT = now; lastGot = got
+                    if speed > 1000, now.timeIntervalSince(t0) > 2 { remaining = max(0, (total - got) / speed) }
+                }
+            }
+        }
+        _ = base
+        try h.write(contentsOf: buf)
+        progress = min(1, (got + Double(buf.count)) / total)
+        if assetSize > 0, got + Double(buf.count) < Double(assetSize) { throw URLError(.networkConnectionLost) }
+    }
+
+    nonisolated static func sha256Of(_ url: URL) throws -> String {
+        let h = try FileHandle(forReadingFrom: url)
+        defer { try? h.close() }
+        var hasher = SHA256()
+        while let chunk = try h.read(upToCount: 1 << 20), !chunk.isEmpty { hasher.update(data: chunk) }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// « environ 2 min 10 s », « moins d'une minute »…
+    var remainingText: String {
+        guard let r = remaining else { return "" }
+        if r < 60 { return "environ \(max(1, Int(r.rounded()))) s restantes" }
+        let m = Int(r) / 60, sec = Int(r) % 60
+        return "environ \(m) min \(sec) s restantes"
+    }
+
+    /// Annulation depuis la pause (aucune tâche active) : efface le fichier partiel.
+    func discardPaused() {
+        guard case .paused = state else { return }
+        try? FileManager.default.removeItem(at: partURL)
+        progress = 0
+        state = .available
     }
 
     func retry() { Task { await check() } }
@@ -144,8 +266,7 @@ final class Updater: ObservableObject {
         Task.detached {
             do {
                 // Revérifie l'archive juste avant de l'installer (elle a pu changer sur le disque depuis le téléchargement).
-                let data = try Data(contentsOf: zip, options: .mappedIfSafe)
-                let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+                let digest = try Updater.sha256Of(zip)
                 guard digest == expected else {
                     throw NSError(domain: "Updater", code: 1, userInfo: [NSLocalizedDescriptionKey: "archive corrompue (SHA-256 différent)"])
                 }
@@ -190,7 +311,7 @@ final class Updater: ObservableObject {
                 p.standardError = FileHandle.nullDevice
                 p.standardInput = FileHandle.nullDevice
                 try p.run()
-                await MainActor.run { NSApp.terminate(nil) }
+                await MainActor.run { self.beforeInstall(); NSApp.terminate(nil) }
             } catch {
                 await MainActor.run { self.state = .failed("Installation impossible : \(error.localizedDescription)") }
             }
@@ -224,6 +345,7 @@ struct UpdateBadge: View {
     private var label: String {
         switch up.state {
         case .downloading: return "Téléchargement \(Int(up.progress * 100)) %"
+        case .paused: return "Téléchargement en pause"
         case .failed: return "Mise à jour échouée"
         default: return "Mise à jour \(up.version)"
         }
@@ -243,8 +365,21 @@ struct UpdatePanel: View {
             switch up.state {
             case .downloading:
                 ProgressView(value: up.progress).tint(.orange)
-                Text("Téléchargement en cours…").font(.app(13)).foregroundStyle(Palette.warn)
-                Button("Installer dès que c'est prêt") { up.installWhenReady = true }
+                Text(up.retryNote.isEmpty ? "Téléchargement \(Int(up.progress * 100)) %" + (up.remainingText.isEmpty ? "" : " · \(up.remainingText)") : up.retryNote)
+                    .font(.app(13)).foregroundStyle(up.retryNote.isEmpty ? Palette.muted : Palette.warn)
+                HStack {
+                    Button("Installer dès que c'est prêt") { up.installWhenReady = true }
+                    Button("Annuler", role: .cancel) { up.cancelDownload() }
+                }
+            case .paused(let msg):
+                ProgressView(value: up.progress).tint(.orange)
+                Text(msg).font(.app(13)).foregroundStyle(Palette.warn)
+                HStack {
+                    Button("Reprendre") { up.startDownload() }.buttonStyle(.borderedProminent).tint(.orange)
+                    Button("Annuler", role: .cancel) { up.cancelDownload(); up.discardPaused() }
+                }
+            case .available:
+                Button("Télécharger") { up.startDownload() }.buttonStyle(.borderedProminent).tint(.orange)
             case .ready:
                 Button("Redémarrer et installer") { up.install() }.buttonStyle(.borderedProminent).tint(.orange)
             case .installing:
@@ -291,6 +426,9 @@ struct UpdateCard: View {
             Text(status).font(.app(13)).foregroundStyle(up.hasUpdate ? Color.orange : Palette.muted)
             HStack(spacing: 8) {
                 if up.state == .ready { Button("Redémarrer et installer") { up.install() }.buttonStyle(Btn(full: false)) }
+                else if up.state == .downloading { Button("Annuler le téléchargement") { up.cancelDownload() }.buttonStyle(ChipStyle(active: false)) }
+                else if up.state == .available { Button("Télécharger") { up.startDownload() }.buttonStyle(ChipStyle(active: false)) }
+                else if case .paused = up.state { Button("Reprendre le téléchargement") { up.startDownload() }.buttonStyle(ChipStyle(active: false)) }
                 else if up.state == .idle { Button("Vérifier maintenant") { Task { await up.check() } }.buttonStyle(ChipStyle(active: false)) }
                 if !up.latestNotes.isEmpty {
                     Button(showNotes ? "Masquer les notes" : "Notes de la version \(up.latestVersion)") { showNotes.toggle() }.buttonStyle(ChipStyle(active: showNotes))
@@ -305,8 +443,9 @@ struct UpdateCard: View {
     private var status: String {
         switch up.state {
         case .checking: return "Vérification…"
-        case .available: return "Version \(up.version) disponible."
-        case .downloading: return "Version \(up.version) : téléchargement \(Int(up.progress * 100)) %."
+        case .available: return "Version \(up.version) disponible (téléchargement annulé ou pas commencé)."
+        case .downloading: return "Version \(up.version) : téléchargement \(Int(up.progress * 100)) %" + (up.remainingText.isEmpty ? "." : " · \(up.remainingText).")
+        case .paused(let m): return m
         case .ready: return "Version \(up.version) prête à installer."
         case .installing: return "Installation…"
         case .failed(let m): return m

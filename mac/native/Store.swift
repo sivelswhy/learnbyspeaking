@@ -154,6 +154,12 @@ final class Store: ObservableObject {
         else { try? FileManager.default.removeItem(at: url(key)) }
     }
 
+    /// Réécrit tout sur le disque (avant une fermeture voulue, comme l'installation d'une mise à jour).
+    func flush() {
+        save("lbs.profile", profile); save("lbs.sessions", sessions); save("lbs.vocab", vocab)
+        save("lbs.course", course); save("lbs.placement", placement)
+    }
+
     // MARK: Actions (mêmes règles que lib/store.ts)
 
     func addSession(_ s: SessionRecord) { sessions.append(s) }
