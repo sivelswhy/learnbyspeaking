@@ -19,7 +19,14 @@ final class Dict {
         }
         if case .obj(let h)? = j["he"] { he = h.mapValues { if case .arr(let a) = $0 { return a }; return [] } }
         // Collision (« Sucre » / « sucre ») : le mot commun en minuscules plutôt qu'un choix au hasard.
-        plain = Dictionary(fr.keys.map { (fold($0), $0) }, uniquingKeysWith: { a, b in a == a.lowercased() && b != b.lowercased() ? a : b == b.lowercased() && a != a.lowercased() ? b : min(a, b) })
+        func pick(_ a: String, _ b: String) -> String {
+            let aLower = a == a.lowercased(), bLower = b == b.lowercased()
+            if aLower && !bLower { return a }
+            if bLower && !aLower { return b }
+            return min(a, b)
+        }
+        let pairs: [(String, String)] = fr.keys.map { (fold($0), $0) }
+        plain = Dictionary(pairs, uniquingKeysWith: pick)
     }
     func fold(_ s: String) -> String {
         s.lowercased().folding(options: .diacriticInsensitive, locale: nil).replacingOccurrences(of: "’", with: "'").sub("[^a-z' -]", with: "").trimmed
