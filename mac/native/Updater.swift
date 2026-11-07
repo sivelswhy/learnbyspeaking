@@ -46,6 +46,7 @@ final class Updater: ObservableObject {
     private var assetSize: Int64 = 0
     private var zip: URL?
     private var started = false
+    static let declinedKey = "updateDeclinedVersion"
     private var downloadTask: Task<Void, Never>?
     /// Appelé juste avant la fermeture pour installer : écrit toute la progression sur le disque.
     var beforeInstall: () -> Void = {}
@@ -100,7 +101,8 @@ final class Updater: ObservableObject {
             assetSize = (assets.first { ($0["name"] as? String) == updateAsset }?["size"] as? Int64) ?? 0
             sha256 = sha.lowercased()
             state = .available
-            announce = true
+            // Message d'ouverture une seule fois par version : si l'utilisateur a déjà dit « Plus tard », seule l'icône reste.
+            announce = UserDefaults.standard.string(forKey: Updater.declinedKey) != v
             startDownload()
         } catch {
             state = .idle  // pas de réseau : silence, on réessaiera
@@ -403,7 +405,7 @@ struct UpdateAnnouncer<Inner: View>: View {
     var body: some View {
         inner.alert("Mise à jour disponible", isPresented: Binding(get: { up.announce }, set: { up.announce = $0 })) {
             Button("Installer") { if up.state == .ready { up.install() } else { up.installWhenReady = true } }
-            Button("Plus tard", role: .cancel) {}
+            Button("Plus tard", role: .cancel) { UserDefaults.standard.set(up.version, forKey: Updater.declinedKey) }
         } message: {
             Text("La version \(up.version) est disponible (tu as la \(up.current)). Elle se télécharge toute seule ; ton profil et tes séances sont gardés. Touche l'icône orange en bas à gauche de l'app pour l'installer quand tu veux.")
         }
