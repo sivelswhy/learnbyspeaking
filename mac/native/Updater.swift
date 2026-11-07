@@ -255,7 +255,7 @@ struct UpdatePanel: View {
 
 /// Message à l'ouverture de l'app quand une mise à jour est trouvée.
 struct UpdateAnnouncer<Inner: View>: View {
-    @EnvironmentObject var up: Updater
+    @ObservedObject var up: Updater
     let inner: Inner
 
     var body: some View {
@@ -269,7 +269,7 @@ struct UpdateAnnouncer<Inner: View>: View {
 }
 
 extension View {
-    func updateAnnouncer() -> some View { UpdateAnnouncer(inner: self) }
+    func updateAnnouncer(_ up: Updater) -> some View { UpdateAnnouncer(up: up, inner: self) }
 }
 
 /// Réglages › Mises à jour : version, vérification à la demande, notes de la dernière version.

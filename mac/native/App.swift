@@ -151,7 +151,7 @@ struct LearnBySpeakingApp: App {
                 .environmentObject(delegate.model)
                 .environmentObject(delegate.model.store)
                 .environmentObject(updater)
-                .updateAnnouncer()
+                .updateAnnouncer(updater)
                 .onAppear { updater.startChecking() }
                 .frame(minWidth: 760, minHeight: 560)
                 .background(Palette.bg)
