@@ -112,88 +112,145 @@ struct ReportView: View {
 struct ProgressView_: View {
     @EnvironmentObject var store: Store
     @EnvironmentObject var nav: Nav
+
     var body: some View {
-        let sessions = store.sessions
-        let p = (store.profile ?? NEW_PROFILE)
-        let wk = weekStats(sessions)
-        let st = streakInfo(sessions)
-        let scored = Array(sessions.filter { $0.report != nil }.suffix(12))
-        let total = sessions.reduce(0) { $0 + $1.seconds }
-        let week: [(label: String, min: Double)] = (0..<7).map { i in
-            let d = Calendar.current.date(byAdding: .day, value: -(6 - i), to: Date())!
-            let sec = sessions.filter { parseISO($0.date).map { Calendar.current.isDate($0, inSameDayAs: d) } ?? false }.reduce(0) { $0 + $1.seconds }
-            let f = DateFormatter(); f.locale = Locale(identifier: "fr_FR"); f.dateFormat = "EEE"
-            return (f.string(from: d), Double(sec) / 60)
-        }
-        let maxMin = max(Double(p.dailyMinutes), week.map(\.min).max() ?? 0)
+        let sessions: [SessionRecord] = store.sessions
         VStack(alignment: .leading, spacing: 16) {
             Text("Progression").font(.app(18, .bold))
-            HStack(spacing: 8) {
-                stat("\(st.days)", "jours d'affilée"); stat("\(Int((Double(total) / 60).rounded()))", "min de pratique"); stat("\(sessions.count)", "sessions")
-            }
-            HStack(spacing: 16) {
-                Avatar(mood: wk.minutes >= p.dailyMinutes * 3 ? .cheer : wk.minutes > 0 ? .happy : .sad, size: 64)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Bilan de la semaine").font(.app(14, .bold))
-                    Text("\(wk.minutes) min · \(wk.activeDays) jour\(wk.activeDays > 1 ? "s" : "") sur 7 · \(wk.sessions) séance\(wk.sessions > 1 ? "s" : "")\(wk.best.map { " · meilleur score \($0)" } ?? "")").font(.app(14))
-                    Text(wk.prevMinutes == 0 ? (wk.minutes > 0 ? "Beau début !" : "Une petite séance aujourd'hui ?") : wk.minutes >= wk.prevMinutes ? "+\(wk.minutes - wk.prevMinutes) min par rapport à la semaine dernière." : "\(wk.minutes - wk.prevMinutes) min par rapport à la semaine dernière : tu peux rattraper.")
-                        .font(.app(14)).foregroundStyle(Palette.muted)
-                    if st.frozen { Text("Un jour manqué a été pardonné : ta série continue.").font(.app(12)).foregroundStyle(Palette.muted) }
-                }
-                Spacer()
-            }.card()
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Cette semaine (min)").font(.app(16, .semibold))
-                HStack(alignment: .bottom, spacing: 8) {
-                    ForEach(week.indices, id: \.self) { i in
-                        VStack(spacing: 4) {
-                            VStack { Spacer(minLength: 0); RoundedRectangle(cornerRadius: 4).fill(Palette.accent).frame(height: max(week[i].min > 0 ? 3 : 0, 80 * week[i].min / maxMin)) }.frame(height: 80)
-                            Text(week[i].label).font(.app(11)).foregroundStyle(Palette.muted)
-                        }.frame(maxWidth: .infinity)
-                    }
-                }.frame(height: 112)
-            }.frame(maxWidth: .infinity, alignment: .leading).card()
-            if !scored.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Score des sessions").font(.app(16, .semibold))
-                    Canvas { ctx, sz in
-                        let W = sz.width, H = sz.height
-                        let pts = scored.enumerated().map { i, s in
-                            CGPoint(x: scored.count == 1 ? W / 2 : Double(i) / Double(scored.count - 1) * (W - 20) + 10, y: H - 10 - Double(s.report!.score) / 100 * (H - 20))
-                        }
-                        var line = Path(); line.addLines(pts)
-                        ctx.stroke(line, with: .color(Palette.accent), lineWidth: 2.5)
-                        for p in pts { ctx.fill(Path(ellipseIn: CGRect(x: p.x - 4, y: p.y - 4, width: 8, height: 8)), with: .color(Palette.accent)) }
-                    }.frame(height: 110)
-                }.frame(maxWidth: .infinity, alignment: .leading).card()
-            }
-            let cats = errorCategories(sessions)
-            if !cats.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Erreurs fréquentes").font(.app(16, .semibold))
-                    ForEach(cats, id: \.0) { k, n in HStack { Text(k).font(.app(14)); Spacer(); Text("\(n)").font(.app(14)).foregroundStyle(Palette.muted) } }
-                }.frame(maxWidth: .infinity, alignment: .leading).card()
-            }
+            totals(sessions)
+            weekSummary(sessions)
+            weekChart(sessions)
+            scoreChart(sessions)
+            errorsCard(sessions)
             Text("Historique").font(.app(16, .semibold))
             if sessions.isEmpty {
                 HStack(spacing: 12) { Avatar(mood: .sad, size: 56); Text("Aucune session pour l'instant. Viens parler avec moi !").font(.app(14)).foregroundStyle(Palette.muted) }
             }
-            ForEach(sessions.reversed()) { s in
-                Button { if s.report != nil { nav.open(.report(s)) } } label: {
-                    HStack {
-                        Image(systemName: Icon.scenario(s.scenarioId)).foregroundStyle(Palette.accent).frame(width: 22)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(scenarioTitle(s))
-                            Text("\(parseISO(s.date).map { $0.formatted(.dateTime.day().month(.twoDigits).year(.twoDigits).hour().minute().locale(Locale(identifier: "fr_FR"))) } ?? "") · \(max(1, Int((Double(s.seconds) / 60).rounded()))) min")
-                                .font(.app(12)).foregroundStyle(Palette.muted)
-                        }
-                        Spacer()
-                        Text(s.report.map { "\($0.score)" } ?? "–").font(.app(20, .bold)).foregroundStyle(Palette.accent)
-                    }.card(12)
-                }.buttonStyle(PressStyle())
-            }
+            ForEach(sessions.reversed()) { s in historyRow(s) }
         }
     }
+
+    private func totals(_ sessions: [SessionRecord]) -> some View {
+        let st = streakInfo(sessions)
+        let total: Int = sessions.reduce(0) { $0 + $1.seconds }
+        let minutes: Int = Int((Double(total) / 60).rounded())
+        return HStack(spacing: 8) {
+            stat("\(st.days)", "jours d'affilée")
+            stat("\(minutes)", "min de pratique")
+            stat("\(sessions.count)", "sessions")
+        }
+    }
+
+    private func weekSummary(_ sessions: [SessionRecord]) -> some View {
+        let p: Profile = store.profile ?? NEW_PROFILE
+        let wk = weekStats(sessions)
+        let st = streakInfo(sessions)
+        let mood: Mood = wk.minutes >= p.dailyMinutes * 3 ? .cheer : (wk.minutes > 0 ? .happy : .sad)
+        let plural1: String = wk.activeDays > 1 ? "s" : ""
+        let plural2: String = wk.sessions > 1 ? "s" : ""
+        let best: String = wk.best.map { " · meilleur score \($0)" } ?? ""
+        let line: String = "\(wk.minutes) min · \(wk.activeDays) jour\(plural1) sur 7 · \(wk.sessions) séance\(plural2)\(best)"
+        let diff: Int = wk.minutes - wk.prevMinutes
+        var trend: String
+        if wk.prevMinutes == 0 { trend = wk.minutes > 0 ? "Beau début !" : "Une petite séance aujourd'hui ?" }
+        else if wk.minutes >= wk.prevMinutes { trend = "+\(diff) min par rapport à la semaine dernière." }
+        else { trend = "\(diff) min par rapport à la semaine dernière : tu peux rattraper." }
+        return HStack(spacing: 16) {
+            Avatar(mood: mood, size: 64)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Bilan de la semaine").font(.app(14, .bold))
+                Text(line).font(.app(14))
+                Text(trend).font(.app(14)).foregroundStyle(Palette.muted)
+                if st.frozen { Text("Un jour manqué a été pardonné : ta série continue.").font(.app(12)).foregroundStyle(Palette.muted) }
+            }
+            Spacer()
+        }.card()
+    }
+
+    private func weekData(_ sessions: [SessionRecord]) -> [(label: String, min: Double)] {
+        let f = DateFormatter(); f.locale = Locale(identifier: "fr_FR"); f.dateFormat = "EEE"
+        var out: [(label: String, min: Double)] = []
+        for i in 0..<7 {
+            let d: Date = Calendar.current.date(byAdding: .day, value: -(6 - i), to: Date())!
+            var sec = 0
+            for s in sessions {
+                if let sd = parseISO(s.date), Calendar.current.isDate(sd, inSameDayAs: d) { sec += s.seconds }
+            }
+            out.append((f.string(from: d), Double(sec) / 60))
+        }
+        return out
+    }
+
+    private func weekChart(_ sessions: [SessionRecord]) -> some View {
+        let p: Profile = store.profile ?? NEW_PROFILE
+        let week = weekData(sessions)
+        let peak: Double = week.map(\.min).max() ?? 0
+        let maxMin: Double = max(Double(p.dailyMinutes), peak)
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("Cette semaine (min)").font(.app(16, .semibold))
+            HStack(alignment: .bottom, spacing: 8) {
+                ForEach(week.indices, id: \.self) { i in
+                    let h: CGFloat = max(week[i].min > 0 ? 3 : 0, 80 * week[i].min / maxMin)
+                    VStack(spacing: 4) {
+                        VStack { Spacer(minLength: 0); RoundedRectangle(cornerRadius: 4).fill(Palette.accent).frame(height: h) }.frame(height: 80)
+                        Text(week[i].label).font(.app(11)).foregroundStyle(Palette.muted)
+                    }.frame(maxWidth: .infinity)
+                }
+            }.frame(height: 112)
+        }.frame(maxWidth: .infinity, alignment: .leading).card()
+    }
+
+    @ViewBuilder private func scoreChart(_ sessions: [SessionRecord]) -> some View {
+        let scored: [SessionRecord] = Array(sessions.filter { $0.report != nil }.suffix(12))
+        if !scored.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Score des sessions").font(.app(16, .semibold))
+                Canvas { ctx, sz in
+                    let W: Double = sz.width, H: Double = sz.height
+                    var pts: [CGPoint] = []
+                    for (i, s) in scored.enumerated() {
+                        let x: Double = scored.count == 1 ? W / 2 : Double(i) / Double(scored.count - 1) * (W - 20) + 10
+                        let y: Double = H - 10 - Double(s.report!.score) / 100 * (H - 20)
+                        pts.append(CGPoint(x: x, y: y))
+                    }
+                    var line = Path(); line.addLines(pts)
+                    ctx.stroke(line, with: .color(Palette.accent), lineWidth: 2.5)
+                    for pt in pts { ctx.fill(Path(ellipseIn: CGRect(x: pt.x - 4, y: pt.y - 4, width: 8, height: 8)), with: .color(Palette.accent)) }
+                }.frame(height: 110)
+            }.frame(maxWidth: .infinity, alignment: .leading).card()
+        }
+    }
+
+    @ViewBuilder private func errorsCard(_ sessions: [SessionRecord]) -> some View {
+        let cats = errorCategories(sessions)
+        if !cats.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Erreurs fréquentes").font(.app(16, .semibold))
+                ForEach(cats, id: \.0) { k, n in HStack { Text(k).font(.app(14)); Spacer(); Text("\(n)").font(.app(14)).foregroundStyle(Palette.muted) } }
+            }.frame(maxWidth: .infinity, alignment: .leading).card()
+        }
+    }
+
+    private func historyRow(_ s: SessionRecord) -> some View {
+        var when = ""
+        if let d = parseISO(s.date) {
+            when = d.formatted(.dateTime.day().month(.twoDigits).year(.twoDigits).hour().minute().locale(Locale(identifier: "fr_FR")))
+        }
+        let mins: Int = max(1, Int((Double(s.seconds) / 60).rounded()))
+        let score: String = s.report.map { "\($0.score)" } ?? "–"
+        return Button { if s.report != nil { nav.open(.report(s)) } } label: {
+            HStack {
+                Image(systemName: Icon.scenario(s.scenarioId)).foregroundStyle(Palette.accent).frame(width: 22)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(scenarioTitle(s))
+                    Text("\(when) · \(mins) min").font(.app(12)).foregroundStyle(Palette.muted)
+                }
+                Spacer()
+                Text(score).font(.app(20, .bold)).foregroundStyle(Palette.accent)
+            }.card(12)
+        }.buttonStyle(PressStyle())
+    }
+
     private func stat(_ v: String, _ l: String) -> some View {
         VStack(spacing: 2) { Text(v).font(.app(24, .bold)); Text(l).font(.app(12)).foregroundStyle(Palette.muted) }.frame(maxWidth: .infinity).card()
     }
