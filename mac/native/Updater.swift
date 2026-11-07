@@ -140,8 +140,15 @@ final class Updater: ObservableObject {
         state = .installing
         let app = Bundle.main.bundleURL
         let staging = dir.appendingPathComponent("staging", isDirectory: true)
+        let expected = sha256
         Task.detached {
             do {
+                // Revérifie l'archive juste avant de l'installer (elle a pu changer sur le disque depuis le téléchargement).
+                let data = try Data(contentsOf: zip, options: .mappedIfSafe)
+                let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+                guard digest == expected else {
+                    throw NSError(domain: "Updater", code: 1, userInfo: [NSLocalizedDescriptionKey: "archive corrompue (SHA-256 différent)"])
+                }
                 try? FileManager.default.removeItem(at: staging)
                 try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
                 let unzip = Process()
