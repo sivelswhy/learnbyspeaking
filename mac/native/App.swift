@@ -143,12 +143,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct LearnBySpeakingApp: App {
     init() { Fonts.register() }
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    @StateObject private var updater = Updater()
 
     var body: some Scene {
         Window("LearnBySpeaking", id: "main") {
             RootView()
                 .environmentObject(delegate.model)
                 .environmentObject(delegate.model.store)
+                .environmentObject(updater)
+                .updateAnnouncer()
+                .onAppear { updater.startChecking() }
                 .frame(minWidth: 760, minHeight: 560)
                 .background(Palette.bg)
                 .preferredColorScheme(.light)
@@ -247,6 +251,7 @@ struct RootView: View {
                     }
                 }
                 Spacer()
+                UpdateBadge().padding(.bottom, 16)
             }
             .frame(width: 208)
             .padding(.top, 32)

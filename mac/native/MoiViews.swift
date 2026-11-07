@@ -171,6 +171,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             Header(title: "Réglages").padding(.horizontal, -16)
             ModelsCard()
+            UpdateCard()
             BackupCard()
             TextSizeCard()
             DiagnosticCard()

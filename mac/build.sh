@@ -39,6 +39,10 @@ install_name_tool -change "$ORT/lib/libonnxruntime.1.dylib" @rpath/libonnxruntim
 for f in "$APP/Contents/MacOS/LearnBySpeaking" "$FW"/*.dylib; do otool -L "$f" | awk 'NR>1{print $1}' | grep -q /opt/homebrew && { echo "dépendance Homebrew restante : $f" >&2; exit 1; }; done
 # Menus système en français (Édition, Fenêtre…) : langue de développement fr.
 sed -e 's#<key>CFBundlePackageType</key>#<key>CFBundleDevelopmentRegion</key><string>fr</string>\n  <key>CFBundleLocalizations</key><array><string>fr</string></array>\n  &#' mac/Info.plist > "$APP/Contents/Info.plist"
+# Version de la release (CI) : APP_VERSION=0.1.12 ; sinon celle de mac/Info.plist.
+if [ -n "${APP_VERSION:-}" ]; then
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" -c "Set :CFBundleVersion $APP_VERSION" "$APP/Contents/Info.plist"
+fi
 mkdir -p "$APP/Contents/Resources/fr.lproj"
 mkdir -p "$APP/Contents/Resources/fr"
 cp mac/native/Resources/fr/*.m4a "$APP/Contents/Resources/fr/" 2>/dev/null || true

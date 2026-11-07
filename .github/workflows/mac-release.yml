@@ -1,0 +1,65 @@
+name: Release app Mac
+# À chaque push sur main touchant l'app : compile LearnBySpeaking.app et publie une release GitHub.
+# L'app installée (mac/native/Updater.swift) lit la dernière release, télécharge l'archive et se met à jour toute seule.
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", ".github/workflows/pages.yml", "design-refs/**", "scripts/lowend-test.mjs"]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: mac-release
+  cancel-in-progress: false
+env:
+  LLAMA_TAG: b11732
+  WHISPER_TAG: v1.9.5
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Dépendances (onnxruntime, cmake)
+        run: brew install onnxruntime cmake
+      - name: llama-server (binaire officiel llama.cpp)
+        run: |
+          curl -fL "https://github.com/ggml-org/llama.cpp/releases/download/$LLAMA_TAG/llama-$LLAMA_TAG-bin-macos-arm64.tar.gz" -o llama.tar.gz
+          mkdir -p "$RUNNER_TEMP/llama" && tar -xzf llama.tar.gz -C "$RUNNER_TEMP/llama"
+          echo "LLAMA_DIR=$RUNNER_TEMP/llama/llama-$LLAMA_TAG" >> "$GITHUB_ENV"
+      - name: whisper-server (cache)
+        id: whisper-cache
+        uses: actions/cache@v4
+        with:
+          path: whisper-server
+          key: whisper-server-${{ env.WHISPER_TAG }}-macos15-arm64
+      - name: whisper-server (compilation, Metal intégré)
+        if: steps.whisper-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$WHISPER_TAG" https://github.com/ggml-org/whisper.cpp "$RUNNER_TEMP/whisper.cpp"
+          cd "$RUNNER_TEMP/whisper.cpp"
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_METAL=ON -DGGML_METAL_EMBED_LIBRARY=ON -DWHISPER_BUILD_EXAMPLES=ON
+          cmake --build build -j --target whisper-server
+          cp build/bin/whisper-server "$GITHUB_WORKSPACE/whisper-server"
+      - name: Version
+        run: echo "APP_VERSION=0.1.${{ github.run_number }}" >> "$GITHUB_ENV"
+      - name: Compilation de l'app
+        run: WHISPER_BIN="$GITHUB_WORKSPACE/whisper-server" bash mac/build.sh
+      - name: Archive
+        run: |
+          cd mac/build
+          ditto -c -k --keepParent --noextattr --norsrc LearnBySpeaking.app LearnBySpeaking-mac.zip
+          shasum -a 256 LearnBySpeaking-mac.zip | awk '{print $1}' > LearnBySpeaking-mac.zip.sha256
+          ls -lh LearnBySpeaking-mac.zip
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v$APP_VERSION" mac/build/LearnBySpeaking-mac.zip mac/build/LearnBySpeaking-mac.zip.sha256 \
+            --title "LearnBySpeaking $APP_VERSION" \
+            --notes "$(git log -1 --format='%s%n%n%b')" --latest
